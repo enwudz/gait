@@ -1,0 +1,981 @@
+#!/usr/bin/python
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+import pandas as pd
+import numpy as np
+import os
+import glob
+import cv2
+
+
+def makeLegDict():
+    leg_dict = {}
+    legs = ['R1', 'R2', 'R3', 'R4', 'L1', 'L2', 'L3', 'L4']
+    gait_data = ['stance_times', 'swing_times', 'duty_factors', 'gait_cycles']
+    interleg_data = ['down_to_up_opposite', 'down_to_up_anterior',
+                     'down_to_down_opposite', 'down_to_down_anterior',
+                     'up_to_up_opposite', 'up_to_up_anterior']
+    for leg in legs:
+        leg_dict[leg] = {}
+        for g in gait_data:
+            leg_dict[leg][g] = []
+        for i in interleg_data:
+            leg_dict[leg][i] = []
+
+    return leg_dict
+
+
+def save_stance_figures(data_folder, leg_dict, legs):
+    for x in ['stance', 'swing']:
+        box_data, f, a = plot_stance(leg_dict, legs, x, False)
+        fname = os.path.join(data_folder, x + '_plot.png')
+        plt.savefig(fname)
+
+
+def save_leg_figures(data_folder, leg_dict, video_end):
+    leg_combos = get_leg_combos()
+    for legs in leg_combos.keys():
+        f, a = plot_legs(leg_dict, leg_combos[legs], video_end, False)
+        figname = '_'.join(leg_combos[legs]) + '.png'
+        figname_path = os.path.join(data_folder, figname)
+        plt.savefig(figname_path)
+
+
+# from list of leg_downs, leg_ups, get stance_times, swing_times, gait_cycles, duty_factors
+def getStepSummary(downs, ups):
+    # only want complete gait cycles ... so a Down first and a Down last
+    if downs[0] > ups[0]:
+        ups = ups[1:]
+    if ups[-1] > downs[-1]:
+        ups = ups[:-1]
+
+    stance_times = []
+    swing_times = []
+    gait_cycles = []
+    duty_factors = []
+    mid_swings = []
+
+    # skip if not enough data, or if data bad
+    if len(downs) < 2:
+        print('No stance/swing/gait data for this leg')
+    elif len(downs) != len(ups) + 1:
+        print('Mismatch steps for this leg')
+    else:
+        stance_times = getIntervals(downs, ups, 4)
+        swing_times = getIntervals(ups, downs, 4)
+        gait_cycles = getIntervals(downs[:-1], downs[1:], 4)
+        duty_factors = np.around(np.array(stance_times) / np.array(gait_cycles), 4)
+
+        half_swings = np.array(swing_times) / 2
+        mid_swings = np.around(ups + half_swings, 4)
+
+    return downs, ups, stance_times, swing_times, gait_cycles, duty_factors, mid_swings
+
+
+# add data from up_down_times (one video) to leg_dict (multiple videos)
+def addDataToLegDict(leg_dict, up_down_times):
+    opposite_dict, anterior_dict = getOppAndAntLeg()
+
+    for leg in sorted(leg_dict.keys()):
+        downs = up_down_times[leg]['d']
+        ups = up_down_times[leg]['u']
+
+        downs, ups, stance_times, swing_times, gait_cycles, duty_factors = getStepSummary(downs, ups)
+
+        if len(stance_times) == 0:
+            print('No gait data for ' + leg)
+
+        else:
+            leg_dict[leg]['stance_times'].extend(stance_times)
+            leg_dict[leg]['swing_times'].extend(swing_times)
+            leg_dict[leg]['gait_cycles'].extend(gait_cycles)
+            leg_dict[leg]['duty_factors'].extend(duty_factors)
+
+            # timing with other legs
+            # down to down (opposite, anterior)
+            # down to up (opposite, anterior)
+            # up to up (opposite, anterior)
+            opposite_leg = opposite_dict[leg]
+            anterior_leg = anterior_dict[leg]
+
+            ups_anterior = up_down_times[anterior_leg]['u']
+            ups_opposite = up_down_times[opposite_leg]['u']
+
+            downs_anterior = up_down_times[anterior_leg]['d']
+            downs_opposite = up_down_times[opposite_leg]['d']
+
+            # down_to_up_opposite
+            down_to_up_opposite = getIntervals(downs, ups_opposite)
+            leg_dict[leg]['down_to_up_opposite'].extend(down_to_up_opposite)
+
+            # down_to_up_anterior
+            down_to_up_anterior = getIntervals(downs, ups_anterior)
+            leg_dict[leg]['down_to_up_anterior'].extend(down_to_up_anterior)
+
+            # down_to_down_opposite
+            down_to_down_opposite = getIntervals(downs, downs_opposite)
+            leg_dict[leg]['down_to_down_opposite'].extend(down_to_down_opposite)
+
+            # down_to_down_anterior
+            down_to_down_anterior = getIntervals(downs, downs_anterior)
+            leg_dict[leg]['down_to_down_anterior'].extend(down_to_down_anterior)
+
+            # up_to_up_opposite
+            up_to_up_opposite = getIntervals(ups, ups_opposite)
+            leg_dict[leg]['up_to_up_opposite'].extend(up_to_up_opposite)
+
+            # up_to_up_anterior
+            up_to_up_anterior = getIntervals(ups, ups_anterior)
+            leg_dict[leg]['up_to_up_anterior'].extend(up_to_up_anterior)
+
+    return leg_dict
+
+
+# getIntervals =
+# a function to take two lists and return a list of intervals between the list items
+# every item in list 1 will have an associated interval
+# set so beginning = lowest value in list 1, and end = highest value in list 2
+def getIntervals(list1, list2, dec_round=3):
+    intervals = []
+
+    if list1[-1] >= list2[-1]:
+        # last item of list1 is greater than last item of list2
+        # ... so we will ignore the last item of list1
+        list1 = list1[:-1]
+
+    if list2[0] <= list1[0]:
+        # first item of list2 is less than first item of list1
+        # ... so we will ignore the first item of list2
+        list2 = list2[1:]
+
+    if len(list2) == 0 or len(list1) == 0:
+        return []
+
+    arr1 = np.array(list1)
+    arr2 = np.array(list2)
+
+    for item in arr1:
+        next_item = arr2[np.argmax(arr2 > item)]
+        interval = next_item - item
+        intervals.append(interval)
+
+    return np.round(np.array(intervals), dec_round)
+
+
+def get_leg_combos():
+    leg_combos = {}
+    leg_combos['legs_all'] = ['L4', 'L3', 'L2', 'L1', 'R1', 'R2', 'R3', 'R4']
+    leg_combos['legs_lateral'] = ['L3', 'L2', 'L1', 'R1', 'R2', 'R3']
+    leg_combos['legs_all_right'] = ['R4', 'R3', 'R2', 'R1']
+    leg_combos['legs_all_left'] = ['L4', 'L3', 'L2', 'L1']
+    leg_combos['legs_right'] = ['R3', 'R2', 'R1']
+    leg_combos['legs_left'] = ['L3', 'L2', 'L1']
+    leg_combos['legs_1'] = ['R1', 'L1']
+    leg_combos['legs_2'] = ['R2', 'L2']
+    leg_combos['legs_3'] = ['R3', 'L3']
+    leg_combos['legs_4'] = ['R4', 'L4']
+    return leg_combos
+
+
+# get dictionaries of opposite and anterior legs
+# keyed by each leg
+def getOppAndAntLeg():
+    legs = ['R1', 'R2', 'R3', 'R4', 'L1', 'L2', 'L3', 'L4']
+    opposites = ['L1', 'L2', 'L3', 'L4', 'R1', 'R2', 'R3', 'R4']
+    anteriors = ['R3', 'R1', 'R2', 'R3', 'L3', 'L1', 'L2', 'L3']
+    opposite_dict = dict(zip(legs, opposites))
+    anterior_dict = dict(zip(legs, anteriors))
+    return opposite_dict, anterior_dict
+
+
+def plot_legs(legDict, legs, video_end, show=True):
+    leg_yvals = list(range(len(legs)))
+
+    # start a plot for the data
+    figheight = len(legs)
+    (f, a) = plt.subplots(1, figsize=(10, figheight))  # set height on # of legs
+
+    # add a leg to the plot
+    for i, leg in enumerate(legs):
+        yval = leg_yvals[i]
+        fd = legDict[leg]['d']
+        fu = legDict[leg]['u']
+        f, a = addLegToPlot(f, a, yval, fd, fu, video_end)
+
+    # show the plot
+    a.set_xlim([0, video_end])
+    y_buff = 0.5
+    a.set_ylim([leg_yvals[0] - y_buff, leg_yvals[-1] + y_buff])
+    a.set_yticks(leg_yvals)
+    a.set_yticklabels(legs)
+    a.set_xlabel('Time (sec)')
+    a.set_ylabel('Legs')
+    plt.subplots_adjust(bottom=0.3)
+    if show:
+        plt.show()
+    return f, a
+
+
+# test if a file can be found
+# input = path to file
+def fileTest(fname):
+    file_test = glob.glob(fname)
+    if len(file_test) == 0:
+        err = 'could not find ' + fname
+        print(err)
+        exit()
+        
+    else:
+        print('Found ' + fname)
+
+
+# getUpDownTimes = a function to open a given file
+# (formatted as mov_data.txt, from frame_stepper)
+# and get up/down timing for a given leg
+# input = path to file
+# output = up_down_times, video_end
+#    where up_down_times = a dictionary of lists, of up and down timing
+#    keyed by leg, e.g. leg_dict['R4']['u']  ( = [ 2,5,6,8 ... ] )
+def getUpDownTimes(mov_data):
+    fileTest(mov_data)
+
+    up_down_times = {}
+    latest_event = 0
+
+    with open(mov_data, 'r') as f:
+        for line in f:
+            if line.startswith('Length'):
+                movieLength = float(line.rstrip().split()[1])
+                # do not really care about movie length
+                # instead, care about the timing of the latest event recorded
+            if line.startswith('Data'):
+                currentLeg = line.rstrip().split()[2]
+                up_down_times[currentLeg] = {}
+            if line.startswith('Foot Down'):
+                line = line.rstrip()
+                footdown = parseFootLine(line)
+                up_down_times[currentLeg]['d'] = footdown
+                if max(footdown) > latest_event:
+                    latest_event = max(footdown)
+            if line.startswith('Foot Up'):
+                line = line.rstrip()
+                footup = parseFootLine(line)
+                up_down_times[currentLeg]['u'] = footup
+                if max(footup) > latest_event:
+                    latest_event = max(footup)
+
+    return up_down_times, latest_event
+
+# quality control for up_down_times ... make sure they are alternating!
+def qcUpDownTimes(up_down_times):
+    for leg in up_down_times.keys():
+        downs = up_down_times[leg]['d']
+        ups = up_down_times[leg]['u']
+        combo_times = np.array(downs + ups)
+        down_array = ['d'] * len(downs)
+        up_array = ['u'] * len(ups)
+        combo_ud = np.array(down_array + up_array)
+        inds = combo_times.argsort()
+        sorted_ud = combo_ud[inds]
+        for i in range(len(sorted_ud[:-1])):
+            if sorted_ud[i] == sorted_ud[i + 1]:
+                print('alternating u/d problem for ' + leg)
+
+
+def selectOneFromList(li):
+    print('\nChoose from this list : ')
+    i = 1
+    li = sorted(li)
+    
+    for thing in li:
+        print(str(i) + ': ' + thing)
+        i += 1
+    entry = input('\nWhich ONE do you want? ')
+    choice = int(entry)
+    ind = choice - 1
+    print('\nYou chose ' + li[ind] + '\n')
+    return li[ind]
+
+
+# given a list, select a single item or multiple items or all
+# return a list of items selected
+def selectMultipleFromList(li):
+    print('\nChoose from this list (separate by commas if multiple choices): ')
+    i = 1
+    for thing in li:
+        print(str(i) + ': ' + thing)
+        i += 1
+    print(str(i) + ': select ALL')
+
+    entry = input('\nWhich number(s) do you want? ')
+
+    if len(entry) > 1:  # multiple choices selected
+
+        indices = [int(x) - 1 for x in entry.split(',')]
+        choices = [li[ind] for ind in indices]
+
+        print('You chose: ' + ' and '.join(choices))
+
+        return choices
+
+    else:
+        choice = int(entry)
+        if choice <= len(li):
+            ind = choice - 1
+            print('\nYou chose ' + li[ind] + '\n')
+            return [li[ind]]
+        else:
+            print('\nYou chose them all\n')
+            return li
+
+
+def listDirectories():
+    # dirs = [d for d in os.listdir('Tools') if os.path.isdir(os.path.join('Tools', d))]
+    dirs = next(os.walk(os.getcwd()))[1]
+    dirs = [d for d in dirs if d.startswith('_') == False and d.startswith('.') == False]
+    return dirs
+
+
+def getMovieFromFileList(movie_folder):
+    
+    pathname = os.path.join(os.getcwd(), movie_folder)
+    file_list = glob.glob(os.path.join(pathname, '*'))
+
+    movieList = []
+    for f in file_list:
+        if '.mov' in f or '.mp4' in f or '.avi' in f:
+            movieList.append(f.split('/')[-1])
+
+    if len(movieList) > 1:
+        exit('I found ' + str(len(movieList)) + ' in ' + movie_folder)
+    else:
+        return (movieList[0])
+
+
+def getVideoStats(vid, printout=True):
+    numframes = vid.get(cv2.CAP_PROP_FRAME_COUNT)
+    vidfps = vid.get(cv2.CAP_PROP_FPS)
+    vidstart = vid.get(cv2.CAP_PROP_POS_MSEC)
+
+    vidlength = round(numframes / vidfps, 3)
+
+    frame_width = int(vid.get(3))
+    frame_height = int(vid.get(4))
+
+    if printout is True:
+        print('width = ', frame_width)
+        print('height = ', frame_height)
+        print('Number of Frames = ', numframes)
+        print('fps = ', vidfps)
+        print('Length = ', vidlength)
+        print('start = ', vidstart)
+
+    return vidlength, numframes, vidfps, vidstart, frame_width, frame_height
+
+
+def addLegToPlot(f, a, ylev, footdown, footup, videoEnd=6.2):
+    steps = []
+    stepTimes = [0]
+    down_color = [0.98, 0.98, 0.98]
+    up_color = [0, 0, 0]
+
+    if footdown[0] < footup[0]:
+        steps.append('u')
+    else:
+        steps.append('d')
+
+    while len(footdown) > 0 and len(footup) > 0:
+        if footdown[0] < footup[0]:
+            steps.append('d')
+            stepTimes.append(footdown[0])
+            footdown = footdown[1:]
+        else:
+            steps.append('u')
+            stepTimes.append(footup[0])
+            footup = footup[1:]
+
+    # deal with last step
+    if len(footdown) > 0:
+        steps.append('d')
+        stepTimes.append(footdown[0])
+    elif len(footup) > 0:
+        steps.append('u')
+        stepTimes.append(footup[0])
+
+    lastStepTime = videoEnd
+    stepTimes.append(lastStepTime)
+    rectHeight = 1
+
+    for i, step in enumerate(stepTimes[:-1]):
+        if steps[i] == 'd':
+            fc = down_color
+            ec = 'k'
+        else:
+            fc = up_color
+            ec = 'k'
+
+        # ax.add_patch(Rectangle((1, 1), 2, 6))
+        a.add_patch(Rectangle((stepTimes[i], ylev - rectHeight / 2), stepTimes[i + 1] - stepTimes[i], rectHeight,
+                              edgecolor=None, facecolor=fc, fill=True, lw=1))
+
+    return f, a
+
+
+def parseFootLine(footline):
+    return [int(x) / 1000 for x in footline.split(': ')[1].split()]
+
+
+# get durations of stances and swings for a leg
+# inputs = lists of times of foot-down (d) and foot-up (u)
+# can get these lists from leg_dictionary, out of getDataFromFile
+def getStancesSwings(d, u):
+    stances = []
+    swings = []
+
+    # get stance durations
+    if d[-1] > u[-1]:
+        # last down is greater than last up
+        # so ... going to ignore last down
+        downs = d[:-1]
+    else:
+        downs = d
+
+    for step in downs:
+        upstep = u[np.argmax(u > step)]
+        # print(step,upstep)
+        duration = upstep - step
+        stances.append(duration)
+
+    # get swing durations
+    if u[-1] > d[-1]:
+        # last up is greater than last down
+        # so ... going to ignore last up
+        ups = u[:-1]
+    else:
+        ups = u
+
+    for step in ups:
+        downstep = d[np.argmax(d > step)]
+        # print(step,downstep)
+        duration = downstep - step
+        swings.append(duration)
+
+    stances = np.array(stances)
+    swings = np.array(swings)
+
+    return stances, swings
+
+
+# given 2 legs ... get intervals between the down-steps of those legs
+# input = lists of times of down-steps
+def getStepIntervals(leg_down_1, leg_down_2):
+    intervals = []
+
+    if leg_down_1[-1] > leg_down_2[-1]:
+        # last step of leg 1 is after leg 2 ... so we will ignore it
+        leg_down_1 = leg_down_1[:-1]
+
+    for step in leg_down_1:
+        next_step = leg_down_2[np.argmax(leg_down_2 > step)]
+        # print(step,upstep)
+        duration = next_step - step
+        intervals.append(duration)
+
+    return intervals
+
+
+# boxplot of stance or swing data
+def plot_stance(leg_dict, leg_list, to_plot='stance', show_plot=True):
+    plt.style.use('fivethirtyeight')
+    box_data = []
+
+    for leg in leg_list:
+        stances_leg, swings_leg = getStancesSwings(np.array(leg_dict[leg]['d']), np.array(leg_dict[leg]['u']))
+        if to_plot == 'swing':
+            box_data.append(swings_leg)
+            ylab = 'Swing Time (sec)'
+        else:
+            box_data.append(stances_leg)
+            ylab = 'Stance Time (sec)'
+
+    if show_plot:
+        f, a = plot_box_data(leg_list, box_data, ylab, True)
+    else:
+        f, a = plot_box_data(leg_list, box_data, ylab, False)
+
+    return box_data, f, a
+
+
+def plot_box_data(leg_list, box_data, ylab, show_plot=True):
+    f, a = plt.subplots(1, figsize=(len(leg_list), 4), facecolor='w')
+    a.boxplot(box_data)
+    a.set_xticklabels(leg_list)
+    a.set_ylabel(ylab)
+    a.set_xlabel('legs')
+    a.set_facecolor('w')
+    plt.subplots_adjust(bottom=0.13, left=0.13)
+    if show_plot:
+        plt.show()
+    return f, a
+
+
+def save_stance_swing(data_folder, leg_list, stance_data, swing_data):
+    out_file = os.path.join(data_folder, 'stance_swing.csv')
+    with open(out_file, 'w') as o:
+        o.write('leg,datatype,data\n')
+        for i, leg in enumerate(leg_list):
+            o.write(leg + ',stance,' + ' '.join([str(round(x, 3)) for x in stance_data[i]]) + '\n')
+            o.write(leg + ',swing,' + ' '.join([str(round(x, 3)) for x in swing_data[i]]) + '\n')
+    return
+
+
+def saveStepStats(leg_dict, leg_group='first'):
+    stance_times = []
+    swing_times = []
+    gait_cycles = []
+    duty_factors = []
+
+    if leg_group == 'first':
+        legs = ['L3', 'L2', 'L1', 'R1', 'R2', 'R3']
+        leg_prefix = 'legs1-3_'
+    else:
+        legs = ['L4', 'R4']
+        leg_prefix = 'leg4_'
+
+    for leg in legs:
+        stance_times.extend(leg_dict[leg]['stance_times'])
+        swing_times.extend(leg_dict[leg]['swing_times'])
+        gait_cycles.extend(leg_dict[leg]['gait_cycles'])
+        duty_factors.extend(leg_dict[leg]['duty_factors'])
+
+    ofile = leg_prefix + 'stance_times' + '.csv'
+    o = open(ofile, 'w')
+    for s in stance_times:
+        o.write(str(s) + '\n')
+    o.close()
+
+    ofile = leg_prefix + 'swing_times' + '.csv'
+    o = open(ofile, 'w')
+    for s in swing_times:
+        o.write(str(s) + '\n')
+    o.close()
+
+    ofile = leg_prefix + 'gait_cycles' + '.csv'
+    o = open(ofile, 'w')
+    for s in gait_cycles:
+        o.write(str(s) + '\n')
+    o.close()
+
+    ofile = leg_prefix + 'duty_factors' + '.csv'
+    o = open(ofile, 'w')
+    for s in duty_factors:
+        o.write(str(s) + '\n')
+    o.close()
+
+
+def find_nearest(num, arr):
+    # given a number and an array of numbers
+    # return the number from the array that is closest to the input number
+    array = np.asarray(arr)
+    idx = (np.abs(array - num)).argmin()
+    return array[idx]
+
+
+#### for swing combo
+# functions to convert up and down lists for a leg into a vector of 1's (ups) and 0's (downs)
+
+def get_frame_times(movie_folder):
+    video_file = getMovieFromFileList(movie_folder)
+    vid = cv2.VideoCapture(os.path.join(movie_folder, video_file))
+    vidlength, numframes, vidfps, vidstart, frame_width, frame_height = getVideoStats(vid, False)
+    vid.release()
+    frame_times = np.array([int(x) for x in np.linspace(0, vidlength * 1000, int(numframes))])
+    return frame_times
+
+
+def uds_to_ones(ups, downs, leg_vector, frame_times):
+    # ups and downs are lists of equal length
+    # each up should be < each down
+    # the interval between up and down is a swing ... fill in this interval with 1's
+
+    if len(ups) == len(downs):
+        for i, up in enumerate(ups):
+            down = downs[i]
+            leg_vector[np.where(np.logical_and(frame_times > up, frame_times < down))] = 1
+    else:
+        print('Problem - # ups != # downs !')
+
+    return leg_vector
+
+
+def up_down_times_to_binary(downs, ups, frame_times):
+    # convert list of leg-down and leg-up to vector of 0's (for stance), 1's (for swing)
+    # first, need to deal with differences in up/down order ... convert them to just swings ududud
+    # and add swing data (i.e. 1's) at beginning and/or end of leg_vector if necessary
+
+    # make an empty vector for this leg
+    leg_vector = np.zeros(len(frame_times))
+
+    # leg patterns can be dududu, ududu, dududud, ududud
+    # swing data at beginning and end depends on whether d/u first or last
+    # figure this out, and then convert to ududud (just swings)
+
+    if downs[0] < ups[0] and ups[-1] > downs[-1]:  # input is dududu
+        # ... fill in start to first down with 1's
+        # ... fill in last up to end with 1's
+        # print('dududu ... filling in start frames with ones, end frames with ones, and omitting first down and last up')
+
+        leg_vector[np.where(frame_times < downs[0])] = 1
+        leg_vector[np.where(frame_times > ups[-1])] = 1
+
+        downs = downs[1:]
+        ups = ups[:-1]
+
+    elif downs[0] > ups[0] and ups[-1] > downs[-1]:  # input is ududu
+        # ... fill in last up to end with 1's
+        # print('ududu ... filling in end frames with ones, and omitting last up')
+
+        leg_vector[np.where(frame_times > ups[-1])] = 1
+
+        ups = ups[:-1]
+
+    elif downs[0] < ups[0] and downs[-1] > ups[-1]:  # input is dududud
+        # ... fill in start to first down with 1's
+        # print('dududud ... filling in start frames with ones, and omitting first down')
+
+        leg_vector[np.where(frame_times < downs[0])] = 1
+
+        downs = downs[1:]
+
+    elif downs[0] > ups[0] and downs[-1] > ups[-1]:  # input is ududud
+        # ... start and end with down, no need to fill in swing data
+        # print('ududud ... go ahead and find swings')
+        pass
+    else:
+        print('uh oh no pattern match')
+        exit()
+
+    # convert each swing interval to 1's
+    leg_vector = uds_to_ones(ups, downs, leg_vector, frame_times)
+
+    return leg_vector
+
+
+def make_leg_matrix(legs, up_down_times, frame_times):
+    # Build a matrix:
+    # rows = vector of swings (1's) and stances (0's) for each leg
+    # columns = each frame of video clip
+
+    # make empty matrix
+    leg_matrix = np.zeros([len(legs), len(frame_times)])
+
+    # fill up each row with leg data
+    for i, leg in enumerate(legs):
+        # print(leg)
+        ups = np.array(up_down_times[leg]['u'])
+        downs = np.array(up_down_times[leg]['d'])
+        leg_vector = up_down_times_to_binary(downs, ups, frame_times / 1000)
+        leg_matrix[i, :] = leg_vector
+
+    return leg_matrix
+
+
+def get_leg_swing_counts(leg_matrix, legs):
+    # function to get dictionary of #frames swinging for combinations of legs
+    # keys = leg_combo (e.g. 'L1_R2')
+    # values = number of frames where that combination of legs = swinging simultaneously
+    legs = np.array(legs)
+
+    # get number of frames
+    num_cols = np.shape(leg_matrix)[1]
+
+    # set up leg_swing_counts dictionary
+    # set count of where no legs are swinging to zero
+    leg_swing_counts = {}
+    leg_swing_counts['none'] = 0
+
+    for col_ind in np.arange(num_cols):
+        # in this column (frame), find indices of legs that are swinging (i.e. equal to 1)
+        one_indices = np.where(leg_matrix[:, col_ind] == 1)
+
+        # convert indices to leg names
+        swinging_legs = legs[one_indices]
+
+        # combine legs into a single string to use as a key
+        swinging_leg_key = '_'.join(sorted(swinging_legs))
+
+        # if this frame has no legs swinging, add one to the 'none' count
+        if len(swinging_leg_key) == 0:
+            leg_swing_counts['none'] += 1
+
+        # if this combo is not yet in the dictionary, 
+        else:
+            # if this combo is already in the dictionary, add one to its count
+            if swinging_leg_key in leg_swing_counts.keys():
+                leg_swing_counts[swinging_leg_key] += 1
+            # if this combo is not yet in the dictionary, set its count to 1
+            else:
+                leg_swing_counts[swinging_leg_key] = 1
+
+    return leg_swing_counts
+
+
+def add_counts_to_dictionary(new_data, existing_dictionary):
+    # add counts from new dictionary to old dictionary
+    # new_data is a dictionary of keys => counts
+    # existing has keys => counts
+
+    # for each key of new_data 
+    for k in new_data.keys():
+
+        # if this key is in existing_dictionary, add to existing counts
+        if k in existing_dictionary.keys():
+            existing_dictionary[k] += new_data[k]
+
+        # if this key is not in existing_dictionary, make an entry
+        else:
+            existing_dictionary[k] = new_data[k]
+
+    # return updated dictionary
+    return existing_dictionary
+
+
+def get_swing_categories():
+    # function to get dictionary of different categories of swinging leg combinations
+    # keys = category names
+    # values = leg combinations in each category
+    leg_combo_keys = ['contralateral pairs',
+                      'ipsilateral adjacents',
+                      'ipsilateral skips',
+                      'contralateral adjacents',
+                      'tripod',
+                      'single legs',
+                      'no legs']
+    leg_combo_values = [['L1_R1', 'L2_R2', 'L3_R3'],
+                        ['L1_L2', 'L2_L3', 'R1_R2', 'R2_R3'],
+                        ['R1_R3', 'L1_L3'],
+                        ['L1_R2', 'L2_R3', 'L3_R1', 'L2_R1', 'L3_R2', 'L1_R3'],
+                        ['L1_L3_R2', 'L2_R1_R3'],
+                        ['L1', 'L2', 'L3', 'R1', 'R2', 'R3'],
+                        ['none']]
+    swing_categories = dict(zip(leg_combo_keys, leg_combo_values))
+    return swing_categories
+
+def get_swing_combo_counts(leg_swing_counts, swing_categories):
+    # any other combo = 'other' and print out report of how many in which class, sorted descending
+    # question - count subsets? i.e. for L3_R1_R2, also count as L3_R1, L3_R2, R1_R2?
+
+    leg_swing_combos = {}
+
+    for k in swing_categories.keys():
+        leg_swing_combos[k] = 0
+
+    found_combos = []
+
+    # count frames for each leg combo            
+    for leg_combo in sorted(leg_swing_counts.keys()):
+
+        for swing_category in swing_categories.keys():
+            if leg_combo in swing_categories[swing_category]:
+                # print(leg_combo, ' is in ', swing_categories[swing_category])
+                leg_swing_combos[swing_category] += leg_swing_counts[leg_combo]
+                found_combos.append(leg_combo)
+
+    # quantify leg combinations that are not in swing_categories
+    for leg_combo in sorted(leg_swing_counts.keys()):
+
+        if leg_combo not in found_combos:
+            leg_swing_combos[leg_combo] = leg_swing_counts[leg_combo]
+
+    return leg_swing_combos
+
+def get_gait_categories():
+    categories = ['stand', 'pentapod', 'tetrapod', 'tripod', 'gallop', 'other']
+    leg_groups = [['none'],
+                  ['L1', 'L2', 'L3', 'R1', 'R2', 'R3'],
+                  ['L1_R2', 'L2_R3', 'L3_R1', 'L1_R3', 'L2_R1', 'L3_R2'],
+                  ['L1_L3_R2', 'L2_R1_R3'],
+                  ['L1_R1', 'L2_R2', 'L3_R3'],
+                  ['other']
+                  ]
+    return categories, leg_groups
+
+# function that will take a dictionary and return proportions in gait categories
+def get_proportions_in_swing_categories(data_dictionary, num_frames):
+
+    tetrapod = data_dictionary['contralateral adjacents'] / num_frames
+    stand = data_dictionary['no legs'] / num_frames
+    pentapod = data_dictionary['single legs'] / num_frames
+    # wave = (data_dictionary['single legs'] + data_dictionary['no legs']) / num_frames
+    tripod = data_dictionary['tripod'] / num_frames
+    gallop = data_dictionary['contralateral pairs'] / num_frames
+    # unclassified = 1 - (tetrapod + wave + tripod + gallop)
+    other = 1 - (tetrapod + stand + pentapod + tripod + gallop)
+    # category_data = [tetrapod, wave, tripod, gallop, unclassified]
+    category_data = [stand, pentapod, tetrapod, tripod, gallop, other]
+
+    categories, leg_groups = get_gait_categories()
+
+    return categories, category_data
+
+
+# function to get / combine data for the selected movie folders
+def get_swing_combo_data(movie_folders, legs):
+    swing_categories = get_swing_categories()
+    all_experiment_data = {}
+    total_frames = 0
+
+    for movie_folder in movie_folders:
+        
+        # get frame_times for this movie (in milliseconds, e.g. [0 33 66 100 .... ])
+        frame_times = get_frame_times(movie_folder)
+        total_frames += len(frame_times)
+
+        # get dictionary of up & down timing for this video clip
+        # keys = leg['u'] or leg['d'] where leg is in ['L4','L3','L2','L1' (or rights)]
+        up_down_times, latest_event = getUpDownTimes(os.path.join(movie_folder, 'mov_data.txt'))
+
+        # get matrix of up (1's) and down (0's) data for all legs
+        # rows = legs
+        # columns = frames of video
+        leg_matrix = make_leg_matrix(legs, up_down_times, frame_times)
+
+        # get dictionary of #frames swinging for different combinations of legs 
+        leg_swing_counts = get_leg_swing_counts(leg_matrix, legs)
+
+        # get counts of #frames in each type of swing category
+        leg_swing_combos = get_swing_combo_counts(leg_swing_counts, swing_categories)
+
+        # add leg_swing_combos data to existing dictionary for all experiments
+        all_experiment_data = add_counts_to_dictionary(leg_swing_combos, all_experiment_data)
+
+    return all_experiment_data, total_frames
+
+
+# convert step data for a single clip into a dataframe
+def stepDataToDf(foldername, fname):
+    fpath = os.path.join(foldername, fname)
+    fileTest(fpath)  # to test if file exists before trying to open it
+    df = pd.read_csv(fpath, index_col=None)
+
+    # add column that contains folder name
+    num_rows = df.shape[0]
+    exp_column = [foldername] * num_rows
+    df['clip'] = exp_column
+
+    return df
+
+
+# given multiple folders, combine step data from each folder into a dataframe
+def foldersToDf(folder_list, fname):
+    if len(folder_list) == 1:
+        step_data = stepDataToDf(folder_list[0], fname)
+    else:
+        step_data = stepDataToDf(folder_list[0], fname)
+        folder_list = folder_list[1:]
+        for folder in folder_list:
+            df = stepDataToDf(folder, fname)
+            step_data = pd.concat([step_data, df])
+
+    return step_data
+
+
+# given a folder that contains multiple folders, each with step data
+# combine step data from each folder into a dataframe
+def experimentToDf(experiment_directory, fname):
+    os.chdir(experiment_directory)
+    # list directories in this folder
+    clip_directories = listDirectories()
+
+    clip_list = selectMultipleFromList(clip_directories)
+    df = foldersToDf(clip_list, fname)
+    os.chdir('../')
+    return df
+
+def get_plot_colors(num_colors, palette = 'default'):
+    # see https://matplotlib.org/stable/gallery/color/named_colors.html
+    if palette == 'tab':
+        plot_colors = np.array(['tab:orange','tab:green','tab:purple','tab:red',
+                       'tab:blue', 'tab:cyan','black'])
+    else:
+        plot_colors = np.array(['firebrick','gold','forestgreen','steelblue',
+                   'darkviolet','darkorange','black'])
+
+    if num_colors > len(plot_colors):
+        print('too many colors')
+        return plot_colors
+    else:
+        return plot_colors[:num_colors]
+
+
+# given a dataframe containing step data
+# return metachronal lag (time between swings of hindlimbs and forelimbs)
+#     swing after foreleg step seen AFTER midleg step AFTER hindleg step?
+# and return normalized metachronal lag (normalized to hindlimb period)
+
+def get_metachronal_lag(df):
+    metachronal_lag = []  # initialize empty list
+    normalized_metachronal_lag = []  # initialize empty list
+    clips = np.unique(df['clip'].values)
+
+    hind_legs = ['L3', 'R3']
+    mid_legs = ['L2', 'R2']
+    fore_legs = ['L1', 'R1']
+
+    # go through each clip
+    for clip in clips:
+        clip_slice = df[df['clip'] == clip]
+
+        # go through each hind_leg
+        for leg_index, hind_leg in enumerate(hind_legs):
+            mid_leg = mid_legs[leg_index]
+            fore_leg = fore_legs[leg_index]
+
+            hind_steps = clip_slice[clip_slice.ref_leg == hind_leg]['down_time'].values
+            hind_swings = clip_slice[clip_slice.ref_leg == hind_leg]['up_time'].values
+            hind_periods = clip_slice[clip_slice.ref_leg == hind_leg]['gait_cycle'].values
+            mid_steps = clip_slice[clip_slice.ref_leg == mid_leg]['down_time'].values
+            fore_steps = clip_slice[clip_slice.ref_leg == fore_leg]['down_time'].values
+            fore_swings = clip_slice[clip_slice.ref_leg == fore_leg]['up_time'].values
+
+            # go through hind_steps
+            for i, step in enumerate(hind_steps):
+
+                # get gait_cycle associated with this step
+                hind_leg_period = hind_periods[i]
+
+                # get swing_time associated with this step
+                hind_swings_after_step = hind_swings[np.where(hind_swings > step)]
+                if len(hind_swings_after_step) == 0:
+                    break
+                else:
+                    hind_swing_time = hind_swings_after_step[0]
+
+                    # get mid_leg step after the hind_leg step
+                mid_steps_after_hind_step = mid_steps[np.where(mid_steps > step)]
+                if len(mid_steps_after_hind_step) == 0:
+                    break
+                else:
+                    mid_step_time = mid_steps_after_hind_step[0]
+
+                # get fore_leg step after this mid leg step
+                fore_steps_after_mid_step = fore_steps[np.where(fore_steps > mid_step_time)]
+                if len(fore_steps_after_mid_step) == 0:
+                    break
+                else:
+                    fore_step_time = fore_steps_after_mid_step[0]
+
+                # get fore_leg swing after this fore_leg step
+                fore_swings_after_fore_steps = fore_swings[np.where(fore_swings > fore_step_time)]
+                if len(fore_swings_after_fore_steps) == 0:
+                    break
+                else:
+                    fore_swing_time = fore_swings_after_fore_steps[0]
+
+                # passed all the tests ... find metachronal lag for this step
+                lag = fore_swing_time - hind_swing_time
+                if lag > 0:  # sometimes hindstep duration is super long, and foreleg swings before hindleg does
+                    metachronal_lag.append(np.round(lag, 3))
+                    normalized_metachronal_lag.append(np.round(lag / hind_leg_period, 3))
+
+    return metachronal_lag, normalized_metachronal_lag
