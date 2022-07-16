@@ -22,17 +22,17 @@ def main(resize=100):
 
     print('\n ... opening ' + video_file)
 
-    # look for a 'mov_data.txt' file in movie_folder
-    # if none there, create one
-    createMovDataFile(movie_folder, video_file)
-
     # get first frame
     # f = getFirstFrame(video_file)
     # displayFrame(f)
 
     # look for frame folder in movie_folder
     # if none there, create one and save frames
-    frame_folder = saveFrames(movie_folder, video_file)
+    frame_folder, first_frame, last_frame = saveFrames(movie_folder, video_file)
+
+    # look for a 'mov_data.txt' file in movie_folder
+    # if none there, create one
+    createMovDataFile(movie_folder, video_file, first_frame, last_frame)
 
     # get foot of interest
     footname = assignFoot()
@@ -53,7 +53,7 @@ def main(resize=100):
 
     return
 
-def createMovDataFile(movieFolder, videoFile):
+def createMovDataFile(movieFolder, videoFile, first_frame, last_frame):
     # look for a 'mov_data.txt' file in movieFolder
     # if none there, create one
 
@@ -69,7 +69,7 @@ def createMovDataFile(movieFolder, videoFile):
         with open(out_file, 'w') as o:
             o.write('MovieName: ' + videoFile + '\n')
             o.write('Length: ' + str(vidlength) + '\n')
-            o.write('Speed: none\n')
+            o.write('Speed: ' + str(first_frame/1000) + '-' + str(last_frame/1000) + '\n')
 
     return out_file
 
@@ -283,7 +283,7 @@ def saveFrames(movieFolder, videofile):
 
     if len(flist) == 1:
         print(' ... frames already saved for ' + videofile + '\n')
-        return folder_name
+        return folder_name, 0, 0 
 
     print('Saving frames for ' + videofile + ' . . . . ')
     print('.... creating a directory =  ' + str(folder_name))
@@ -294,6 +294,8 @@ def saveFrames(movieFolder, videofile):
     vid = cv2.VideoCapture(movieFolder + '/' + videofile)
 
     print('.... saving frames!')
+
+    frameTimes = []
     
     while (vid.isOpened()):
         
@@ -314,12 +316,12 @@ def saveFrames(movieFolder, videofile):
             if frameTime > 0: # cv2 sometimes(?) assigns the last frame of the movie to time 0            
                 file_name = base_name + '_' + str(frameTime).zfill(8) + '.png'
                 cv2.imwrite(os.path.join(folder_name, file_name), frame)
+                frameTimes.append(frameTime)
             
         else: # no frame here
             break
     vid.release()
-
-    return folder_name
+    return folder_name, frameTimes[0], frameTimes[-1]
 
 
 def displayFrame(frame):
