@@ -1,36 +1,49 @@
 #!/usr/bin/python
 from gait_analysis import *
+import sys
 
-# get data ... which folder should we look in?
-# run this script in analyzed_movies
-dirs = listDirectories()
-data_folder = selectOneFromList(dirs)
-mov_data = os.path.join(data_folder, 'mov_data.txt')
+def main(data_folder):
 
-# parse movie data to get leg info
-# make dictionaries for each leg for which we have data
-leg_dict, video_end = getUpDownTimes(mov_data)
+    # get data ... which folder should we look in?
+    # run this script in a directory that has directories containing data for clips
+    if len(data_folder) == 0: 
+        dirs = listDirectories()
+        data_folder = selectOneFromList(dirs)
 
-# quality control on leg_dict
-qcUpDownTimes(leg_dict)
+    mov_data = os.path.join(data_folder, 'mov_data.txt')
 
-# plot steps - choose which legs to plot
-legs = get_leg_combos()['legs_all']  # dictionary of all combos
+    # parse movie data to get leg info
+    # make dictionaries for each leg for which we have data
+    leg_dict, video_end = getUpDownTimes(mov_data)
 
-# OR choose individual legs to plot
-# legs = ['L4','R4'] # for an individual leg
-# plot_legs(leg_dict, legs, video_end)
+    # quality control on leg_dict
+    qcUpDownTimes(leg_dict)
 
-# save a bunch of figures of leg plots
-save_leg_figures(data_folder, leg_dict, video_end)
+    # plot steps - choose which legs to plot
+    legs = get_leg_combos()['legs_all']  # dictionary of all combos
 
-# get (and plot?) stance length per leg, swing length per leg
-stance_data = plot_stance(leg_dict, legs, 'stance', False)[0]
-swing_data = plot_stance(leg_dict, legs, 'swing', False)[0]
+    # OR choose individual legs to plot
+    # legs = ['L4','R4'] # for an individual leg
+    # plot_legs(leg_dict, legs, video_end)
 
-# save stance and swing data figures
-save_stance_figures(data_folder, leg_dict, legs)
+    # save a bunch of figures of leg plots
+    save_leg_figures(data_folder, leg_dict, video_end)
 
-# save stance and swing data to a file
-save_stance_swing(data_folder, legs, stance_data, swing_data)
+    # get (and plot?) stance length per leg, swing length per leg
+    stance_data = plot_stance(leg_dict, legs, 'stance', False)[0]
+    swing_data = plot_stance(leg_dict, legs, 'swing', False)[0]
 
+    # save stance and swing data figures
+    save_stance_figures(data_folder, leg_dict, legs)
+
+    # save stance and swing data to a file
+    #save_stance_swing(data_folder, legs, stance_data, swing_data)
+
+if __name__== "__main__":
+    if len(sys.argv) > 1:
+            data_folder = sys.argv[1]
+            print('looking in ' + data_folder)
+    else:
+        data_folder = ''
+
+        main(data_folder)

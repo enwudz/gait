@@ -3,9 +3,10 @@ import cv2
 import sys
 import os
 import glob
+import shutil
 from gait_analysis import *
 
-# aside: to make a movie from a bunch of frames
+# aside: want to make a movie from a bunch of frames?
 # brew install ffmpeg
 # ffmpeg below worked 19 May 2021
 # ffmpeg -f image2 -r 10 -s 1080x1920 -pattern_type glob -i '*.png' -vcodec mpeg4 movie.mp4
@@ -19,7 +20,6 @@ def main(resize=100):
     cwd = os.getcwd()
     movie_folder = selectOneFromList(listDirectories()) # from gait_analysis
     video_file = getMovieFromFileList(movie_folder)
-
     print('\n ... opening ' + video_file)
 
     # get first frame
@@ -35,21 +35,36 @@ def main(resize=100):
     createMovDataFile(movie_folder, video_file, first_frame, last_frame)
 
     # get foot of interest
-    footname = assignFoot()
+    feet_to_do = getFeet()
 
-    # step through frames and label things
-    data = stepThroughFrames(frame_folder, resize) # enter number to scale video
+    for footname in feet_to_do:
 
-    # print out step timing for ALL feet
-    # printFootSteps(data)
+        print('... record data for ' + footname + '\n')
 
-    ## print out foot down and foot up data for this foot
-    foot_info = showFootDownUp(footname, data)
-    print(foot_info)
+        # step through frames and label things
+        data = stepThroughFrames(frame_folder, footname, resize) # enter number to scale video
 
-    ## add new data to mov_data.txt file
-    with open(cwd + '/' + movie_folder + '/mov_data.txt', 'a') as o:
-        o.write(foot_info)
+        ## print out foot down and foot up data for this foot
+        foot_info = showFootDownUp(footname, data)
+        print(foot_info)
+
+        ## add new data to mov_data.txt file
+        with open(cwd + '/' + movie_folder + '/mov_data.txt', 'a') as o:
+            o.write(foot_info)
+
+    # if footname is R4, ask if we should remove frame folder
+    if footname == 'R4':
+        selection = input('\n Remove directory with frames? (y) or (n): ')
+        if selection == 'y':
+            shutil.rmtree(frame_folder)
+            print(' ... removed ' + frame_folder + '\n')
+        else:
+            print(' Kept folder with frames.\n')
+
+        selection = input ('\n Run plot_steps.py? (y) or (n): ')
+        if selection == 'y':
+            import plot_steps
+            plot_steps.main(movie_folder)
 
     return
 
@@ -69,14 +84,19 @@ def createMovDataFile(movieFolder, videoFile, first_frame, last_frame):
         with open(out_file, 'w') as o:
             o.write('MovieName: ' + videoFile + '\n')
             o.write('Length: ' + str(vidlength) + '\n')
+            o.write('Analyzed Frames: ' + str(first_frame/1000) + '-' + str(last_frame/1000) + '\n')
             o.write('Speed: ' + str(first_frame/1000) + '-' + str(last_frame/1000) + '\n')
 
     return out_file
 
-
-def assignFoot():
-    footname = input('Enter a foot name: ')
-    return footname
+def getFeet():
+    feet = ['L1', 'R1', 'L2', 'R2', 'L3', 'R3', 'L4', 'R4']
+    selection = input('Enter feet to analyze (separated by spaces) or select (a)ll: ')
+    if selection in ['a','all','A']:
+        feet_to_do = feet
+    else:
+        feet_to_do = selection.split(' ')
+    return feet_to_do
 
 
 def showFootDownUp(footname, footdata):
@@ -86,12 +106,6 @@ def showFootDownUp(footname, footdata):
     thing += 'Foot Up: ' + ' '.join([str(x) for x in footdata[1]]) + '\n'
     return thing
 
-
-def printFootSteps(footdata):
-    feet = ['R1', 'L1', 'R2', 'L2', 'R3', 'L3', 'R4', 'L4']
-    for i, f in enumerate(feet):
-        print(f, footdata[i])
-
 def filenameToTime(filename):
     t = filename.split('.')[0].split('_')[-1].lstrip('0')
     if len(t) > 0:
@@ -99,7 +113,7 @@ def filenameToTime(filename):
     else:
         return 0
 
-def stepThroughFrames(folder_name, resize=100):
+def stepThroughFrames(folder_name, footname, resize=100):
 
     # search in this folder for .png files
     search_term = os.path.join(folder_name, '*.png')
@@ -131,7 +145,7 @@ def stepThroughFrames(folder_name, resize=100):
             cv2.destroyAllWindows()
             print('Going to beginning!')
 
-        frame_name = 'frame ' + str(i + 1) + ' of ' + str(numFrames) + ' ...(esc) to quit'
+        frame_name = footname + ': frame ' + str(i + 1) + ' of ' + str(numFrames) + ' ...(esc) when finished'
         #print('looking at ' + frames[i])
 
         im = cv2.imread(frames[i])
@@ -263,10 +277,14 @@ def stepThroughFrames(folder_name, resize=100):
 
         elif key == 27:  # escape
 
+            # close image window
+            cv2.destroyAllWindows()
+            cv2.waitKey(1)
+
             ## return individual leg data
             # data = [sorted(x) for x in [R1,L1,R2,L2,R3,L3,R4,L4]]
 
-            ## return foot down and foot up data
+            ## return foot down and foot up data for this leg
             data = [sorted(x) for x in [footDown, footUp]]
 
             return data
