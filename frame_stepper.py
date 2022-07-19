@@ -145,7 +145,7 @@ def stepThroughFrames(folder_name, footname, resize=100):
             cv2.destroyAllWindows()
             print('Going to beginning!')
 
-        frame_name = footname + ': frame ' + str(i + 1) + ' of ' + str(numFrames) + ' ...(esc) when finished'
+        frame_name = footname + ' (' + current_state + '): frame ' + str(i + 1) + ' of ' + str(numFrames) + ' ...(esc) when finished'
         #print('looking at ' + frames[i])
 
         im = cv2.imread(frames[i])
@@ -190,10 +190,10 @@ def stepThroughFrames(folder_name, footname, resize=100):
             t = filenameToTime(frames[i])
             print('you pressed d = foot down!')
 
-            if current_state == 'd':
+            if current_state == 'down':
                 print('Current leg state is down ... skipping this time (' + str(t) + ')')
             else:
-                current_state = 'd'
+                current_state = 'down'
                 # get this time and add it to the list for this leg
                 footDown.append(t)
                 # print current list of times for foot down
@@ -202,10 +202,10 @@ def stepThroughFrames(folder_name, footname, resize=100):
         elif key == ord('u'):  # foot up!
             print('you pressed u = foot up!')
             t = filenameToTime(frames[i])
-            if current_state == 'u':
+            if current_state == 'up':
                 print('Current leg state is up ... skipping this time (' + str(t) + ')')
             else:
-                current_state = 'u'
+                current_state = 'up'
                 # get this time and add it to the list for this leg
                 footUp.append(t)
                 # print current list of times for foot down
