@@ -3,7 +3,7 @@ import cv2
 import sys
 import os
 import glob
-import shutil
+# import shutil
 from gait_analysis import *
 
 # aside: want to make a movie from a bunch of frames?
@@ -52,19 +52,20 @@ def main(resize=100):
         with open(cwd + '/' + movie_folder + '/mov_data.txt', 'a') as o:
             o.write(foot_info)
 
-    # if footname is R4, ask if we should remove frame folder
-    if footname == 'R4':
-        selection = input('\n Remove directory with frames? (y) or (n): ')
-        if selection == 'y':
-            shutil.rmtree(frame_folder)
-            print(' ... removed ' + frame_folder + '\n')
-        else:
-            print(' Kept folder with frames.\n')
+    # if footname is R4, ask if we should remove frame folder and run plot_steps
+    # if footname == 'R4':
 
-        selection = input ('\n Run plot_steps.py? (y) or (n): ')
-        if selection == 'y':
-            import plot_steps
-            plot_steps.main(movie_folder)
+    #     selection = input ('\n Run plot_steps.py? (y) or (n): ')
+    #     if selection == 'y':
+    #         import plot_steps
+    #         plot_steps.main(movie_folder)
+
+    #     selection = input('\n Remove directory with frames? (y) or (n): ')
+    #     if selection == 'y':
+    #         shutil.rmtree(frame_folder)
+    #         print(' ... removed ' + frame_folder + '\n')
+    #     else:
+    #         print(' Kept folder with frames.\n')
 
     return
 
@@ -309,7 +310,7 @@ def saveFrames(movieFolder, videofile):
 
     font = cv2.FONT_HERSHEY_SCRIPT_COMPLEX
 
-    vid = cv2.VideoCapture(movieFolder + '/' + videofile)
+    vid = cv2.VideoCapture(os.path.join(movieFolder, videofile))
 
     print('.... saving frames!')
 

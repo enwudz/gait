@@ -7,7 +7,6 @@ import os
 import glob
 import cv2
 
-
 def makeLegDict():
     leg_dict = {}
     legs = ['R1', 'R2', 'R3', 'R4', 'L1', 'L2', 'L3', 'L4']
@@ -233,11 +232,11 @@ def fileTest(fname):
 # (formatted as mov_data.txt, from frame_stepper)
 # and get up/down timing for a given leg
 # input = path to file
-# output = up_down_times, video_end
-#    where up_down_times = a dictionary of lists, of up and down timing
+# output = leg_dict, latest_datapoint
+#    where leg_dict = a dictionary of lists, of up and down timing
 #    keyed by leg, e.g. leg_dict['R4']['u']  ( = [ 2,5,6,8 ... ] )
 def getUpDownTimes(mov_data):
-    fileTest(mov_data)
+    # fileTest(mov_data)
 
     up_down_times = {}
     latest_event = 0
@@ -266,7 +265,7 @@ def getUpDownTimes(mov_data):
 
     return up_down_times, latest_event
 
-# quality control for up_down_times ... make sure they are alternating!
+# quality control for up_down_times ... make sure up and down times are alternating!
 def qcUpDownTimes(up_down_times):
     for leg in up_down_times.keys():
         downs = up_down_times[leg]['d']
@@ -979,3 +978,12 @@ def get_metachronal_lag(df):
                     normalized_metachronal_lag.append(np.round(lag / hind_leg_period, 3))
 
     return metachronal_lag, normalized_metachronal_lag
+
+def removeFramesFolder(data_folder):
+    frames_folder = os.path.join(data_folder, data_folder + '_frames')
+    fileList = glob.glob(os.path.join(data_folder, '*'))
+    if frames_folder in fileList:
+        selection = input('Remove frames folder? (y) or (n): ')
+        if selection == 'y':
+            print(' ... removing ' + frames_folder + '\n')
+            shutil.rmtree(frames_folder)
