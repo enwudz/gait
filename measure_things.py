@@ -2,7 +2,7 @@
 import cv2
 import sys
 import os
-import glob
+import math
 from gait_analysis import *
 
 '''
@@ -25,6 +25,9 @@ Upon quit, calculate speed, write all data to mov_data.txt file
 '''
 
 def main(data_folder):
+
+    # grab references to the global variables
+    global D, image, refPt, drawing, nameText
 
     # get data ... which folder should we look in?
     # run this script in a directory that has directories containing data for clips
@@ -66,23 +69,68 @@ def main(data_folder):
     # superimpose the two images, and clone
     image = cv2.addWeighted(beginning,0.5,ending,0.5,0)
     clone = image.copy()
+    what_to_measure = ''
 
-    # what should we measure first?
+    # let's measure things!
+    measuring = True
+    while measuring is True:
+
+        if what_to_measure == 'q':
+            measuring = False
+            cv2.destroyAllWindows()
+            break
+        
+        # measure the things!
+        image = clone.copy()
+        D, what_to_measure = measureImage()
+        print(what_to_measure + ' = ' + str(D))
+
+        # add measurement to appropriate list (only need 1, but can take averages if multiple)
+        if what_to_measure == 'width':
+            tardigrade_width.append(D)
+        elif what_to_measure == 'length':
+            tardigrade_length.append(D)
+        elif what_to_measure == 'distance':
+            distance_traveled.append(D)
+        elif what_to_measure == 'field_of_view':
+            field_of_view.append(D)
+    
+    # all done measuring! calculate measurement averages and add to movie_info
+    movie_info['tardigrade_width'] = np.around(np.mean(tardigrade_width))
+    movie_info['tardigrade_length'] = np.around(np.mean(tardigrade_length))
+    movie_info['field_width'] = np.around(np.mean(field_of_view))
+    movie_info['distance_traveled'] = np.around(np.mean(distance_traveled))
+
+    # calculate speed!
+    elapsed_time = movie_info['speed_end'] - movie_info['speed_start']
+    tardigrade_speed = round(movie_info['distance_traveled'] / elapsed_time, 2)
+    print('Tardigrade speed is ' + str(tardigrade_speed) + ' pixels/second')
+    movie_info['tardigrade_speed'] = tardigrade_speed
+
+    # update mov_data.txt
+    updateMovieData(data_folder, movie_info)
+
+def measureImage():
+
+    # grab references to the global variables
+    global D, image, refPt, drawing, nameText
+    refPt = []
+
+    # what should we measure?
     what_to_measure = promptForMeasurement()
     if what_to_measure == 'q':
-        measuring = False
+        return (0, what_to_measure) 
 
-    # measure the things! put this in a function that we can call . . . 
-    while measuring is True:
-        print('I will measure something!')
-        
-        # call measuring function here
+    nameText = "Drag a line to measure " + what_to_measure + " ; then (d)one or (r) reset"
+    clone = image.copy()
 
-        image_window_text = "Drag a line to measure " + what_to_measure + " ; then (d)one or (r) reset"
-        cv2.namedWindow(image_window_text)
-        cv2.setMouseCallback(image_window_text, clickDrag)
-        cv2.imshow(image_window_text, image)
-        key = cv2.waitKey(1)
+    # keep looping until the 'd' (or 'q') key is pressed
+    while True:
+        # display the image and wait for a keypress
+        cv2.namedWindow(nameText)
+        cv2.setMouseCallback(nameText, clickDrag)
+        cv2.imshow(nameText, image)
+        key = cv2.waitKey(1) & 0xFF
 
         # if the 'r' key is pressed, reset the measurement line
         if key == ord("r"):
@@ -90,22 +138,16 @@ def main(data_folder):
 
         # if the 'd' or 'q' key is pressed, break from the loop
         elif key == ord("d") or key == ord("q"):
+            # close all open windows
             cv2.destroyAllWindows()
+            break
 
-        # keep on measuring?
-        what_to_measure = promptForMeasurement()
-        if what_to_measure == 'q':
-            measuring = False
-
+    # close all open windows
+    cv2.waitKey(1)
     cv2.destroyAllWindows()
+    return round(D,2), what_to_measure
 
-
-    # update movie_info with averages of measurements!
-
-    # update mov_data.txt
-    updateMovieData(data_folder, movie_info)
-
-def clickDrag(event, x, y, flags, param):
+def clickDrag(event, x, y, flats, param):
 	# grab references to the global variables
 	global D, image, refPt, drawing, nameText
 
@@ -124,7 +166,7 @@ def clickDrag(event, x, y, flags, param):
 
 		# draw a line connecting the points
 		cv2.line(image, refPt[0], refPt[1], (0, 255, 0), 2)
-		D = dist.euclidean(refPt[0], refPt[1])
+		D = math.dist(refPt[0], refPt[1])
 		mX = refPt[0][0]
 		mY = refPt[0][1]
 		cv2.putText(image, "{:.1f} pix".format(D), (int(mX), int(mY - 10)),
@@ -138,18 +180,23 @@ def loadImage(data_folder, image_filename):
 
 def promptForMeasurement():
     selection = input('\nMeasure (w)idth, (l)ength, (d)istance, (f)ield of view, (q)uit?: ' ).rstrip()
-    print('you pressed ' + selection)
+    # print('you pressed ' + selection) # testing
     if selection == 'w':
         what_to_measure = 'width'
+        print('  You selected width - measure across body between leg pairs 2 and 3')
     elif selection == 'l':
         what_to_measure = 'length'
+        print('  You selected length - measure from nose to space between 4th leg pair')
     elif selection == 'd':
         what_to_measure = 'distance'
+        print('  You selected distance - measure nose to nose')
     elif selection == 'f':
         what_to_measure = 'field_of_view'
+        print('  You selected field of view - measure across diameter')
     else:
         what_to_measure = 'q'
-    print(what_to_measure)
+        print('All done measuring!')
+    # print(what_to_measure) # testing
     return what_to_measure
 
 if __name__== "__main__":
