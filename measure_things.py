@@ -10,18 +10,11 @@ Measure things!
     distance of tardigrade travel
     width of tardigrade
     length of tardigrade
-    size of field of view
+    size of field of view (consider showing on the image where the horizontal halfway line is?)
     (and calculate speed from distance and time)
 
 distance is measured in pixels - need to have a reference to convert to real distance
     e.g. a micrometer at same magnification
-
-Superimpose first and last frame
-Prompt - measure (w)idth, (l)ength, (d)istance, (f)ield of view, (q)uit
-Assign zeros to all before measuring
-Open window, measure (c) to close and record, (r) to reset and try again
-If multiple measurements of same thing, take average
-Upon quit, calculate speed, write all data to mov_data.txt file
 '''
 
 def main(data_folder):
