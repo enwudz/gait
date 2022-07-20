@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import os
 import glob
+import shutil
 import cv2
 
 def makeLegDict():
@@ -42,11 +43,12 @@ def save_leg_figures(data_folder, leg_dict, video_end):
 
 # from list of leg_downs, leg_ups, get stance_times, swing_times, gait_cycles, duty_factors
 def getStepSummary(downs, ups):
-    # only want complete gait cycles ... so a Down first and a Down last
+
+    # only want COMPLETE gait cycles ... so a Down first and a Down last
     if downs[0] > ups[0]:
-        ups = ups[1:]
+        ups = ups[1:] # if an UP comes first, get rid of it
     if ups[-1] > downs[-1]:
-        ups = ups[:-1]
+        ups = ups[:-1] # if an UP comes last, get rid of it
 
     stance_times = []
     swing_times = []
@@ -60,7 +62,7 @@ def getStepSummary(downs, ups):
     elif len(downs) != len(ups) + 1:
         print('Mismatch steps for this leg')
     else:
-        stance_times = getIntervals(downs, ups, 4)
+        stance_times = getIntervals(downs, ups, 4) # getIntervals wants to know how much to round values
         swing_times = getIntervals(ups, downs, 4)
         gait_cycles = getIntervals(downs[:-1], downs[1:], 4)
         duty_factors = np.around(np.array(stance_times) / np.array(gait_cycles), 4)
@@ -979,6 +981,7 @@ def get_metachronal_lag(df):
 
     return metachronal_lag, normalized_metachronal_lag
 
+# prompt to remove the folder containing individual frames saved from a clip
 def removeFramesFolder(data_folder):
     frames_folder = os.path.join(data_folder, data_folder + '_frames')
     fileList = glob.glob(os.path.join(data_folder, '*'))
@@ -987,3 +990,166 @@ def removeFramesFolder(data_folder):
         if selection == 'y':
             print(' ... removing ' + frames_folder + '\n')
             shutil.rmtree(frames_folder)
+
+# check to see if we have the beginning and ending frames to calculate speed
+# if we do not have them, make them!
+def saveSpeedFrames(data_folder, movie_info):
+    
+    # check to see if we have the beginning and ending frames to calculate speed
+    haveSpeedFrames = False
+    beginning_speed_frame = os.path.join(data_folder,'beginning_speed_frame.png')
+    ending_speed_frame = os.path.join(data_folder,'ending_speed_frame.png')
+    fileList = glob.glob(os.path.join(data_folder, '*'))
+    if beginning_speed_frame in fileList and ending_speed_frame in fileList:
+        print(' ... found the speed frames in ' + data_folder)
+
+    elif movie_info['speed_start'] > 0 and movie_info['speed_end'] > 0:
+        print(' ... no speed frames yet - saving them now!')
+
+        beginning_speed_range = int(movie_info['speed_start'] * 1000)
+        ending_speed_range = int(movie_info['speed_end'] * 1000)
+        need_beginning = True
+        need_ending = True
+
+        vid = cv2.VideoCapture(os.path.join(data_folder, movie_info['movie_name']))
+        while (vid.isOpened()):
+        
+            ret, frame = vid.read()
+            if ret: # found a frame
+                frameTime = int(vid.get(cv2.CAP_PROP_POS_MSEC))
+                if frameTime >= beginning_speed_range and need_beginning:
+                    print('saving ' + beginning_speed_frame + ' at ' + str(movie_info['speed_start']))
+                    cv2.imwrite(beginning_speed_frame, frame)
+                    need_beginning = False
+                if frameTime >= ending_speed_range and need_ending:
+                    print('saving ' + ending_speed_frame + ' at ' + str(movie_info['speed_end']))
+                    cv2.imwrite(ending_speed_frame, frame)
+                    need_ending = False
+            else: # no frame here
+                break
+
+        vid.release()
+    
+    return
+
+def dataAfterColon(line):
+    # given a string with ONE colon
+    # return data after the colon
+    return line.split(':')[1].replace(' ','')
+
+def getRangeFromText(text_range):
+    beginning = float(text_range.split('-')[0])
+    ending = float(text_range.split('-')[1])
+    return beginning, ending
+
+def getMovieInfo(data_folder):
+
+    mov_datafile = os.path.join(data_folder, 'mov_data.txt')
+
+    movie_info = {}
+    movie_info['movie_name'] = ''
+    movie_info['movie_length'] = 0
+    movie_info['analyzed_framerange'] = ''
+    movie_info['start_frame'] = 0
+    movie_info['end_frame'] = 0
+    movie_info['speed_framerange'] = ''
+    movie_info['speed_start'] = 0
+    movie_info['speed_end'] = 0
+    movie_info['tardigrade_width'] = 0
+    movie_info['tardigrade_length'] = 0
+    movie_info['field_width'] = 0
+    movie_info['distance_traveled'] = 0
+    movie_info['tardigrade_speed'] = 0
+
+    with open(mov_datafile, 'r') as f:
+        for line in f:
+            line = line.rstrip()
+            if line.startswith('MovieName'):
+                movie_info['movie_name'] = dataAfterColon(line)
+            if line.startswith('Length'):
+                movie_info['movie_length'] = float(dataAfterColon(line))
+            if line.startswith('Analyzed Frames'):
+                frameRange = dataAfterColon(line)
+                movie_info['analyzed_framerange'] = frameRange
+                movie_info['start_frame'], movie_info['end_frame'] = getRangeFromText(frameRange)
+            if line.startswith('Speed') and 'none' not in line:
+                speedRange = dataAfterColon(line)
+                movie_info['speed_framerange'] = speedRange
+                movie_info['speed_start'], movie_info['speed_end'] = getRangeFromText(speedRange)
+            if line.startswith('Field'):
+                movie_info['field_width'] = float(dataAfterColon(line))
+            if line.startswith('Tardigrade Width'):
+                movie_info['tardigrade_width'] = float(dataAfterColon(line))
+            if line.startswith('Tardigrade Length'):
+                movie_info['tardigrade_length'] = float(dataAfterColon(line))
+            if line.startswith('Distance Traveled'):
+                movie_info['distance_traveled'] = float(dataAfterColon(line))
+            if line.startswith('Tardigrade Speed'):
+                movie_info['tardigrade_speed'] = float(dataAfterColon(line))
+
+        # if no information for 'Analyzed Frames', retrieve it from the movie
+        if movie_info['start_frame'] == 0 or movie_info['end_frame'] == 0:
+            print('No info about analyzed frame times ... getting that now ... ')
+            first_frame, last_frame = getStartEndTimesFromMovie(data_folder, movie_info)
+            print('   ... start is ' + str(first_frame) + ', end is ' + str(last_frame))
+            movie_info['start_frame'], movie_info['end_frame'] = first_frame, last_frame
+            movie_info['analyzed_framerange'] = str(first_frame) + '-' + str(last_frame)
+
+    return movie_info
+
+def getStartEndTimesFromMovie(data_folder, movie_info):
+    frameTimes = []
+
+    vid = cv2.VideoCapture(os.path.join(data_folder, movie_info['movie_name']))
+    while (vid.isOpened()):
+    
+        ret, frame = vid.read()
+        if ret: # found a frame
+            frameTime = int(vid.get(cv2.CAP_PROP_POS_MSEC))
+            frameTimes.append(frameTime)
+
+        else:
+            break
+    vid.release()
+
+    frameTimes = [float(x)/1000 for x in frameTimes if x > 0]
+    return frameTimes[0], frameTimes[-1]
+
+def updateMovieData(data_folder, movie_info):
+
+    # make a backup copy of mov_data.txt
+    movie_datafile = os.path.join(data_folder, 'mov_data.txt')
+    print('\nUpdating ' + movie_datafile)
+
+    backup_datafile = os.path.join(data_folder, 'backup_mov_data.txt' )
+    os.rename(movie_datafile, backup_datafile)
+
+    print_now = False
+
+    o = open(movie_datafile, 'w')
+    o.write('MovieName: ' + movie_info['movie_name'] + '\n' )
+    o.write('Length: ' + str(movie_info['movie_length']) + '\n' )
+    o.write('Analyzed Frames: ' + movie_info['analyzed_framerange'] + '\n' )
+    o.write('Tardigrade Width: ' + str(movie_info['tardigrade_width']) + '\n')
+    o.write('Tardigrade Length: ' + str(movie_info['tardigrade_length']) + '\n')
+    o.write('Field of View: ' + str(movie_info['field_width']) + '\n')
+    
+    if movie_info['speed_start'] > 0 and movie_info['speed_end'] > movie_info['speed_start']:
+        o.write('Speed Frames: ' + movie_info['speed_framerange'] + '\n' )
+        time_elapsed = movie_info['speed_end'] - movie_info['speed_start']
+        movie_info['tardigrade_speed'] = movie_info['distance_traveled'] / time_elapsed
+    else:
+        o.write('Speed Frames: none' + '\n' )
+
+    o.write('Distance Traveled: ' + str(movie_info['distance_traveled']) + '\n')
+    o.write('Tardigrade Speed: ' + str(movie_info['tardigrade_speed']) + '\n')
+    o.write('\n')
+
+    with open(backup_datafile, 'r') as f:
+        for line in f:
+            if 'Data for' in line:
+                print_now = True
+            if print_now == True:
+                o.write(line)
+
+    o.close()

@@ -3,7 +3,6 @@ import cv2
 import sys
 import os
 import glob
-# import shutil
 from gait_analysis import *
 
 # aside: want to make a movie from a bunch of frames?
@@ -52,20 +51,14 @@ def main(resize=100):
         with open(cwd + '/' + movie_folder + '/mov_data.txt', 'a') as o:
             o.write(foot_info)
 
-    # if footname is R4, ask if we should remove frame folder and run plot_steps
-    # if footname == 'R4':
+    # if footname is R4, ask if we should run plot_steps 
+    # (plot steps also asks if we should remove the frame folder)
+    if footname == 'R4':
 
-    #     selection = input ('\n Run plot_steps.py? (y) or (n): ')
-    #     if selection == 'y':
-    #         import plot_steps
-    #         plot_steps.main(movie_folder)
-
-    #     selection = input('\n Remove directory with frames? (y) or (n): ')
-    #     if selection == 'y':
-    #         shutil.rmtree(frame_folder)
-    #         print(' ... removed ' + frame_folder + '\n')
-    #     else:
-    #         print(' Kept folder with frames.\n')
+        selection = input ('\nRun plot_steps.py? (y) or (n): ')
+        if selection == 'y':
+            import plot_steps
+            plot_steps.main(movie_folder)
 
     return
 
@@ -86,7 +79,7 @@ def createMovDataFile(movieFolder, videoFile, first_frame, last_frame):
             o.write('MovieName: ' + videoFile + '\n')
             o.write('Length: ' + str(vidlength) + '\n')
             o.write('Analyzed Frames: ' + str(first_frame/1000) + '-' + str(last_frame/1000) + '\n')
-            o.write('Speed: ' + str(first_frame/1000) + '-' + str(last_frame/1000) + '\n')
+            o.write('Speed Frames: ' + str(first_frame/1000) + '-' + str(last_frame/1000) + '\n')
 
     return out_file
 
@@ -213,10 +206,11 @@ def stepThroughFrames(folder_name, footname, resize=100):
                 print(footUp)
                 
         ## get boundaries of frames where no camera motion and tardigrade walking straight
+        ## NOT using this currently!
+        # if revive, need to figure out how to save image in the right folder
         elif key == ord('f'): # first frame
             print('you pressed f = first frame for speed')
             print('Time is ' + str(filenameToTime(frames[i])))
-            # need to figure out how to save image in the right folder
             
         ## timing of each individual leg
         ## this is an older method, should use above (up and down for each leg one at a time)
