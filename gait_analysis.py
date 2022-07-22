@@ -1099,7 +1099,10 @@ def getMovieInfo(data_folder):
             if line.startswith('Distance Traveled'):
                 movie_info['distance_traveled'] = float(dataAfterColon(line))
             if line.startswith('Tardigrade Speed'):
-                movie_info['tardigrade_speed'] = float(dataAfterColon(line))
+                if 'none' not in line:
+                    movie_info['tardigrade_speed'] = float(dataAfterColon(line))
+                else:
+                    movie_info['tardigrade_speed'] = dataAfterColon(line)
 
         # if no information for 'Analyzed Frames', retrieve it from the movie
         if movie_info['start_frame'] == 0 or movie_info['end_frame'] == 0:
