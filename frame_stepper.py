@@ -51,7 +51,7 @@ def main(resize=100):
         with open(cwd + '/' + movie_folder + '/mov_data.txt', 'a') as o:
             o.write(foot_info)
 
-    # if footname is R4, ask if we should run plot_steps 
+    # if footname is R4, ask if we should run plot_steps and measurements
     # (plot steps also asks if we should remove the frame folder)
     if footname == 'R4':
 
@@ -59,6 +59,11 @@ def main(resize=100):
         if selection == 'y':
             import plot_steps
             plot_steps.main(movie_folder)
+
+        selection = input ('Measure stuff? (y) or (n): ')
+        if selection == 'y':
+            import measure_things
+            measure_things.main(movie_folder)
 
     return
 
@@ -136,8 +141,9 @@ def stepThroughFrames(folder_name, footname, resize=100):
 
         if i >= numFrames:
             i = 0
+            print('All done with this clip - going back to beginning!')
+            cv2.waitKey(10)
             cv2.destroyAllWindows()
-            print('Going to beginning!')
 
         frame_name = footname + ' (' + current_state + '): frame ' + str(i + 1) + ' of ' + str(numFrames) + ' ...(esc) when finished'
         #print('looking at ' + frames[i])

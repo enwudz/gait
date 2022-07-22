@@ -1000,14 +1000,24 @@ def saveSpeedFrames(data_folder, movie_info):
     beginning_speed_frame = os.path.join(data_folder,'beginning_speed_frame.png')
     ending_speed_frame = os.path.join(data_folder,'ending_speed_frame.png')
     fileList = glob.glob(os.path.join(data_folder, '*'))
+    
     if beginning_speed_frame in fileList and ending_speed_frame in fileList:
         print(' ... found the speed frames in ' + data_folder)
-
-    elif movie_info['speed_start'] > 0 and movie_info['speed_end'] > 0:
+    
+    else:
         print(' ... no speed frames yet - saving them now!')
+        print('speed frame range ' + movie_info['speed_framerange'])
 
-        beginning_speed_range = int(movie_info['speed_start'] * 1000)
-        ending_speed_range = int(movie_info['speed_end'] * 1000)
+        if movie_info['speed_start'] > 0 and movie_info['speed_end'] > 0:
+            
+            beginning_speed_range = int(movie_info['speed_start'] * 1000)
+            ending_speed_range = int(movie_info['speed_end'] * 1000)
+
+        elif movie_info['speed_framerange'] == 'none':
+            print(' ... no speed boundaries available, just getting first frame ...')
+            beginning_speed_range = int(movie_info['start_frame'] * 1000)
+            ending_speed_range = int(movie_info['start_frame'] * 1000)
+
         need_beginning = True
         need_ending = True
 
@@ -1072,10 +1082,14 @@ def getMovieInfo(data_folder):
                 frameRange = dataAfterColon(line)
                 movie_info['analyzed_framerange'] = frameRange
                 movie_info['start_frame'], movie_info['end_frame'] = getRangeFromText(frameRange)
-            if line.startswith('Speed') and 'none' not in line:
-                speedRange = dataAfterColon(line)
-                movie_info['speed_framerange'] = speedRange
-                movie_info['speed_start'], movie_info['speed_end'] = getRangeFromText(speedRange)
+            if line.startswith('Speed'):
+                if 'none' in line:
+                    movie_info['speed_framerange'] = 'none'
+                    movie_info['speed_start'], movie_info['speed_end'] = (0,0)
+                else:
+                    speedRange = dataAfterColon(line)
+                    movie_info['speed_framerange'] = speedRange
+                    movie_info['speed_start'], movie_info['speed_end'] = getRangeFromText(speedRange)
             if line.startswith('Field'):
                 movie_info['field_width'] = float(dataAfterColon(line))
             if line.startswith('Tardigrade Width'):
