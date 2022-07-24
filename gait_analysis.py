@@ -6,6 +6,7 @@ import numpy as np
 import os
 import glob
 import shutil
+import sys
 import cv2
 
 def makeLegDict():
@@ -188,6 +189,12 @@ def getOppAndAntLeg():
     anterior_dict = dict(zip(legs, anteriors))
     return opposite_dict, anterior_dict
 
+# get dictionary of posterior legs keyed by each leg
+def getPosteriorLeg():
+    legs = ['R1', 'R2', 'R3', 'R4', 'L1', 'L2', 'L3', 'L4']
+    posteriors = ['R2','R3','R1','R1','L2','L3','L1','L1']
+    posterior_dict = dict(zip(legs, posteriors))
+    return posterior_dict
 
 def plot_legs(legDict, legs, video_end, show=True):
     leg_yvals = list(range(len(legs)))
@@ -224,7 +231,7 @@ def fileTest(fname):
     if len(file_test) == 0:
         err = 'could not find ' + fname
         print(err)
-        exit()
+        sys.exit()
         
     else:
         print('Found ' + fname)
@@ -310,7 +317,7 @@ def selectMultipleFromList(li):
 
     entry = input('\nWhich number(s) do you want? ')
 
-    if len(entry) > 1:  # multiple choices selected
+    if ',' in entry:  # multiple choices selected
 
         indices = [int(x) - 1 for x in entry.split(',')]
         choices = [li[ind] for ind in indices]
@@ -333,7 +340,7 @@ def selectMultipleFromList(li):
 def listDirectories():
     # dirs = [d for d in os.listdir('Tools') if os.path.isdir(os.path.join('Tools', d))]
     dirs = next(os.walk(os.getcwd()))[1]
-    dirs = [d for d in dirs if d.startswith('_') == False and d.startswith('.') == False]
+    dirs = sorted([d for d in dirs if d.startswith('_') == False and d.startswith('.') == False])
     return dirs
 
 
@@ -373,12 +380,15 @@ def getVideoStats(vid, printout=True):
 
     return vidlength, numframes, vidfps, vidstart, frame_width, frame_height
 
+def stanceSwingColors():
+    stance_color = [0.95, 0.95, 0.95]
+    swing_color = [0.15, 0.15, 0.15]
+    return stance_color, swing_color
 
 def addLegToPlot(f, a, ylev, footdown, footup, videoEnd=6.2):
     steps = []
     stepTimes = [0]
-    down_color = [0.98, 0.98, 0.98]
-    up_color = [0, 0, 0]
+    stance_color, swing_color = stanceSwingColors()
 
     if footdown[0] < footup[0]:
         steps.append('u')
@@ -409,10 +419,10 @@ def addLegToPlot(f, a, ylev, footdown, footup, videoEnd=6.2):
 
     for i, step in enumerate(stepTimes[:-1]):
         if steps[i] == 'd':
-            fc = down_color
+            fc = stance_color
             ec = 'k'
         else:
-            fc = up_color
+            fc = swing_color
             ec = 'k'
 
         # ax.add_patch(Rectangle((1, 1), 2, 6))
@@ -654,7 +664,7 @@ def up_down_times_to_binary(downs, ups, frame_times):
         pass
     else:
         print('uh oh no pattern match')
-        exit()
+        sys.exit()
 
     # convert each swing interval to 1's
     leg_vector = uds_to_ones(ups, downs, leg_vector, frame_times)
@@ -911,7 +921,7 @@ def get_plot_colors(num_colors, palette = 'default'):
 
 # given a dataframe containing step data
 # return metachronal lag (time between swings of hindlimbs and forelimbs)
-#     swing after foreleg step seen AFTER midleg step AFTER hindleg step?
+#     swing of foreleg step seen AFTER midleg swing AFTER hindleg swing!
 # and return normalized metachronal lag (normalized to hindlimb period)
 
 def get_metachronal_lag(df):
