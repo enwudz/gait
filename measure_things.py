@@ -1,4 +1,5 @@
 #!/usr/bin/python
+from imghdr import what
 import cv2
 import sys
 import os
@@ -36,23 +37,29 @@ def main(data_folder):
 
     # if measurements already exist, prompt to quit
     if movie_info['tardigrade_width'] > 0:
-        should_i_quit = input('\n It looks like there are already measurements .. (p)roceed or (q)uit?: ')
+        print('It looks like there are already measurements ... \n')
+        print('   Width: ' + str(movie_info['tardigrade_width']))
+        print('   Length: ' + str(movie_info['tardigrade_length']))
+        print('   Distance: ' + str(movie_info['distance_traveled']))
+        print('   Field Width: ' + str(movie_info['field_width']))
+        should_i_quit = input('\n   ... (p)roceed or (q)uit?: ')
         if should_i_quit == 'q':
             exit()
         elif should_i_quit == 'p':
-            print('I need to think about whether to keep old measurements or discard . . .')
+            print('Getting more measurements!')
 
     # if we have information about what frames to use to calculate speed
     # ... save these two frames if we do not already have them
     saveSpeedFrames(data_folder, movie_info)
 
     # Prompt - measure (w)idth, (l)ength, (d)istance, (f)ield of view, (q)uit
-    # Assign zeros to all of these before measuring
-    tardigrade_width = []
-    tardigrade_length = []
-    distance_traveled = []
-    field_of_view = []
-    tardigrade_speed = 0
+    # Assign old data or zeros to all of these before measuring
+
+    tardigrade_width = initializeMeasurementList(movie_info['tardigrade_width'])
+    tardigrade_length = initializeMeasurementList(movie_info['tardigrade_length'])
+    distance_traveled = initializeMeasurementList(movie_info['distance_traveled'])
+    field_of_view = initializeMeasurementList(movie_info['field_width'])
+    tardigrade_speed = movie_info['tardigrade_speed']
     measuring = True
 
     # load beginning frame and ending frame
@@ -76,7 +83,8 @@ def main(data_folder):
         # measure the things!
         image = clone.copy()
         D, what_to_measure = measureImage()
-        print(what_to_measure + ' = ' + str(D))
+        if what_to_measure != 'q':
+            print(what_to_measure + ' = ' + str(D))
 
         # add measurement to appropriate list (only need 1, but can take averages if multiple)
         if what_to_measure == 'width':
@@ -89,19 +97,38 @@ def main(data_folder):
             field_of_view.append(D)
     
     # all done measuring! calculate measurement averages and add to movie_info
-    movie_info['tardigrade_width'] = np.around(np.mean(tardigrade_width))
-    movie_info['tardigrade_length'] = np.around(np.mean(tardigrade_length))
-    movie_info['field_width'] = np.around(np.mean(field_of_view))
-    movie_info['distance_traveled'] = np.around(np.mean(distance_traveled))
+    movie_info['tardigrade_width'] = averageMeasurement(tardigrade_width)
+    movie_info['tardigrade_length'] = averageMeasurement(tardigrade_length) 
+    movie_info['field_width'] = averageMeasurement(field_of_view)
+    movie_info['distance_traveled'] = averageMeasurement(distance_traveled) 
 
     # calculate speed!
     elapsed_time = movie_info['speed_end'] - movie_info['speed_start']
-    tardigrade_speed = round(movie_info['distance_traveled'] / elapsed_time, 2)
-    print('Tardigrade speed is ' + str(tardigrade_speed) + ' pixels/second')
+    if elapsed_time > 0:
+        tardigrade_speed = round(movie_info['distance_traveled'] / elapsed_time, 2)
+        print('Tardigrade speed is ' + str(tardigrade_speed) + ' pixels/second')
+    else:
+        tardigrade_speed = 'none'
+        print('No speed available!')
+    
     movie_info['tardigrade_speed'] = tardigrade_speed
 
     # update mov_data.txt
     updateMovieData(data_folder, movie_info)
+
+def initializeMeasurementList(measurement_value):
+    if measurement_value > 0:
+        measurement_list = [measurement_value]
+    else:
+        measurement_list = []
+    return measurement_list
+
+def averageMeasurement(measurement_list):
+    if len(measurement_list) > 0:
+        average_measurement = np.around(np.mean(measurement_list))
+    else:
+        average_measurement = 0
+    return average_measurement
 
 def measureImage():
 
@@ -138,7 +165,7 @@ def measureImage():
     # close all open windows
     cv2.waitKey(1)
     cv2.destroyAllWindows()
-    return round(D,2), what_to_measure
+    return D, what_to_measure
 
 def clickDrag(event, x, y, flats, param):
 	# grab references to the global variables

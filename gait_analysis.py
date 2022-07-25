@@ -6,6 +6,7 @@ import numpy as np
 import os
 import glob
 import shutil
+import sys
 import cv2
 
 def makeLegDict():
@@ -188,6 +189,12 @@ def getOppAndAntLeg():
     anterior_dict = dict(zip(legs, anteriors))
     return opposite_dict, anterior_dict
 
+# get dictionary of posterior legs keyed by each leg
+def getPosteriorLeg():
+    legs = ['R1', 'R2', 'R3', 'R4', 'L1', 'L2', 'L3', 'L4']
+    posteriors = ['R2','R3','R1','R1','L2','L3','L1','L1']
+    posterior_dict = dict(zip(legs, posteriors))
+    return posterior_dict
 
 def plot_legs(legDict, legs, video_end, show=True):
     leg_yvals = list(range(len(legs)))
@@ -224,7 +231,7 @@ def fileTest(fname):
     if len(file_test) == 0:
         err = 'could not find ' + fname
         print(err)
-        exit()
+        sys.exit()
         
     else:
         print('Found ' + fname)
@@ -310,7 +317,7 @@ def selectMultipleFromList(li):
 
     entry = input('\nWhich number(s) do you want? ')
 
-    if len(entry) > 1:  # multiple choices selected
+    if ',' in entry:  # multiple choices selected
 
         indices = [int(x) - 1 for x in entry.split(',')]
         choices = [li[ind] for ind in indices]
@@ -329,11 +336,17 @@ def selectMultipleFromList(li):
             print('\nYou chose them all\n')
             return li
 
+def pathToData(data_path):
+    if '/' in data_path:
+        folders = data_path.split('/')[1:]
+    elif '\\' in data_path:
+        folders = data_path.split('\\')[1:]
+    os_path = os.path.join(os.sep, os.sep.join(folders))
+    return os_path
 
 def listDirectories():
-    # dirs = [d for d in os.listdir('Tools') if os.path.isdir(os.path.join('Tools', d))]
     dirs = next(os.walk(os.getcwd()))[1]
-    dirs = [d for d in dirs if d.startswith('_') == False and d.startswith('.') == False]
+    dirs = sorted([d for d in dirs if d.startswith('_') == False and d.startswith('.') == False])
     return dirs
 
 
@@ -373,12 +386,15 @@ def getVideoStats(vid, printout=True):
 
     return vidlength, numframes, vidfps, vidstart, frame_width, frame_height
 
+def stanceSwingColors():
+    stance_color = [0.95, 0.95, 0.95]
+    swing_color = [0.15, 0.15, 0.15]
+    return stance_color, swing_color
 
 def addLegToPlot(f, a, ylev, footdown, footup, videoEnd=6.2):
     steps = []
     stepTimes = [0]
-    down_color = [0.98, 0.98, 0.98]
-    up_color = [0, 0, 0]
+    stance_color, swing_color = stanceSwingColors()
 
     if footdown[0] < footup[0]:
         steps.append('u')
@@ -409,10 +425,10 @@ def addLegToPlot(f, a, ylev, footdown, footup, videoEnd=6.2):
 
     for i, step in enumerate(stepTimes[:-1]):
         if steps[i] == 'd':
-            fc = down_color
+            fc = stance_color
             ec = 'k'
         else:
-            fc = up_color
+            fc = swing_color
             ec = 'k'
 
         # ax.add_patch(Rectangle((1, 1), 2, 6))
@@ -654,7 +670,7 @@ def up_down_times_to_binary(downs, ups, frame_times):
         pass
     else:
         print('uh oh no pattern match')
-        exit()
+        sys.exit()
 
     # convert each swing interval to 1's
     leg_vector = uds_to_ones(ups, downs, leg_vector, frame_times)
@@ -888,10 +904,10 @@ def experimentToDf(experiment_directory, fname):
     # list directories in this folder
     clip_directories = listDirectories()
 
-    clip_list = selectMultipleFromList(clip_directories)
+    clip_list = sorted(selectMultipleFromList(clip_directories))
     df = foldersToDf(clip_list, fname)
     os.chdir('../')
-    return df
+    return df, clip_list
 
 def get_plot_colors(num_colors, palette = 'default'):
     # see https://matplotlib.org/stable/gallery/color/named_colors.html
@@ -911,7 +927,7 @@ def get_plot_colors(num_colors, palette = 'default'):
 
 # given a dataframe containing step data
 # return metachronal lag (time between swings of hindlimbs and forelimbs)
-#     swing after foreleg step seen AFTER midleg step AFTER hindleg step?
+#     swing of foreleg step seen AFTER midleg swing AFTER hindleg swing!
 # and return normalized metachronal lag (normalized to hindlimb period)
 
 def get_metachronal_lag(df):
@@ -1000,14 +1016,24 @@ def saveSpeedFrames(data_folder, movie_info):
     beginning_speed_frame = os.path.join(data_folder,'beginning_speed_frame.png')
     ending_speed_frame = os.path.join(data_folder,'ending_speed_frame.png')
     fileList = glob.glob(os.path.join(data_folder, '*'))
+    
     if beginning_speed_frame in fileList and ending_speed_frame in fileList:
         print(' ... found the speed frames in ' + data_folder)
-
-    elif movie_info['speed_start'] > 0 and movie_info['speed_end'] > 0:
+    
+    else:
         print(' ... no speed frames yet - saving them now!')
+        print('speed frame range ' + movie_info['speed_framerange'])
 
-        beginning_speed_range = int(movie_info['speed_start'] * 1000)
-        ending_speed_range = int(movie_info['speed_end'] * 1000)
+        if movie_info['speed_start'] > 0 and movie_info['speed_end'] > 0:
+            
+            beginning_speed_range = int(movie_info['speed_start'] * 1000)
+            ending_speed_range = int(movie_info['speed_end'] * 1000)
+
+        elif movie_info['speed_framerange'] == 'none':
+            print(' ... no speed boundaries available, just getting first frame ...')
+            beginning_speed_range = int(movie_info['start_frame'] * 1000)
+            ending_speed_range = int(movie_info['start_frame'] * 1000)
+
         need_beginning = True
         need_ending = True
 
@@ -1072,10 +1098,14 @@ def getMovieInfo(data_folder):
                 frameRange = dataAfterColon(line)
                 movie_info['analyzed_framerange'] = frameRange
                 movie_info['start_frame'], movie_info['end_frame'] = getRangeFromText(frameRange)
-            if line.startswith('Speed') and 'none' not in line:
-                speedRange = dataAfterColon(line)
-                movie_info['speed_framerange'] = speedRange
-                movie_info['speed_start'], movie_info['speed_end'] = getRangeFromText(speedRange)
+            if line.startswith('Speed'):
+                if 'none' in line:
+                    movie_info['speed_framerange'] = 'none'
+                    movie_info['speed_start'], movie_info['speed_end'] = (0,0)
+                else:
+                    speedRange = dataAfterColon(line)
+                    movie_info['speed_framerange'] = speedRange
+                    movie_info['speed_start'], movie_info['speed_end'] = getRangeFromText(speedRange)
             if line.startswith('Field'):
                 movie_info['field_width'] = float(dataAfterColon(line))
             if line.startswith('Tardigrade Width'):
@@ -1085,7 +1115,10 @@ def getMovieInfo(data_folder):
             if line.startswith('Distance Traveled'):
                 movie_info['distance_traveled'] = float(dataAfterColon(line))
             if line.startswith('Tardigrade Speed'):
-                movie_info['tardigrade_speed'] = float(dataAfterColon(line))
+                if 'none' not in line:
+                    movie_info['tardigrade_speed'] = float(dataAfterColon(line))
+                else:
+                    movie_info['tardigrade_speed'] = dataAfterColon(line)
 
         # if no information for 'Analyzed Frames', retrieve it from the movie
         if movie_info['start_frame'] == 0 or movie_info['end_frame'] == 0:
