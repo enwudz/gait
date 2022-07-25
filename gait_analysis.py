@@ -907,7 +907,7 @@ def experimentToDf(experiment_directory, fname):
     clip_list = sorted(selectMultipleFromList(clip_directories))
     df = foldersToDf(clip_list, fname)
     os.chdir('../')
-    return df, clip_list
+    return df
 
 def get_plot_colors(num_colors, palette = 'default'):
     # see https://matplotlib.org/stable/gallery/color/named_colors.html
@@ -1068,6 +1068,7 @@ def getRangeFromText(text_range):
     ending = float(text_range.split('-')[1])
     return beginning, ending
 
+# get information about a clip (e.g. timing, tardigrade size, tardigrade speed) from mov_data.txt
 def getMovieInfo(data_folder):
 
     mov_datafile = os.path.join(data_folder, 'mov_data.txt')
@@ -1129,6 +1130,35 @@ def getMovieInfo(data_folder):
             movie_info['analyzed_framerange'] = str(first_frame) + '-' + str(last_frame)
 
     return movie_info
+
+# from a treatment folder containing folders of clips
+# return a dictionary containing size and speed information for each clip
+def sizeAndSpeed(treatment_dir, clip_folders):
+    
+    # set up a dictionary to contain size and speed data for each clip
+    size_speed = {}
+        
+    # go through all the selected clips and add data to size_speed dicionary
+    for clip in clip_folders:
+        data_folder = os.path.join(treatment_dir, clip)
+        
+        # get dictionary of  info about movie from mov_data.txt
+        movie_info = getMovieInfo(data_folder)
+
+        size_speed[clip] = {}
+
+        size_speed[clip]['analyzed_time'] = movie_info['end_frame'] - movie_info['start_frame']
+        size_speed[clip]['tardigrade_length'] = movie_info['tardigrade_length']
+
+        # area approximate as an ellipse. (length/2 * width/2 * pi)
+        tardigrade_area = movie_info['tardigrade_width'] / 2 * movie_info['tardigrade_length'] / 2 * np.pi
+        size_speed[clip]['tardigrade_area'] = tardigrade_area
+
+        size_speed[clip]['distance_traveled'] = movie_info['distance_traveled']
+        size_speed[clip]['field_width'] = movie_info['field_width']
+        size_speed[clip]['tardigrade_speed'] = movie_info['tardigrade_speed']
+
+    return size_speed
 
 def getStartEndTimesFromMovie(data_folder, movie_info):
     frameTimes = []
