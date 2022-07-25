@@ -336,9 +336,15 @@ def selectMultipleFromList(li):
             print('\nYou chose them all\n')
             return li
 
+def pathToData(data_path):
+    if '/' in data_path:
+        folders = data_path.split('/')[1:]
+    elif '\\' in data_path:
+        folders = data_path.split('\\')[1:]
+    os_path = os.path.join(os.sep, os.sep.join(folders))
+    return os_path
 
 def listDirectories():
-    # dirs = [d for d in os.listdir('Tools') if os.path.isdir(os.path.join('Tools', d))]
     dirs = next(os.walk(os.getcwd()))[1]
     dirs = sorted([d for d in dirs if d.startswith('_') == False and d.startswith('.') == False])
     return dirs
@@ -898,10 +904,10 @@ def experimentToDf(experiment_directory, fname):
     # list directories in this folder
     clip_directories = listDirectories()
 
-    clip_list = selectMultipleFromList(clip_directories)
+    clip_list = sorted(selectMultipleFromList(clip_directories))
     df = foldersToDf(clip_list, fname)
     os.chdir('../')
-    return df
+    return df, clip_list
 
 def get_plot_colors(num_colors, palette = 'default'):
     # see https://matplotlib.org/stable/gallery/color/named_colors.html
