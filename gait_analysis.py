@@ -1216,3 +1216,41 @@ def updateMovieData(data_folder, movie_info):
                 o.write(line)
 
     o.close()
+
+# format colors of a boxplot object
+def formatBoxPlots(bp, boxColors=[], medianColors=[], flierColors=[]):
+    
+    # if no colors specified
+    if len(boxColors) == 0:
+        boxColors = ['tab:blue'] * len(bp['boxes'])
+        medianColors = ['white'] * len(bp['boxes'])
+        flierColors = ['lightsteelblue'] * len(bp['boxes'])
+    elif len(boxColors) == 1:
+        boxColors = boxColors * len(bp['boxes'])
+        medianColors = medianColors * len(bp['boxes'])
+        flierColors = flierColors * len(bp['boxes'])
+        
+    baseWidth = 2
+    for n,box in enumerate(bp['boxes']):
+        box.set( color=boxColors[n], linewidth=baseWidth)
+
+    for n,med in enumerate(bp['medians']):
+        med.set( color=medianColors[n], linewidth=baseWidth)
+
+    bdupes=[]
+    for i in boxColors:
+        bdupes.extend([i,i])
+
+    boxColors = bdupes
+    for n,whisk in enumerate(bp['whiskers']):
+        #whisk.set( color=(0.1,0.1,0.1), linewidth=2, alpha = 0.5)
+        whisk.set( color=boxColors[n], linewidth=baseWidth, alpha = 0.5)
+
+    for n,cap in enumerate(bp['caps']):
+        cap.set( color=boxColors[n], linewidth=baseWidth, alpha = 0.5)
+        
+    # fliers
+    for n, flier in enumerate(bp['fliers']): 
+        flier.set(marker ='.', color = flierColors[n], alpha = 0.5) 
+
+    return bp
