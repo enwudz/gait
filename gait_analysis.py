@@ -909,7 +909,7 @@ def experimentToDf(experiment_directory, fname):
     os.chdir('../')
     return df
 
-def get_plot_colors(num_colors, palette = 'default'):
+def get_plot_colors(num_colors=7, palette = 'default'):
     # see https://matplotlib.org/stable/gallery/color/named_colors.html
     if palette == 'tab':
         plot_colors = np.array(['tab:orange','tab:green','tab:purple','tab:red',
@@ -968,29 +968,29 @@ def get_metachronal_lag(df):
                 else:
                     hind_swing_time = hind_swings_after_step[0]
 
-                    # get mid_leg step after the hind_leg step
+                # get mid_leg step AFTER the hind_leg step
                 mid_steps_after_hind_step = mid_steps[np.where(mid_steps > step)]
                 if len(mid_steps_after_hind_step) == 0:
                     break
                 else:
                     mid_step_time = mid_steps_after_hind_step[0]
 
-                # get fore_leg step after this mid leg step
+                # get fore_leg step AFTER this mid leg step
                 fore_steps_after_mid_step = fore_steps[np.where(fore_steps > mid_step_time)]
                 if len(fore_steps_after_mid_step) == 0:
                     break
                 else:
                     fore_step_time = fore_steps_after_mid_step[0]
 
-                # get fore_leg swing after this fore_leg step
+                # get fore_leg SWING after this fore_leg step
                 fore_swings_after_fore_steps = fore_swings[np.where(fore_swings > fore_step_time)]
                 if len(fore_swings_after_fore_steps) == 0:
                     break
                 else:
                     fore_swing_time = fore_swings_after_fore_steps[0]
 
-                # passed all the tests ... find metachronal lag for this step
-                lag = fore_swing_time - hind_swing_time
+                # passed all the tests ... find the metachronal lag for this step
+                lag = fore_swing_time - hind_swing_time # could also do fore_step_time - 
                 if lag > 0:  # sometimes hindstep duration is super long, and foreleg swings before hindleg does
                     metachronal_lag.append(np.round(lag, 3))
                     normalized_metachronal_lag.append(np.round(lag / hind_leg_period, 3))
