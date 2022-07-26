@@ -1029,10 +1029,11 @@ def saveSpeedFrames(data_folder, movie_info):
             beginning_speed_range = int(movie_info['speed_start'] * 1000)
             ending_speed_range = int(movie_info['speed_end'] * 1000)
 
-        elif movie_info['speed_framerange'] == 'none':
-            print(' ... no speed boundaries available, just getting first frame ...')
+        # elif movie_info['speed_framerange'] == 'none':
+        else:
+            print(' ... no speed boundaries available, just getting first and last frames ...')
             beginning_speed_range = int(movie_info['start_frame'] * 1000)
-            ending_speed_range = int(movie_info['start_frame'] * 1000)
+            ending_speed_range = int(movie_info['end_frame'] * 1000)
 
         need_beginning = True
         need_ending = True
