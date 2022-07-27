@@ -868,7 +868,7 @@ def get_swing_categories(swing_combination, leg_set = 'lateral'):
         swing_categories = define_swing_categories() # these are tripod and tetrapod groups
         
         # how many legs are swinging?
-        if swing_combination == 'none':
+        if swing_combination == 'none' or swing_combination == '':
             num_legs_swinging = 0
             swinging_legs = ''
         else:
@@ -1540,7 +1540,7 @@ def bw_boxplot(bp):
     return bp
 
 # get plot colors
-def get_plot_colors(num_colors=7, palette = 'default'):
+def get_plot_colors(num_colors=9, palette = 'default'):
     # see https://matplotlib.org/stable/gallery/color/named_colors.html
     if palette == 'tab':
         plot_colors = np.array(['tab:orange','tab:green','tab:purple','tab:red',
