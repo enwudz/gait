@@ -8,6 +8,7 @@ import glob
 import shutil
 import sys
 import cv2
+from scipy.stats import sem
 
 def makeLegDict():
     leg_dict = {}
@@ -1097,27 +1098,11 @@ def experimentToDf(experiment_directory, fname):
     os.chdir('../')
     return df
 
-def get_plot_colors(num_colors=7, palette = 'default'):
-    # see https://matplotlib.org/stable/gallery/color/named_colors.html
-    if palette == 'tab':
-        plot_colors = np.array(['tab:orange','tab:green','tab:purple','tab:red',
-                       'tab:blue', 'tab:cyan', 'tab:pink', 'tab:olive', 'black'])
-    else:
-        plot_colors = np.array(['firebrick','gold','forestgreen','steelblue',
-                   'darkviolet','darkorange', 'lawngreen', 'gainsboro', 'black'])
-
-    if num_colors > len(plot_colors):
-        print('too many colors')
-        return plot_colors
-    else:
-        return plot_colors[:num_colors]
-
 
 # given a dataframe containing step data
 # return metachronal lag (time between swings of hindlimbs and forelimbs)
 #     swing of foreleg step seen AFTER midleg swing AFTER hindleg swing!
 # and return normalized metachronal lag (normalized to hindlimb period)
-
 def get_metachronal_lag(df):
     metachronal_lag = []  # initialize empty list
     normalized_metachronal_lag = []  # initialize empty list
@@ -1406,6 +1391,95 @@ def updateMovieData(data_folder, movie_info):
 
     o.close()
 
+# in a pair of experiments loaded into df1 and df2 
+# plot step parameters for each experiment for a set of legs to compare
+
+# error bars for stance and swing duration:
+# choose from std or sem (could also use 95%CI but need to code that)
+# sem is really small, b/c sample size (every single step for all legs being compared) is so big
+def compare_step_parameters(groups, dataframes, legs):
+    
+    df1, df2 = dataframes
+
+    stance_color, swing_color = stanceSwingColors()
+
+    # get stances and swings from the two dataframes
+    stances_1 = df1[df1['ref_leg'].isin(legs)]['stance_time'].values
+    stances_2 = df2[df2['ref_leg'].isin(legs)]['stance_time'].values
+    stances = [np.mean(stances_1),np.mean(stances_2)]
+    # stance_err = [np.std(stances_1),np.std(stances_2)]
+    stance_err = [sem(stances_1),sem(stances_2)]
+
+    swings_1 = df1[df1['ref_leg'].isin(legs)]['swing_time'].values
+    swings_2 = df2[df2['ref_leg'].isin(legs)]['swing_time'].values
+    swings = [np.mean(swings_1),np.mean(swings_2)]
+    # swing_err = [np.std(swings_1),np.std(swings_2)]
+    swing_err = [sem(swings_1),sem(swings_2)]
+
+    # get gait cycles from the two dataframes
+    gait_cycles_1 = df1[df1['ref_leg'].isin(legs)]['gait_cycle'].values
+    gait_cycles_2 = df2[df2['ref_leg'].isin(legs)]['gait_cycle'].values
+    gait_cycles = [gait_cycles_1,gait_cycles_2]
+
+    # get duty factors from the two dataframes
+    duty_factors_1 = df1[df1['ref_leg'].isin(legs)]['duty_factor'].values
+    duty_factors_2 = df2[df2['ref_leg'].isin(legs)]['duty_factor'].values
+    duty_factors = [duty_factors_1,duty_factors_2]
+
+    # get metachronal lags from the two dataframes
+    ml1, nml1 = get_metachronal_lag(df1)
+    ml2, nml2 = get_metachronal_lag(df2)
+    ml = [ml1,ml2]
+    nml = [nml1,nml2]
+
+    # set up a figure
+    fig = plt.figure(figsize=(8,6), dpi=300, constrained_layout = True)
+
+    # Stance and Swing duration
+    ax1 = fig.add_subplot(321)
+    ax1.barh(groups, stances, align='center', height=.25, xerr = stance_err,
+             color=stance_color, label='stances')
+    ax1.barh(groups, swings, align='center', height=.25, left=stances, xerr = swing_err,
+             color=swing_color, label='swings')
+    ax1.set_xlabel('Stance and Swing time (sec)')
+    ax1.set_yticks(np.array(range(len(groups))))
+    ax1.set_yticklabels(groups, fontsize=10)
+    ax1.set_facecolor('lightsteelblue') #lightslategrey skyblue darkseagreen lightsteelblue
+
+    # Gait_cycle (aka leg period)
+    ax3 = fig.add_subplot(323)
+    bp3 = ax3.boxplot(gait_cycles, vert = False)
+    bp3 = bw_boxplot(bp3)
+    ax3.set_yticks(np.array(range(len(groups)))+1)
+    ax3.set_yticklabels(groups, fontsize=10)
+    ax3.set_xlabel('Leg Period (sec)')
+
+    # Duty Factor
+    ax5 = fig.add_subplot(325)
+    bp5 = ax5.boxplot(duty_factors, vert = False)
+    bp5 = bw_boxplot(bp5)
+    ax5.set_yticks(np.array(range(len(groups)))+1)
+    ax5.set_yticklabels(groups, fontsize=10)
+    ax5.set_xlabel('Duty factor')
+
+    # Metachronal lag
+    ax2 = fig.add_subplot(322)
+    bp2 = ax2.boxplot(ml, vert = False)
+    bp2 = bw_boxplot(bp2)
+    ax2.set_yticks(np.array(range(len(groups)))+1)
+    ax2.set_yticklabels(groups, fontsize=10)
+    ax2.set_xlabel('Metachronal lag (sec)')
+
+    # Normalized metachronal lag
+    ax4 = fig.add_subplot(324)
+    bp4 = ax4.boxplot(nml, vert = False)
+    bp4 = bw_boxplot(bp4)
+    ax4.set_yticks(np.array(range(len(groups)))+1)
+    ax4.set_yticklabels(groups, fontsize=10)
+    ax4.set_xlabel('Normalized metachronal lag')
+
+    plt.show()
+
 # format colors of a boxplot object
 def formatBoxPlots(bp, boxColors=[], medianColors=[], flierColors=[]):
     
@@ -1443,3 +1517,40 @@ def formatBoxPlots(bp, boxColors=[], medianColors=[], flierColors=[]):
         flier.set(marker ='.', color = flierColors[n], alpha = 0.5) 
 
     return bp
+
+# black and white boxplot
+def bw_boxplot(bp):
+    for box in bp['boxes']:
+        box.set(color ='k', linewidth = 2, linestyle ="-")
+
+    for whisker in bp['whiskers']:
+        whisker.set(color ='k', linewidth = 2, linestyle ="-")
+
+    for cap in bp['caps']:
+        cap.set(color ='k', linewidth = 2)
+
+    # changing color and linewidth of medians
+    for median in bp['medians']:
+        median.set(color ='k', linewidth = 2)
+
+    # changing style of fliers
+    for flier in bp['fliers']:
+        flier.set(marker ='.', color ='#e7298a', alpha = 0.5)
+        
+    return bp
+
+# get plot colors
+def get_plot_colors(num_colors=7, palette = 'default'):
+    # see https://matplotlib.org/stable/gallery/color/named_colors.html
+    if palette == 'tab':
+        plot_colors = np.array(['tab:orange','tab:green','tab:purple','tab:red',
+                       'tab:blue', 'tab:cyan', 'tab:pink', 'tab:olive', 'black'])
+    else:
+        plot_colors = np.array(['firebrick','gold','forestgreen','steelblue',
+                   'darkviolet','darkorange', 'lawngreen', 'gainsboro', 'black'])
+
+    if num_colors > len(plot_colors):
+        print('too many colors')
+        return plot_colors
+    else:
+        return plot_colors[:num_colors]
