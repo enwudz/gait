@@ -350,10 +350,9 @@ def listDirectories():
     return dirs
 
 
-def getMovieFromFileList(movie_folder):
+def getMovieFromFileList(movie_folder): # movie_folder needs to be complete path
     
-    pathname = os.path.join(os.getcwd(), movie_folder)
-    file_list = glob.glob(os.path.join(pathname, '*'))
+    file_list = glob.glob(os.path.join(movie_folder, '*'))
 
     movieList = []
     for f in file_list:
@@ -361,7 +360,7 @@ def getMovieFromFileList(movie_folder):
             movieList.append(f.split('/')[-1])
 
     if len(movieList) > 1:
-        exit('I found ' + str(len(movieList)) + ' in ' + movie_folder)
+        exit('I found ' + str(len(movieList)) + 'movies in ' + movie_folder)
     else:
         return (movieList[0])
 
@@ -601,6 +600,302 @@ def find_nearest(num, arr):
 #### for swing combo
 # functions to convert up and down lists for a leg into a vector of 1's (ups) and 0's (downs)
 
+def valuesToProportions(dict_with_numerical_values):
+    dict_with_proportional_values = {}
+    
+    # get total of all values in dictionary
+    total_counts = 0
+    
+    for key in dict_with_numerical_values.keys():
+        total_counts += dict_with_numerical_values[key]
+    
+    # calculate proportions of each count
+    for key in dict_with_numerical_values.keys():
+        dict_with_proportional_values[key] = dict_with_numerical_values[key] / total_counts
+        
+    return dict_with_proportional_values
+
+def get_gait_combo_colors(leg_set = 'lateral'):
+
+    if leg_set == 'rear':
+        all_combos = ['stand','step','hop']
+        plot_colors = get_plot_colors(len(all_combos))
+        combo_colors = dict(zip(all_combos, plot_colors))
+    else:
+        all_combos = ['stand','pentapod','tetrapod_canonical','tetrapod_gallop', 'tetrapod_other',
+                'tripod_canonical','tripod_other','other']
+        plot_colors = get_plot_colors(len(all_combos))
+        combo_colors = dict(zip(all_combos, plot_colors))
+    return all_combos, combo_colors
+
+def gait_style_plot(dict_list, clip_names, leg_set = 'lateral'):
+    
+    barWidth = 0.85
+    num_bars = len(dict_list)
+    fig_width = 1.5 * num_bars
+
+    # set up colors
+    if leg_set == 'rear':
+        all_combos, combo_colors = get_gait_combo_colors('rear')
+    else:
+        all_combos, combo_colors = get_gait_combo_colors('lateral')
+
+    f,ax = plt.subplots(1,1,figsize = (fig_width,5))
+
+    for i, swing_combo_dict in enumerate(dict_list):
+
+        combo_proportions = valuesToProportions(swing_combo_dict)
+
+        for j, combo in enumerate(all_combos):
+
+            if j == 0:
+                bottom = 0
+
+            if i == 0: # first dataset ... plot everything at 0 value to make labels for legend
+                plt.bar(i, 0, bottom = bottom, color = combo_colors[combo],
+                           edgecolor='white', width=barWidth, label=combo.replace('_',' '))
+
+            if combo in swing_combo_dict.keys():
+
+                plt.bar(i, combo_proportions[combo], bottom = bottom, color = combo_colors[combo],
+                    edgecolor='white', width=barWidth)
+
+                bottom += combo_proportions[combo]
+
+    ax.set_xticks(np.arange(len(clip_names)))
+    ax.set_xticklabels(clip_names, fontsize=12)
+
+    # Add a legend
+    handles, labels = ax.get_legend_handles_labels()
+    plt.legend(reversed(handles), reversed(labels), loc='upper left',
+              bbox_to_anchor=(1,1), ncol=1)
+
+    plt.ylabel('Proportion of frames', fontsize=16)
+    
+    return f, ax
+
+# for ONE clip - plot steps with color-coded gait styles
+# turn into a function where input is leg_set and movie_folder
+def plotStepsAndGait(movie_folder, leg_set):
+
+    # get step times for each leg for which we have data
+    mov_data = os.path.join(movie_folder, 'mov_data.txt')
+    up_down_times, latest_event = getUpDownTimes(mov_data)
+
+    # quality control on up_down_times
+    qcUpDownTimes(up_down_times)
+
+    if leg_set == 'rear':
+        legs = get_leg_combos()['legs_4']
+    else:
+        legs = get_leg_combos()['legs_lateral']
+
+    # Get all frame times for this movie
+    frame_times = get_frame_times(movie_folder)
+
+    # trim frame_times to only include frames up to last recorded event
+    last_event_frame = np.min(np.where(frame_times > latest_event*1000))
+    frame_times_with_events = frame_times[:last_event_frame]
+
+    # get leg matrix
+    leg_matrix = make_leg_matrix(legs, up_down_times, frame_times_with_events)
+    legs = np.array(legs)
+
+    # set up colors
+    if leg_set == 'rear':
+        all_combos, combo_colors = get_gait_combo_colors('rear')
+    else:
+        all_combos, combo_colors = get_gait_combo_colors('lateral')
+
+    # make a vector of colors for each frame, depending on combination of swinging legs
+    swing_color_vector = []
+
+    for col_ind in np.arange(np.shape(leg_matrix)[1]):
+        one_indices = np.where(leg_matrix[:, col_ind] == 1)
+        swinging_legs = legs[one_indices]
+        swinging_leg_combo = '_'.join(sorted(swinging_legs))
+        gait_style = get_swing_categories(swinging_leg_combo, leg_set)
+        combo_color = combo_colors[gait_style]
+        swing_color_vector.append(combo_color)
+
+    # set up plot
+    # get colors for stance and swing
+    stance_color, swing_color = stanceSwingColors()
+
+    # definitions for the axes
+    # left, bottom, width, height
+    if leg_set == 'rear':
+        rect_steps = [0.07, 0.07, 1, 0.5]
+        rect_gaits = [0.07, 0.6, 1, 0.2]
+        fig_height = int(len(legs))
+    else:
+        rect_steps = [0.07, 0.07,  1, 0.6]
+        rect_gaits = [0.07, 0.70,  1, 0.1]
+        fig_height = int(len(legs) * 0.7)
+
+    stepplot_colors = {1: swing_color, 0: stance_color}
+    gait_x = frame_times_with_events/1000
+    
+    fig = plt.figure(figsize=(10,fig_height))
+    steps = plt.axes(rect_steps)
+
+    bar_width = gait_x[1] - gait_x[0]      
+
+    for i, leg in enumerate(legs):
+        for j, x in enumerate(gait_x):
+            steps.barh(i+1, bar_width, height=1, left=j*bar_width, 
+                    color = stepplot_colors[leg_matrix[i, j]])
+
+    steps.set_ylim([0.5, len(legs)+0.5])
+    steps.set_xlabel('Time (sec)', fontsize=16)
+    steps.set_yticks(np.arange(len(legs))+1)
+    steps.set_yticklabels(legs, fontsize=16)
+    steps.set_ylabel('legs', fontsize=16)
+    steps.set_frame_on(False)
+
+    gaits = plt.axes(rect_gaits)
+
+    for i,x in enumerate(gait_x):
+        gaits.barh(1, bar_width, height=0.8, left=i*bar_width, color = swing_color_vector[i])
+
+    gaits.set_ylabel('gait', fontsize=16)
+
+    gaits.set_xlim([0, gait_x[-1]])
+    steps.set_xlim([0, gait_x[-1]])
+
+    gaits.set_yticks([])
+    gaits.set_xticks([])
+    gaits.set_frame_on(False)
+    
+    fig.suptitle(movie_folder.split(os.sep)[-1], fontsize=24)
+    
+    return fig
+
+def define_swing_categories():
+    leg_combo_keys = ['tripod_canonical', 
+                'tetrapod_canonical', 
+                'tetrapod_gallop',
+                ]    
+    # combinations should be sorted by leg name!
+    leg_combo_values = [['L1_L3_R2', 'L2_R1_R3'],
+                        ['L1_R2', 'L2_R3', 'L3_R1', 'L2_R1', 'L3_R2', 'L1_R3'],
+                        ['L1_R1', 'L2_R2', 'L3_R3']]    
+    swing_categories = dict(zip(leg_combo_keys, leg_combo_values))
+    return swing_categories
+
+def rearCombos(rearleg_swing_counts):
+    rear_combos = {}
+    
+    if 'none' in rearleg_swing_counts.keys():  
+        rear_combos['stand'] = rearleg_swing_counts['none']
+    if 'L4_R4' in rearleg_swing_counts.keys():
+        rear_combos['hop'] = rearleg_swing_counts['L4_R4']
+    
+    rear_combos['step'] = 0
+    if 'L4' in rearleg_swing_counts.keys():
+        rear_combos['step'] += rearleg_swing_counts['L4']
+    if '$4' in rearleg_swing_counts.keys():
+        rear_combos['step'] += rearleg_swing_counts['R4']
+            
+    return rear_combos
+
+def get_leg_swing_combos(movie_folder, leg_set = 'lateral'): # lateral or rear
+
+    leg_combos = get_leg_combos()
+    if leg_set == 'rear':
+        legs = leg_combos['legs_4']
+    else:
+        legs = leg_combos['legs_lateral']
+    
+    # set up variables to collect the data we need
+    leg_swing_combos = {}
+    total_frames = 0
+
+    # get frame_times for this movie (in milliseconds, e.g. [0 33 66 100 .... ])
+    frame_times = get_frame_times(movie_folder)
+    total_frames += len(frame_times)
+
+    # get dictionary of up & down timing for this video clip
+    # keys = leg['u'] or leg['d'] where leg is in ['L4','L3','L2','L1' (or rights)]
+    up_down_times, latest_event = getUpDownTimes(os.path.join(movie_folder, 'mov_data.txt'))
+
+    # get matrix of up (1's) and down (0's) data for all legs
+    # rows = legs
+    # columns = frames of video
+    leg_matrix = make_leg_matrix(legs, up_down_times, frame_times)
+
+    # get dictionary of #frames swinging for different combinations of legs 
+    leg_swing_counts = get_leg_swing_counts(leg_matrix, leg_set)
+
+    # get counts of #frames in each type of swing category
+    for combo in leg_swing_counts.keys():
+        swing_category = get_swing_categories(combo, leg_set)
+        if swing_category in leg_swing_combos.keys():
+            leg_swing_combos[swing_category] += leg_swing_counts[combo]
+        else:       
+            leg_swing_combos[swing_category] = leg_swing_counts[combo]
+        
+    return leg_swing_combos
+
+def combineDictionariesWithCommonKeys(dict_list):
+    combined_dict = {}
+
+    for d in dict_list:
+        for k in d.keys():
+            if k in combined_dict.keys():
+                combined_dict[k] += d[k]
+            else:
+                combined_dict[k] = d[k]
+    
+    return combined_dict
+
+def get_swing_categories(swing_combination, leg_set = 'lateral'):
+    
+    if leg_set == 'rear':
+
+        if swing_combination == 'none' or swing_combination == '':
+            gait_style = 'stand'
+        elif swing_combination == 'L4_R4':
+            gait_style = 'hop'
+        else: # L4 or R4
+            gait_style = 'step'
+
+    else:
+
+        # swing_combination is a sorted string of leg names, separated by underscore
+        # e.g. 'L1_L3_R2' or 'L1_R3' (all L's comes before R's)    
+        swing_categories = define_swing_categories() # these are tripod and tetrapod groups
+        
+        # how many legs are swinging?
+        if swing_combination == 'none':
+            num_legs_swinging = 0
+            swinging_legs = ''
+        else:
+            swinging_legs = swing_combination.split('_')    
+            num_legs_swinging = len(swinging_legs)
+        
+        if num_legs_swinging == 0:
+            gait_style = 'stand'
+        elif num_legs_swinging == 1:
+            gait_style = 'pentapod'
+        elif num_legs_swinging == 2: # tetrapod!
+            if swing_combination in swing_categories['tetrapod_canonical']:
+                gait_style = 'tetrapod_canonical'
+            elif swing_combination in swing_categories['tetrapod_gallop']:
+                gait_style = 'tetrapod_gallop'
+            else:
+                gait_style = 'tetrapod_other'
+        elif num_legs_swinging == 3: # tripod!
+            if swing_combination in swing_categories['tripod_canonical']:
+                gait_style = 'tripod_canonical'
+            else:
+                gait_style = 'tripod_other'
+        else:
+            gait_style = 'other' # 4 or more 
+    
+    return gait_style
+
+
 def get_frame_times(movie_folder):
     video_file = getMovieFromFileList(movie_folder)
     vid = cv2.VideoCapture(os.path.join(movie_folder, video_file))
@@ -677,7 +972,6 @@ def up_down_times_to_binary(downs, ups, frame_times):
 
     return leg_vector
 
-
 def make_leg_matrix(legs, up_down_times, frame_times):
     # Build a matrix:
     # rows = vector of swings (1's) and stances (0's) for each leg
@@ -696,11 +990,17 @@ def make_leg_matrix(legs, up_down_times, frame_times):
 
     return leg_matrix
 
-
-def get_leg_swing_counts(leg_matrix, legs):
+def get_leg_swing_counts(leg_matrix, leg_set = 'lateral'):
     # function to get dictionary of #frames swinging for combinations of legs
     # keys = leg_combo (e.g. 'L1_R2')
     # values = number of frames where that combination of legs = swinging simultaneously
+
+    leg_combos = get_leg_combos()
+    if leg_set == 'rear':
+        legs = leg_combos['legs_4']
+    else:
+        legs = leg_combos['legs_lateral']
+
     legs = np.array(legs)
 
     # get number of frames
@@ -712,6 +1012,7 @@ def get_leg_swing_counts(leg_matrix, legs):
     leg_swing_counts['none'] = 0
 
     for col_ind in np.arange(num_cols):
+
         # in this column (frame), find indices of legs that are swinging (i.e. equal to 1)
         one_indices = np.where(leg_matrix[:, col_ind] == 1)
 
@@ -755,119 +1056,6 @@ def add_counts_to_dictionary(new_data, existing_dictionary):
 
     # return updated dictionary
     return existing_dictionary
-
-
-def get_swing_categories():
-    # function to get dictionary of different categories of swinging leg combinations
-    # keys = category names
-    # values = leg combinations in each category
-    leg_combo_keys = ['contralateral pairs',
-                      'ipsilateral adjacents',
-                      'ipsilateral skips',
-                      'contralateral adjacents',
-                      'tripod',
-                      'single legs',
-                      'no legs']
-    leg_combo_values = [['L1_R1', 'L2_R2', 'L3_R3'],
-                        ['L1_L2', 'L2_L3', 'R1_R2', 'R2_R3'],
-                        ['R1_R3', 'L1_L3'],
-                        ['L1_R2', 'L2_R3', 'L3_R1', 'L2_R1', 'L3_R2', 'L1_R3'],
-                        ['L1_L3_R2', 'L2_R1_R3'],
-                        ['L1', 'L2', 'L3', 'R1', 'R2', 'R3'],
-                        ['none']]
-    swing_categories = dict(zip(leg_combo_keys, leg_combo_values))
-    return swing_categories
-
-def get_swing_combo_counts(leg_swing_counts, swing_categories):
-    # any other combo = 'other' and print out report of how many in which class, sorted descending
-    # question - count subsets? i.e. for L3_R1_R2, also count as L3_R1, L3_R2, R1_R2?
-
-    leg_swing_combos = {}
-
-    for k in swing_categories.keys():
-        leg_swing_combos[k] = 0
-
-    found_combos = []
-
-    # count frames for each leg combo            
-    for leg_combo in sorted(leg_swing_counts.keys()):
-
-        for swing_category in swing_categories.keys():
-            if leg_combo in swing_categories[swing_category]:
-                # print(leg_combo, ' is in ', swing_categories[swing_category])
-                leg_swing_combos[swing_category] += leg_swing_counts[leg_combo]
-                found_combos.append(leg_combo)
-
-    # quantify leg combinations that are not in swing_categories
-    for leg_combo in sorted(leg_swing_counts.keys()):
-
-        if leg_combo not in found_combos:
-            leg_swing_combos[leg_combo] = leg_swing_counts[leg_combo]
-
-    return leg_swing_combos
-
-def get_gait_categories():
-    categories = ['stand', 'pentapod', 'tetrapod', 'tripod', 'gallop', 'other']
-    leg_groups = [['none'],
-                  ['L1', 'L2', 'L3', 'R1', 'R2', 'R3'],
-                  ['L1_R2', 'L2_R3', 'L3_R1', 'L1_R3', 'L2_R1', 'L3_R2'],
-                  ['L1_L3_R2', 'L2_R1_R3'],
-                  ['L1_R1', 'L2_R2', 'L3_R3'],
-                  ['other']
-                  ]
-    return categories, leg_groups
-
-# function that will take a dictionary and return proportions in gait categories
-def get_proportions_in_swing_categories(data_dictionary, num_frames):
-
-    tetrapod = data_dictionary['contralateral adjacents'] / num_frames
-    stand = data_dictionary['no legs'] / num_frames
-    pentapod = data_dictionary['single legs'] / num_frames
-    # wave = (data_dictionary['single legs'] + data_dictionary['no legs']) / num_frames
-    tripod = data_dictionary['tripod'] / num_frames
-    gallop = data_dictionary['contralateral pairs'] / num_frames
-    # unclassified = 1 - (tetrapod + wave + tripod + gallop)
-    other = 1 - (tetrapod + stand + pentapod + tripod + gallop)
-    # category_data = [tetrapod, wave, tripod, gallop, unclassified]
-    category_data = [stand, pentapod, tetrapod, tripod, gallop, other]
-
-    categories, leg_groups = get_gait_categories()
-
-    return categories, category_data
-
-
-# function to get / combine data for the selected movie folders
-def get_swing_combo_data(movie_folders, legs):
-    swing_categories = get_swing_categories()
-    all_experiment_data = {}
-    total_frames = 0
-
-    for movie_folder in movie_folders:
-        
-        # get frame_times for this movie (in milliseconds, e.g. [0 33 66 100 .... ])
-        frame_times = get_frame_times(movie_folder)
-        total_frames += len(frame_times)
-
-        # get dictionary of up & down timing for this video clip
-        # keys = leg['u'] or leg['d'] where leg is in ['L4','L3','L2','L1' (or rights)]
-        up_down_times, latest_event = getUpDownTimes(os.path.join(movie_folder, 'mov_data.txt'))
-
-        # get matrix of up (1's) and down (0's) data for all legs
-        # rows = legs
-        # columns = frames of video
-        leg_matrix = make_leg_matrix(legs, up_down_times, frame_times)
-
-        # get dictionary of #frames swinging for different combinations of legs 
-        leg_swing_counts = get_leg_swing_counts(leg_matrix, legs)
-
-        # get counts of #frames in each type of swing category
-        leg_swing_combos = get_swing_combo_counts(leg_swing_counts, swing_categories)
-
-        # add leg_swing_combos data to existing dictionary for all experiments
-        all_experiment_data = add_counts_to_dictionary(leg_swing_combos, all_experiment_data)
-
-    return all_experiment_data, total_frames
-
 
 # convert step data for a single clip into a dataframe
 def stepDataToDf(foldername, fname):
@@ -913,10 +1101,10 @@ def get_plot_colors(num_colors=7, palette = 'default'):
     # see https://matplotlib.org/stable/gallery/color/named_colors.html
     if palette == 'tab':
         plot_colors = np.array(['tab:orange','tab:green','tab:purple','tab:red',
-                       'tab:blue', 'tab:cyan','black'])
+                       'tab:blue', 'tab:cyan', 'tab:pink', 'tab:olive', 'black'])
     else:
         plot_colors = np.array(['firebrick','gold','forestgreen','steelblue',
-                   'darkviolet','darkorange','black'])
+                   'darkviolet','darkorange', 'lawngreen', 'tomato', 'black'])
 
     if num_colors > len(plot_colors):
         print('too many colors')
