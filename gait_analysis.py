@@ -1104,7 +1104,7 @@ def get_plot_colors(num_colors=7, palette = 'default'):
                        'tab:blue', 'tab:cyan', 'tab:pink', 'tab:olive', 'black'])
     else:
         plot_colors = np.array(['firebrick','gold','forestgreen','steelblue',
-                   'darkviolet','darkorange', 'lawngreen', 'tomato', 'black'])
+                   'darkviolet','darkorange', 'lawngreen', 'gainsboro', 'black'])
 
     if num_colors > len(plot_colors):
         print('too many colors')
