@@ -9,6 +9,12 @@ import shutil
 import sys
 import cv2
 from scipy.stats import sem
+import re
+
+def individualFromClipname(clipname):
+    res = re.findall(r"[abcdefghijklmnopqrstuvwxyz_]+", clipname)[0]
+    individual = clipname.split(res)[0]
+    return individual
 
 def makeLegDict():
     leg_dict = {}
