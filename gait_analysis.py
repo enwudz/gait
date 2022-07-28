@@ -1307,8 +1307,16 @@ def getMovieInfo(data_folder):
 
 # from a treatment folder containing folders of clips
 # return a dictionary containing size and speed information for each clip
-def sizeAndSpeed(treatment_dir, clip_folders):
-    
+def sizeAndSpeed(treatment_dir, clip_folders, scale = 1.06): # use 0 if do not want to convert from pix to µm
+    # scale is calculated by measuring the # pixels in the field of view of the scope
+    # and measuring the # of pixels / µm via a micrometer
+    # and using these to figure out what the distance of the field of view is
+    # in Jean's lab at 10X, field of view is 1.06 mm
+    # on Olympus CH30 at 10X, field of view is 1.1 mm
+
+    if scale > 0:
+        print('... converting from pixels to micrometers')
+
     # set up a dictionary to contain size and speed data for each clip
     size_speed = {}
         
@@ -1319,18 +1327,29 @@ def sizeAndSpeed(treatment_dir, clip_folders):
         # get dictionary of  info about movie from mov_data.txt
         movie_info = getMovieInfo(data_folder)
 
-        size_speed[clip] = {}
+        if scale > 0:
+            pix_to_um_conversion = (scale * 1000) / movie_info['field_width']
+            print('... for ' + clip + ', conversion is ' + str(np.around(pix_to_um_conversion,2)) + ' micrometers per pixel.')
+        else:
+            pix_to_um_conversion = 1   
 
+        # what is the time interval used to calculate speed?
+        size_speed[clip] = {}
         size_speed[clip]['analyzed_time'] = movie_info['end_frame'] - movie_info['start_frame']
-        size_speed[clip]['tardigrade_length'] = movie_info['tardigrade_length']
+
+        # get the field width, so we can convert pixels to µm
+        size_speed[clip]['field_width'] = movie_info['field_width']
+
+        # get distance and length, and convert to pixels
+        size_speed[clip]['tardigrade_length'] = movie_info['tardigrade_length'] * pix_to_um_conversion
+        size_speed[clip]['distance_traveled'] = movie_info['distance_traveled'] * pix_to_um_conversion
 
         # area approximate as an ellipse. (length/2 * width/2 * pi)
-        tardigrade_area = movie_info['tardigrade_width'] / 2 * movie_info['tardigrade_length'] / 2 * np.pi
+        tardigrade_area = (movie_info['tardigrade_width'] * pix_to_um_conversion) / 2 * (pix_to_um_conversion* movie_info['tardigrade_length']) / 2 * np.pi
         size_speed[clip]['tardigrade_area'] = tardigrade_area
-
-        size_speed[clip]['distance_traveled'] = movie_info['distance_traveled']
-        size_speed[clip]['field_width'] = movie_info['field_width']
-        size_speed[clip]['tardigrade_speed'] = movie_info['tardigrade_speed']
+        
+        # speed is distance / time ... so we can use pix_to_um_conversion to scale speed too
+        size_speed[clip]['tardigrade_speed'] = movie_info['tardigrade_speed'] * pix_to_um_conversion
 
     return size_speed
 
