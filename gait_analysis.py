@@ -635,7 +635,7 @@ def get_gait_combo_colors(leg_set = 'lateral'):
         combo_colors = dict(zip(all_combos, plot_colors))
     return all_combos, combo_colors
 
-def gait_style_plot(dict_list, clip_names, leg_set = 'lateral'):
+def gait_style_plot(dict_list, exp_names, leg_set = 'lateral'):
     
     barWidth = 0.85
     num_bars = len(dict_list)
@@ -669,8 +669,8 @@ def gait_style_plot(dict_list, clip_names, leg_set = 'lateral'):
 
                 bottom += combo_proportions[combo]
 
-    ax.set_xticks(np.arange(len(clip_names)))
-    ax.set_xticklabels(clip_names, fontsize=12)
+    ax.set_xticks(np.arange(len(exp_names)))
+    ax.set_xticklabels(exp_names, fontsize=12)
 
     # Add a legend
     handles, labels = ax.get_legend_handles_labels()
@@ -1355,6 +1355,7 @@ def sizeAndSpeed(treatment_dir, clip_folders, scale = 1.06): # use 0 if do not w
         size_speed[clip]['tardigrade_area'] = tardigrade_area
         
         # speed is distance / time ... so we can use pix_to_um_conversion to scale speed too
+        speed = movie_info['tardigrade_speed'] * pix_to_um_conversion
         size_speed[clip]['tardigrade_speed'] = movie_info['tardigrade_speed'] * pix_to_um_conversion
 
     return size_speed
@@ -1505,6 +1506,173 @@ def compare_step_parameters(groups, dataframes, legs):
 
     plt.show()
 
+def get_paired_step_parameters(parameters, legs, groups, dataframes, size_speed_dictionaries):
+       
+    print('Comparing parameters for ' + ', '.join(legs) + ' in ' + ' & '.join(groups))    
+    print(' ... looking at ' + ', '.join(parameters))
+    
+    # get individuals from clip names
+    clips = np.unique(dataframes[0]['clip'])
+    tardigrades = np.unique(sorted([int(individualFromClipname(clipname)) for clipname in clips]))
+    
+    # dictionary of different types of data for different tardigrades
+    # tardigrade_data['group']['tardigrade']['datatype'] = data
+    tardigrade_data = {} # keyed on group
+    
+    for group in groups:
+        
+        if group not in tardigrade_data.keys():
+            tardigrade_data[group] = {} # keyed on tardigrade
+        
+        for tardigrade in tardigrades:
+            tardigrade_data[group][tardigrade] = {} # keyed on data type
+    
+    # go through speed / size and get the things
+    
+    # go through each parameter that is in the dataframe in get info for each clip and tardigrade
+    for parameter in parameters:
+    
+        # go through each group   
+        for i, group in enumerate(groups):
+
+            # which dataframe are we looking at?
+            df = dataframes[i]
+
+            # which size & speed dictionary do we need?
+            size_speed = size_speed_dictionaries[i]
+
+            # get clips in df
+            clips = np.unique(df['clip'])
+
+            # go through each clip
+            for clip in clips:
+
+                # get individual from clip name
+                tardigrade = int(individualFromClipname(clip))
+
+                # get data from size_speed
+                if parameter in size_speed[clip].keys():
+                    data_to_plot = size_speed[clip][parameter]
+                    
+                elif parameter == 'gait_efficiency':
+                    # gait efficiency = distance traveled per step
+                    # if speed = distance / time ... and step is time / stance (i.e. stance_time)
+                    # Then efficiency (distance / step) = speed * stance_time
+                    speed = size_speed[clip]['tardigrade_speed']
+                    data_from_clip = df[df['clip'] == clip]
+                    gait_cycle = data_from_clip[data_from_clip['ref_leg'].isin(legs)]['stance_time']
+                    data_to_plot = np.mean(speed) * np.mean(gait_cycle)
+                    
+                else:
+                    # get data from dataframe
+                    data_from_clip = df[df['clip'] == clip]
+                    data_to_plot = data_from_clip[data_from_clip['ref_leg'].isin(legs)][parameter]
+                
+                mean_data_to_plot = np.mean(data_to_plot)
+
+                # add to tardigrade_data for this indvidual
+                if parameter in tardigrade_data[group][tardigrade].keys():
+                    tardigrade_data[group][tardigrade][parameter].append(mean_data_to_plot)
+                else:
+                    tardigrade_data[group][tardigrade][parameter] = [mean_data_to_plot]
+        
+    # done with groups ... return tardigrade data
+    return tardigrade_data
+
+def paired_comparison_plot(parameters, paired_data_for_parameters, groups=[]):
+     
+    # set up a figure
+    num_parameters = len(parameters)
+    
+    max_plots_in_row = 4
+    if num_parameters % max_plots_in_row == 0:
+        num_rows = int(num_parameters / max_plots_in_row)
+        num_cols = max_plots_in_row
+    else: 
+        num_rows = int(num_parameters/max_plots_in_row) + 1
+        num_cols = max_plots_in_row     
+    
+    f,axes = plt.subplots(num_rows, num_cols, figsize = (14,3 * num_rows), constrained_layout = True)
+    plot_colors = get_plot_colors()
+    ms = 50 # marker size
+    fs = 14 # fontsize
+    mean_linewidth = 5
+    mean_line_offset = 0.05
+    connector_linewidth = 2
+    
+    if len(groups) == 0:
+        groups = sorted(paired_data_for_parameters.keys())
+    elif len(groups) > 2:
+        print('Can only compare 2 groups!')
+        return 
+    else:
+        for group in groups:
+            if group not in paired_data_for_parameters.keys():
+                print('No ' + group + ' in paired_data_for_parameters!')
+                return
+    
+    num_tardigrades = len(paired_data_for_parameters[groups[0]].keys())
+    connector_xcoords = np.zeros((num_tardigrades,2))
+    connector_xcoords[:,1] = 1
+    
+    for p, parameter in enumerate(parameters):
+        
+        connector_ycoords = np.zeros((num_tardigrades,2))
+        
+        # go through each group
+        for g, group in enumerate(groups):                
+            
+            # go through each tardigrade
+            for t, tardigrade in enumerate(paired_data_for_parameters[group].keys()):
+                
+                # scatter plot of values for each tardigrade, with appropriate color
+                y_data = paired_data_for_parameters[group][tardigrade][parameter]
+                x_data = [g] * len(y_data)
+                f.axes[p].scatter(x_data, y_data, s = ms, c = plot_colors[tardigrade], alpha = 0.1)
+                
+                
+                # horizontal line at mean value of data
+                mean_val = np.mean(y_data)
+                
+                # homemade error bar . . . 
+                y_err = sem(y_data)
+                f.axes[p].plot([g,g],[mean_val-y_err, mean_val+y_err],
+                              linewidth = mean_linewidth-1, color = plot_colors[tardigrade])
+                
+                if p == 0 and g == 0:
+                    f.axes[p].plot([g-mean_line_offset, g+mean_line_offset], [mean_val, mean_val],
+                            linewidth = mean_linewidth, color = plot_colors[tardigrade],
+                                   label = '# ' + str(tardigrade))
+                else:
+                    f.axes[p].plot([g-mean_line_offset, g+mean_line_offset], [mean_val, mean_val],
+                            linewidth = mean_linewidth, color = plot_colors[tardigrade])
+                
+                # update coordinate for a line connecting means
+                connector_ycoords[t][g] = mean_val
+                
+                # plot line connecting means for this tardigrade
+                
+            if p == 0:
+                # add legend to axis
+                f.axes[p].legend(fontsize = fs)
+        
+        # done with parameter, plot line connecting means for each tardigrade
+        for r, ycoords in enumerate(connector_ycoords):
+            col = plot_colors[r+1]
+            f.axes[p].plot(connector_xcoords[r,:], ycoords, color = col, linewidth = connector_linewidth)
+    
+    for i, parameter in enumerate(parameters):
+        f.axes[i].set_ylabel(parameters[i].replace('_',' '), fontsize = fs)
+        f.axes[i].set_xlim([-0.5, 1.5])
+        f.axes[i].set_xticks([0,1],[group.replace('_', ' ') for group in groups], fontsize = fs)
+        
+    if len(parameters) < len(f.axes):
+        empty_axes = f.axes[len(parameters):]
+        for ax in empty_axes:
+            ax.axis('off')
+    
+    plt.show()
+
 # format colors of a boxplot object
 def formatBoxPlots(bp, boxColors=[], medianColors=[], flierColors=[]):
     
@@ -1571,8 +1739,8 @@ def get_plot_colors(num_colors=9, palette = 'default'):
         plot_colors = np.array(['tab:orange','tab:green','tab:purple','tab:red',
                        'tab:blue', 'tab:cyan', 'tab:pink', 'tab:olive', 'black'])
     else:
-        plot_colors = np.array(['firebrick','gold','forestgreen','steelblue',
-                   'darkviolet','darkorange', 'lawngreen', 'gainsboro', 'black'])
+        plot_colors = np.array(['firebrick','gold','forestgreen', 'darkviolet', 'steelblue',
+        'darkorange', 'lawngreen', 'gainsboro', 'black'])
 
     if num_colors > len(plot_colors):
         print('too many colors')
