@@ -1355,8 +1355,16 @@ def sizeAndSpeed(treatment_dir, clip_folders, scale = 1.06): # use 0 if do not w
         size_speed[clip]['tardigrade_area'] = tardigrade_area
         
         # speed is distance / time ... so we can use pix_to_um_conversion to scale speed too
-        speed = movie_info['tardigrade_speed'] * pix_to_um_conversion
-        size_speed[clip]['tardigrade_speed'] = movie_info['tardigrade_speed'] * pix_to_um_conversion
+
+        # some movie clips do not have speed info ... want to skip those!
+        try:
+            float(movie_info['tardigrade_speed'])
+        except:
+            print('No speed available for ' + clip)
+            size_speed[clip]['tardigrade_speed'] = 'none'
+        else:
+            speed = movie_info['tardigrade_speed'] * pix_to_um_conversion
+            size_speed[clip]['tardigrade_speed'] = movie_info['tardigrade_speed'] * pix_to_um_conversion
 
     return size_speed
 
@@ -1552,6 +1560,8 @@ def get_paired_step_parameters(parameters, legs, groups, dataframes, size_speed_
 
                 # get data from size_speed
                 if parameter in size_speed[clip].keys():
+                    # some of this data does not exist
+                    # for example, some of the tardigrades do not have speed
                     data_to_plot = size_speed[clip][parameter]
                     
                 elif parameter == 'gait_efficiency':
@@ -1561,20 +1571,28 @@ def get_paired_step_parameters(parameters, legs, groups, dataframes, size_speed_
                     speed = size_speed[clip]['tardigrade_speed']
                     data_from_clip = df[df['clip'] == clip]
                     gait_cycle = data_from_clip[data_from_clip['ref_leg'].isin(legs)]['stance_time']
-                    data_to_plot = np.mean(speed) * np.mean(gait_cycle)
+                    try: # some tardigrades lack measurements for speed
+                        data_to_plot = np.mean(speed) * np.mean(gait_cycle)
+                    except: 
+                        print('No speed for ' + clip + ', so no gait efficiency')
+                        data_to_plot = False
                     
                 else:
                     # get data from dataframe
                     data_from_clip = df[df['clip'] == clip]
                     data_to_plot = data_from_clip[data_from_clip['ref_leg'].isin(legs)][parameter]
                 
-                mean_data_to_plot = np.mean(data_to_plot)
-
-                # add to tardigrade_data for this indvidual
-                if parameter in tardigrade_data[group][tardigrade].keys():
-                    tardigrade_data[group][tardigrade][parameter].append(mean_data_to_plot)
+                # need to check if there's any data before adding it to dictionary
+                try:
+                    mean_data_to_plot = np.mean(data_to_plot)
+                except:
+                    print('no ' + parameter + ' for ' + clip)
                 else:
-                    tardigrade_data[group][tardigrade][parameter] = [mean_data_to_plot]
+                    # add to tardigrade_data for this indvidual
+                    if parameter in tardigrade_data[group][tardigrade].keys():
+                        tardigrade_data[group][tardigrade][parameter].append(mean_data_to_plot)
+                    else:
+                        tardigrade_data[group][tardigrade][parameter] = [mean_data_to_plot]
         
     # done with groups ... return tardigrade data
     return tardigrade_data
