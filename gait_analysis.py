@@ -32,7 +32,6 @@ def makeLegDict():
 
     return leg_dict
 
-
 def save_stance_figures(data_folder, leg_dict, legs):
     for x in ['stance', 'swing']:
         box_data, f, a = plot_stance(leg_dict, legs, x, False)
@@ -367,7 +366,7 @@ def getMovieFromFileList(movie_folder): # movie_folder needs to be complete path
             movieList.append(f.split('/')[-1])
 
     if len(movieList) > 1:
-        exit('I found ' + str(len(movieList)) + 'movies in ' + movie_folder)
+        sys.exit('I found ' + str(len(movieList)) + 'movies in ' + movie_folder)
     else:
         return (movieList[0])
 
@@ -442,7 +441,6 @@ def addLegToPlot(f, a, ylev, footdown, footup, videoEnd=6.2):
                               edgecolor=None, facecolor=fc, fill=True, lw=1))
 
     return f, a
-
 
 def parseFootLine(footline):
     return [int(x) / 1000 for x in footline.split(': ')[1].split()]
@@ -980,9 +978,25 @@ def up_down_times_to_binary(downs, ups, frame_times):
     return leg_vector
 
 def make_leg_matrix(legs, up_down_times, frame_times):
-    # Build a matrix:
-    # rows = vector of swings (1's) and stances (0's) for each leg
-    # columns = each frame of video clip
+    ''' 
+
+    Parameters
+    ----------
+    legs : list or numpy array
+        a list of leg names (e.g. ['R1','L1','R2','L2',... ])
+        the order of this list will be the order of rows in the output matrix
+    up_down_times : dictionary
+        from getUpDownTimes in this package
+    frame_times : numpy array
+        1 dimensional vector of all frame times from a movie
+
+    Returns
+    -------
+    leg_matrix : numpy array
+        rows = vector of swings (1's) and stances (0's) for each leg
+        columns = each frame of video clip.
+
+    '''
 
     # make empty matrix
     leg_matrix = np.zeros([len(legs), len(frame_times)])

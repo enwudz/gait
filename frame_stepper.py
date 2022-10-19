@@ -7,8 +7,8 @@ from gait_analysis import *
 
 # aside: want to make a movie from a bunch of frames?
 # brew install ffmpeg
-# ffmpeg below worked 19 May 2021
-# ffmpeg -f image2 -r 10 -s 1080x1920 -pattern_type glob -i '*.png' -vcodec mpeg4 movie.mp4
+# ffmpeg below works Oct 2022
+# ffmpeg -f image2 -r 30 -pattern_type glob -i '*_frames_*.png' -pix_fmt yuv420p -crf 20 demo_movie.mp4
 # -r is framerate of movie
 
 def main(resize=100):
@@ -324,7 +324,7 @@ def saveFrames(movieFolder, videofile):
             # Get frame time and save it in a variable
             frameTime = int(vid.get(cv2.CAP_PROP_POS_MSEC))
 
-            # put the time variable over the video frame
+            # put the time variable on the video frame
             frame = cv2.putText(frame, str(frameTime / 1000),
                                 (100, 100),
                                 font, 1,
