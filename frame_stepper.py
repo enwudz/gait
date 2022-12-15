@@ -218,65 +218,8 @@ def stepThroughFrames(folder_name, footname, resize=100):
             print('you pressed f = first frame for speed')
             print('Time is ' + str(filenameToTime(frames[i])))
             
-        ## timing of each individual leg
-        ## this is an older method, should use above (up and down for each leg one at a time)
-        elif key == ord('1'):  # front right
-            print('you pressed 1 = front right (R1)')
-            # get this time and add it to the list for this leg
-            R1.append(filenameToTime(frames[i]))
-            # print current list of times for this leg
-            print(R1)
 
-        elif key == ord('2'):  # front left
-            print('you pressed 2 = front left (L1)')
-            # get this time and add it to the list for this leg
-            L1.append(filenameToTime(frames[i]))
-            # print current list of times for this leg
-            print(L1)
-
-        elif key == ord('q'):  # second right
-            print('you pressed q = R2')
-            # get this time and add it to the list for this leg
-            R2.append(filenameToTime(frames[i]))
-            # print current list of times for this leg
-            print(R2)
-
-        elif key == ord('w'):  # second left
-            print('you pressed w = L2')
-            # get this time and add it to the list for this leg
-            L2.append(filenameToTime(frames[i]))
-            # print current list of times for this leg
-            print(L2)
-
-        elif key == ord('a'):  # third right
-            print('you pressed a = R3')
-            # get this time and add it to the list for this leg
-            R3.append(filenameToTime(frames[i]))
-            # print current list of times for this leg
-            print(R3)
-
-        elif key == ord('s'):  # third left
-            print('you pressed s = L3')
-            # get this time and add it to the list for this leg
-            L3.append(filenameToTime(frames[i]))
-            # print current list of times for this leg
-            print(L3)
-
-        elif key == ord('z'):  # third right
-            print('you pressed z = Right Rear (R4)')
-            # get this time and add it to the list for this leg
-            R4.append(filenameToTime(frames[i]))
-            # print current list of times for this leg
-            print(R4)
-
-        elif key == ord('x'):  # third left
-            print('you pressed x = Left Rear (L4)')
-            # get this time and add it to the list for this leg
-            L4.append(filenameToTime(frames[i]))
-            # print current list of times for this leg
-            print(L4)
-
-        elif key == 27:  # escape
+        elif key == 27 or key == ord('q'):  # escape or quit
 
             # close image window
             cv2.destroyAllWindows()
