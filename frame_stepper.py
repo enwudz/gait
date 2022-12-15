@@ -3,7 +3,7 @@ import cv2
 import sys
 import os
 import glob
-from gait_analysis import *
+import gait_analysis
 
 # aside: want to make a movie from a bunch of frames?
 # brew install ffmpeg
@@ -17,8 +17,8 @@ def main(resize=100):
 
     # find the video to analyze
     cwd = os.getcwd()
-    movie_folder = selectOneFromList(listDirectories()) # from gait_analysis
-    video_file = getMovieFromFileList(movie_folder)
+    movie_folder = gait_analysis.selectOneFromList(gait_analysis.listDirectories()) # from gait_analysis
+    video_file = gait_analysis.getMovieFromFileList(movie_folder)
     print('\n ... opening ' + video_file)
 
     # get first frame
@@ -77,7 +77,7 @@ def createMovDataFile(movieFolder, videoFile, first_frame, last_frame):
     if len(movieData) == 0:
         print('No mov_data.txt file, making one ...')
         vid = cv2.VideoCapture(os.path.join(movieFolder, videoFile))
-        vidlength = getVideoStats(vid, printout=True)[0]
+        vidlength = gait_analysis.getVideoStats(vid, printout=True)[0]
 
         print('\n Writing to ' + out_file + ' .... ')
         with open(out_file, 'w') as o:
@@ -123,14 +123,6 @@ def stepThroughFrames(folder_name, footname, resize=100):
 
     i = 0
 
-    R1 = []
-    R2 = []
-    R3 = []
-    R4 = []
-    L1 = []
-    L2 = []
-    L3 = []
-    L4 = []
     footDown = []
     footUp = []
 
@@ -145,7 +137,7 @@ def stepThroughFrames(folder_name, footname, resize=100):
             cv2.waitKey(10)
             cv2.destroyAllWindows()
 
-        frame_name = footname + ' (' + current_state + '): frame ' + str(i + 1) + ' of ' + str(numFrames) + ' ...(esc) when finished'
+        frame_name = footname + ' (' + current_state + '): frame ' + str(i + 1) + ' of ' + str(numFrames) + ' ...(esc or q) when finished'
         #print('looking at ' + frames[i])
 
         im = cv2.imread(frames[i])
@@ -183,8 +175,6 @@ def stepThroughFrames(folder_name, footname, resize=100):
             cv2.destroyAllWindows()
             print('Going to end!')
 
-        # leg recording keys
-
         ## focus on one leg of interest and get timing of foot down and foot up
         elif key == ord('d'):  # foot down!
             t = filenameToTime(frames[i])
@@ -210,14 +200,6 @@ def stepThroughFrames(folder_name, footname, resize=100):
                 footUp.append(t)
                 # print current list of times for foot down
                 print(footUp)
-                
-        ## get boundaries of frames where no camera motion and tardigrade walking straight
-        ## NOT using this currently!
-        # if revive, need to figure out how to save image in the right folder
-        elif key == ord('f'): # first frame
-            print('you pressed f = first frame for speed')
-            print('Time is ' + str(filenameToTime(frames[i])))
-            
 
         elif key == 27 or key == ord('q'):  # escape or quit
 
