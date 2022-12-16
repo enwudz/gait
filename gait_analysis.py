@@ -280,21 +280,41 @@ def getUpDownTimes(mov_data):
 
     return up_down_times, latest_event
 
-# quality control for up_down_times ... make sure up and down times are alternating!
-def qcUpDownTimes(up_down_times):
-    for leg in up_down_times.keys():
-        downs = up_down_times[leg]['d']
-        ups = up_down_times[leg]['u']
-        combo_times = np.array(downs + ups)
-        down_array = ['d'] * len(downs)
-        up_array = ['u'] * len(ups)
-        combo_ud = np.array(down_array + up_array)
-        inds = combo_times.argsort()
-        sorted_ud = combo_ud[inds]
-        for i in range(len(sorted_ud[:-1])):
-            if sorted_ud[i] == sorted_ud[i + 1]:
-                print('alternating u/d problem for ' + leg)
+# quality control ... make sure up and down times are alternating!
+def qcDownsUps(downs,ups):
+    combo_times = np.array(downs + ups)
+    
+    down_array = ['d'] * len(downs)
+    up_array = ['u'] * len(ups)
+    combo_ud = np.array(down_array + up_array)
+    inds = combo_times.argsort()
+    sorted_ud = combo_ud[inds]
+    sorted_times = combo_times[inds]
+   
+    problem = ''
+    
+    for i in range(len(sorted_ud[:-1])):
+        
+        current_state = sorted_ud[i]
 
+        next_state = sorted_ud[i + 1]
+        
+        if current_state == next_state:
+            problem += '\nalternating u/d problem!\n'
+            problem += current_state + ' at ' + str(sorted_times[i]) + '\n'
+            problem += next_state + ' at ' + str(sorted_times[i+1]) + '\n'
+            
+    return problem
+
+# quality control for leg_dict 
+def qcLegDict(leg_dict):
+    for leg in leg_dict.keys():
+        downs = leg_dict[leg]['d']
+        ups = leg_dict[leg]['u']
+        problem = qcDownsUps(downs,ups)
+        if len(problem) > 0:
+            print('Problem for ' + leg)
+            print(problem)
 
 def selectOneFromList(li):
     print('\nChoose from this list : ')

@@ -34,7 +34,7 @@ def main(data_folder):
     leg_dict, video_end = getUpDownTimes(mov_data)
 
     # quality control on leg_dict ... make sure up and down times are alternating!
-    qcUpDownTimes(leg_dict)
+    qcLegDict(leg_dict)
 
     # plot steps - choose which legs to plot
     legs = get_leg_combos()['legs_all']  # dictionary of all combos

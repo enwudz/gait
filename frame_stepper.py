@@ -41,7 +41,8 @@ def main(resize=100):
         print('... record data for ' + footname + '\n')
 
         # step through frames and label things
-        data = stepThroughFrames(frame_folder, footname, resize) # enter number to scale video
+        # can enter a number for resize to scale video
+        data = stepThroughFrames(frame_folder, footname, resize) 
 
         ## print out foot down and foot up data for this foot
         foot_info = showFootDownUp(footname, data)
@@ -134,8 +135,15 @@ def stepThroughFrames(folder_name, footname, resize=100):
         if i >= numFrames:
             i = 0
             print('All done with this clip - going back to beginning!')
-            cv2.waitKey(10)
+            cv2.waitKey(50)
             cv2.destroyAllWindows()
+            
+            # this is an opportunity to do some quality control on the downs and ups
+            # quality control code . . .
+            problem = gait_analysis.qcDownsUps(footDown,footUp)
+            if len(problem) > 0:
+                print(problem)
+                break
 
         frame_name = footname + ' (' + current_state + '): frame ' + str(i + 1) + ' of ' + str(numFrames) + ' ...(esc or q) when finished'
         #print('looking at ' + frames[i])
@@ -187,7 +195,7 @@ def stepThroughFrames(folder_name, footname, resize=100):
                 # get this time and add it to the list for this leg
                 footDown.append(t)
                 # print current list of times for foot down
-                print(footDown)
+                print(' '. join(footDown))
 
         elif key == ord('u'):  # foot up!
             print('you pressed u = foot up!')
@@ -199,7 +207,7 @@ def stepThroughFrames(folder_name, footname, resize=100):
                 # get this time and add it to the list for this leg
                 footUp.append(t)
                 # print current list of times for foot down
-                print(footUp)
+                print(' '.join(footUp))
 
         elif key == 27 or key == ord('q'):  # escape or quit
 
@@ -209,9 +217,14 @@ def stepThroughFrames(folder_name, footname, resize=100):
 
             ## return individual leg data
             # data = [sorted(x) for x in [R1,L1,R2,L2,R3,L3,R4,L4]]
-
+            
             ## return foot down and foot up data for this leg
             data = [sorted(x) for x in [footDown, footUp]]
+            
+            # this is an opportunity to do some quality control on this data
+            problem = gait_analysis.qcDownsUps(footDown,footUp)
+            if len(problem) > 0:
+                print(problem)
 
             return data
 
