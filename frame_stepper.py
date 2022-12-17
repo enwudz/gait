@@ -11,6 +11,12 @@ import gait_analysis
 # ffmpeg -f image2 -r 30 -pattern_type glob -i '*_frames_*.png' -pix_fmt yuv420p -crf 20 demo_movie.mp4
 # -r is framerate of movie
 
+'''
+WISH LIST
+
+1. allow to change mind . . . e.g. hit 'x' if want to clear current entry
+'''
+
 def main(resize=100):
 
     # in terminal, navigate to the directory that has your movies
@@ -195,7 +201,7 @@ def stepThroughFrames(folder_name, footname, resize=100):
                 # get this time and add it to the list for this leg
                 footDown.append(t)
                 # print current list of times for foot down
-                print(' '. join(footDown))
+                print('down: ' + ' '.join([str(x) for x in footDown]))
 
         elif key == ord('u'):  # foot up!
             print('you pressed u = foot up!')
@@ -207,7 +213,20 @@ def stepThroughFrames(folder_name, footname, resize=100):
                 # get this time and add it to the list for this leg
                 footUp.append(t)
                 # print current list of times for foot down
-                print(' '.join(footUp))
+                print('up: ' + ' '.join([str(x) for x in footUp]))
+                
+        elif key == ord('x'): # made a mistake and want to clear your latest entry
+            if current_state == 'up':
+                print('Erasing the last "up" value and reverting state to "down"')
+                footUp.pop()
+                current_state = 'down'
+            elif current_state == 'down':
+                print('Erasing the last "down" value and reverting state to "up"')
+                footDown.pop()
+                current_state = 'up'
+            else:
+                print('Ignoring your "x" - no current leg state!')
+                
 
         elif key == 27 or key == ord('q'):  # escape or quit
 
