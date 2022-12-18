@@ -326,7 +326,13 @@ def selectOneFromList(li):
         i += 1
     entry = input('\nWhich ONE do you want? ')
     choice = int(entry)
+    
+    if choice > len(li):
+        err_message = '==> ' +  str(choice) + ' is invalid for list of ' + str(len(li)) + ' items!'
+        exit(err_message)
+    
     ind = choice - 1
+    
     print('\nYou chose ' + li[ind] + '\n')
     return li[ind]
 
