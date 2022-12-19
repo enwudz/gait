@@ -306,6 +306,17 @@ def qcDownsUps(downs,ups):
             
     return problem
 
+# check for excel file for a movie clip
+def check_for_excel(mov_file):
+    file_stem = mov_file.split('.')[0]
+    excel_filename = file_stem + '.xlsx'
+    glob_list = glob.glob(excel_filename)
+    if len(glob_list) > 0:
+        excel_file_exists = True
+    else:
+        excel_file_exists = False
+    return excel_file_exists, excel_filename
+
 # quality control for leg_dict 
 def qcLegDict(leg_dict):
     for leg in leg_dict.keys():
@@ -315,6 +326,42 @@ def qcLegDict(leg_dict):
         if len(problem) > 0:
             print('Problem for ' + leg)
             print(problem)
+
+def listDirectories():
+    dirs = next(os.walk(os.getcwd()))[1]
+    dirs = sorted([d for d in dirs if d.startswith('_') == False and d.startswith('.') == False])
+    return dirs
+
+def select_movie_file():
+    movie_files = sorted(glob.glob('*.mov'))
+    if len(movie_files) > 0:
+        movie_file = selectOneFromList(movie_files)
+    else:
+        movie_file = ''
+    return movie_file
+
+def identity_print_order():
+    return ['file_stem','date','treatment','individualID','time_range','initials']
+
+def getVideoData(movie_file, printOut = True):
+    if len(glob.glob(movie_file)) == 0:
+        exit('Cannot find ' + movie_file)
+    else:
+        vid = cv2.VideoCapture(movie_file)
+        vid_width  = int(vid.get(3))
+        vid_height = int(vid.get(4))
+        vid_fps = int(np.round(vid.get(5)))
+        vid_frames = int(vid.get(7))
+        vid.release()
+        vid_length = np.around(vid_frames / vid_fps, decimals = 2)
+    if printOut == True:
+        printString = 'width: ' + str(vid_width)
+        printString += ', height: ' + str(vid_height)
+        printString += ', fps: ' + str(vid_fps)
+        printString += ', #frames: ' + str(vid_frames)
+        printString += ', duration: ' + str(vid_length)
+        print(printString)
+    return (vid_width, vid_height, vid_fps, vid_frames, vid_length)
 
 def selectOneFromList(li):
     print('\nChoose from this list : ')
@@ -375,12 +422,6 @@ def pathToData(data_path):
         folders = data_path.split('\\')[1:]
     os_path = os.path.join(os.sep, os.sep.join(folders))
     return os_path
-
-def listDirectories():
-    dirs = next(os.walk(os.getcwd()))[1]
-    dirs = sorted([d for d in dirs if d.startswith('_') == False and d.startswith('.') == False])
-    return dirs
-
 
 def getMovieFromFileList(movie_folder): # movie_folder needs to be complete path
     

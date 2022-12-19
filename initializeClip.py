@@ -24,7 +24,6 @@ It tries to extract info from the filename
 
 """
 import sys
-import glob
 import gait_analysis
 import pandas as pd
 import re
@@ -32,13 +31,7 @@ import re
 def main(mov_file):
     
     # is there already an excel file for this clip?
-    file_stem = mov_file.split('.')[0]
-    excel_filename = file_stem + '.xlsx'
-    glob_list = glob.glob(excel_filename)
-    if len(glob_list) > 0:
-        excel_file_exists = True
-    else:
-        excel_file_exists = False
+    excel_file_exists, excel_filename = gait_analysis.check_for_excel(mov_file)
         
     # if there is a file, extract the info from the identity sheet
     if excel_file_exists:
@@ -49,12 +42,12 @@ def main(mov_file):
     # if there is no file ... guess info from the filestem, and make a file!
     else:      
         print('... no file yet - guessing info from file stem')
-        info = extract_info(file_stem)
+        info = extract_info(mov_file)
         print('... making an excel file: ' + excel_filename)
         make_excel(excel_filename, info)
     
     # print the info we have, and invite user to modify the file
-    print_order = identity_print_order()
+    print_order = gait_analysis.identity_print_order()
     
     print('\nHere is info we have - feel free to edit ' + excel_filename + '\n')
     printed = []
@@ -65,15 +58,13 @@ def main(mov_file):
     # what if there are things in the excel file that are not in print_order?
     for k in info.keys():
         if k not in printed:
-            print(' ' + k  + ': ' + info[k])
+            print(' ' + k  + ': ' + str(info[k]))
     
     print('\n')
-
-def identity_print_order():
-    return ['file_stem','date','treatment','individualID','time_range','initials']
+    return info
 
 def make_excel(excel_filename, info):
-    print_order = identity_print_order()
+    print_order = gait_analysis.identity_print_order()
     vals = [info[x] for x in print_order]
     d = {'Parameter':print_order,'Value':vals}
     df = pd.DataFrame(d)
@@ -83,7 +74,9 @@ def make_excel(excel_filename, info):
         df2.to_excel(writer, index=False, sheet_name='pathtracking')
         df2.to_excel(writer, index=False, sheet_name='path_stats')
         df2.to_excel(writer, index=False, sheet_name='steptracking')
+        df2.to_excel(writer, index=False, sheet_name='step_timing')
         df2.to_excel(writer, index=False, sheet_name='step_stats')
+        df2.to_excel(writer, index=False, sheet_name='gait_styles')
 
 def guess_the_thing(thing):
     ''' what is this thing?
@@ -123,8 +116,9 @@ def guess_the_thing(thing):
         else:
             return 'treatment'
     
-def extract_info(file_stem):
+def extract_info(mov_file):
     
+    file_stem = mov_file.split('.')[0]
     info = {}
     info['date'] = ''
     info['treatment'] = ''
@@ -145,20 +139,12 @@ def extract_info(file_stem):
                     
     return info
     
-def get_movie_file():
-    movie_files = sorted(glob.glob('*.mov'))
-    if len(movie_files) > 0:
-        mov_file = gait_analysis.selectOneFromList(movie_files)
-    else:
-        mov_file = ''
-    return mov_file
-
 if __name__== "__main__":
 
     if len(sys.argv) > 1:
         mov_file = sys.argv[1]
     else:
-        mov_file = get_movie_file()
+        mov_file = gait_analysis.select_movie_file()
         
     if '.mov' in mov_file:
         main(mov_file)

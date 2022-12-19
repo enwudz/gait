@@ -8,12 +8,10 @@ Created on Mon Sep 19 20:22:50 2022
 
 import sys
 import glob
-import matplotlib.pyplot as plt
-import matplotlib as mpl
 import numpy as np
 import pandas as pd
-import cv2
 import scipy.signal
+import gait_analysis
 
 '''
 WISH LIST
@@ -30,333 +28,293 @@ think about next step - what is going take these updated track files, and
 
 '''
 
-def main(tracking_data, plot_style = 'line'): # scatter or line or none
+def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
     
-    # tracking_data file is from trackCritter.py
-
-    # get height, width, fps from filestem
-    filestem = tracking_data.split('_tracked')[0]
-    movie_file = filestem + '.mov'
-    (vid_width, vid_height, vid_fps, vid_frames, vid_length) = getVideoData(movie_file, False)
+    # tracking data is from trackCritter.py, and is in an excel file for this clip
+    
+    # load excel file for this clip
+    excel_file_exists, excel_filename = gait_analysis.check_for_excel(movie_file)
+    if excel_file_exists:
+        df = pd.read_excel(excel_filename, sheet_name='identity', index_col=None)
+        info = dict(zip(df['Parameter'].values, df['Value'].values))
+    else:
+        import initializeClip
+        info = initializeClip.main(movie_file)
+        need_tracking()
+    
+    # get scale (conversion between pixels and millimeters)
+    scale = getScale(info)
+    print('... 1 mm = ' + str(scale) + ' pixels')
+        
+    # load the tracked data
+    tracked_data = pd.read_excel(excel_filename, sheet_name = 'pathtracking')
+    if len(tracked_data) == 0:
+        need_tracking()
 
     # read in data
-    df = pd.read_csv(tracking_data, names = ['frametime','area','x','y'], header=None)
-    frametimes = df.frametime.values
-    areas = df.area.values
-    median_area = np.median(areas)
+    frametimes = tracked_data.times.values
+    areas = tracked_data.areas.values
+    xcoords = tracked_data.xcoords.values
+    ycoords = tracked_data.ycoords.values 
     
-    # get fps, video time from data
-    
-    # get coordinates
-    xcoords = df.x.values
-    ycoords = df.y.values
-
     # smooth the coordinates!
     smoothedx = smoothFiltfilt(xcoords,3,0.05)
     smoothedy = smoothFiltfilt(ycoords,3,0.05)
 
-    # calculate distance from smoothed data
-    distance = cumulativeDistance(smoothedx, smoothedy)
-
-    # calculate # of turns, # of speed changes (from smoothed data)
+    # get vectors for  distance, speed, cumulative_distance, bearings, bearing_changes
+    distance, speed, cumulative_distance, bearings, bearing_changes = distanceSpeedBearings(frametimes, smoothedx, smoothedy, scale)
+    
+    # get vectors for stops and turns
     time_increment = 0.5 # in seconds
-    num_stops, discrete_turns, angle_space, stop_times, turn_times = turnsStartsStops(frametimes, smoothedx, smoothedy, vid_fps, time_increment)
-
+    stops, turns = stopsTurns(frametimes, speed, bearing_changes, time_increment)
+    
+    # add all tracking vectors to the excel file, 'pathtracking' tab
+    d = {'times':frametimes, 'xcoords':xcoords, 'ycoords':ycoords, 'areas':areas, 
+         'smoothed_x':smoothedx, 'smoothed_y':smoothedy, 'distance':distance,
+         'speed':speed, 'cumulative_distance':cumulative_distance, 'bearings': bearings,
+         'bearing_changes':bearing_changes, 'stops':stops, 'turns':turns}
+    df = pd.DataFrame(d)
+    with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
+        df.to_excel(writer, index=False, sheet_name='pathtracking')
+    
+    # add path tracking summary values to 'path_stats' tab
+    # area, distance, average speed, num turns, num stops, bearings, time_increment for turns & stops
+    parameters = ['area','clip duration','total distance','average speed','# turns','# stops','cumulative bearings','bin duration']
+    median_area = np.median(areas)
+    clip_duration = frametimes[-1]
+    total_distance = np.sum(distance)
+    average_speed = np.mean(speed[:-1])
+    num_turns = len(one_runs(turns))
+    num_stops = len(one_runs(stops))
+    cumulative_bearings = np.sum(bearing_changes)
+    vals = [median_area, clip_duration, total_distance, average_speed, num_turns, num_stops, cumulative_bearings, time_increment]
+    
+    path_stats = zip(parameters, vals)
+    df2 = pd.DataFrame(path_stats)
+    df2.columns = ['Path parameters', 'Values']
+    with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
+        df2.to_excel(writer, index=False, sheet_name='path_stats')
+    
+    # PLOTS
     if plot_style != 'none':
+        # plot!
+        import plotPath
+        plotPath.main(movie_file, plot_style) 
 
-        if plot_style == 'line':
-            # ==> line plot to compare raw path with smoothed path
-            f, a = plotSmoothedPath(filestem, xcoords, ycoords, smoothedx, smoothedy)
-
-        else:
-            # ==> scatter plot of centroids along path with colormap that shows time
-            f, a = plotPathScatter(filestem, xcoords, ycoords, vid_length)
-
-        # ==> add labels from experiment and show plot:
-        a.set_xlabel(getDataLabel(median_area, distance, vid_length, angle_space, discrete_turns, num_stops ))
-        a.set_xticks([])
-        a.set_yticks([])
-        plt.title(filestem)
-        plt.show()
-
-    # print out data
-    # fileData = filestem.split('_')
-    # if len(fileData) == 4:
-    #     initials, date, treatment, tardistring = filestem.split('_')
-    #     timeRange = ''
-    # elif len(fileData) == 5:
-    #     initials, date, treatment, tardistring, timeRange = filestem.split('_')
-        
-    # if 'tardigrade' in tardistring:
-    #     tardigrade = tardistring.split('tardigrade')[1].split('-')[0]
-    # else:
-    #     tardigrade = tardistring
-    datastring = filestem + ',' + str(getScale(filestem))
-    # datastring += ',' + ','.join([initials,date,treatment,tardigrade,timeRange])
-    datastring += ',' + ','.join([str(x) for x in [vid_length, median_area, distance, discrete_turns, angle_space, num_stops]])
-    print(datastring)
-
-    return stop_times, turn_times
-
-
-def getScale(filestem):
-
-    scaleFile = glob.glob('*scale.txt')
-    if len(scaleFile) > 0:
-        with open(scaleFile[0],'r') as f:
-            stuff = f.readlines()
-            for thing in stuff:
-                if '=' in thing:
-                    scale = float(thing.split('=')[1])
-                else:
-                    scale = float(thing)
+def change_in_bearing(bearing1, bearing2):
+    # need some care:  if successive bearings cross north (i.e. 0/360) ...
+    # both will be near (e.g. within ~20 degrees) of 0 or 360
+    # and so we need to adjust how we calculate difference in bearing
+    
+    if bearing1 > 340 and bearing2 < 20: # the path crossed North
+        delta_bearing = bearing2 + 360 - bearing1
+    elif bearing2 > 340 and bearing1 < 20: # the path crossed North
+        delta_bearing = 360 - bearing2 + bearing1
     else:
-        print('no scale for ' + filestem)
-        micrometerFiles = glob.glob('*micrometer*')
-        if len(micrometerFiles) > 0:
-            import measureImage
-            micrometerFile = micrometerFiles[0]
-            scale = float(measureImage.main(micrometerFile))
-
-        else:
-            print('no micrometer image ... ')
-            scale = 1
-
-    #print('Scale is ' + str(scale))
-    return scale
-
-def getFirstLastFrames(filestem):
-    first_frame_file = filestem + '_first.png'
-    last_frame_file = filestem + '_last.png'
+        delta_bearing = np.abs(bearing1 - bearing2)
     
-    try:
-        first_frame = cv2.imread(first_frame_file)
-    except:
-        vidcap = cv2.VideoCapture(filestem + '.mov')
-        success, image = vidcap.read()
-        if success:
-            first_frame = image
-        else:
-            print('cannot get an image from ' + filestem)
-            first_frame = None
+    return delta_bearing
+
+def stopsTurns(times, speed, bearing_changes, increment):    
     
-    try:
-        last_frame = cv2.imread(last_frame_file)
-    except:
-        vidcap = cv2.VideoCapture(filestem + '.mov')
-        frame_num = 1
-        good_frame = None
-        while vidcap.isOpened():
-            ret, frame = vidcap.read()
-            if ret == False:
-                print('Last successful frame = ' + str(frame_num))
-                last_frame = good_frame
-                vidcap.release()
-            else:
-                frame_num += 1
-                good_frame = frame
-    
-    return first_frame, last_frame
-
-def superImposedFirstLast(filestem):
-    # superimpose first and last frames
-    first_frame, last_frame = getFirstLastFrames(filestem)
-    combined_frame = cv2.addWeighted(first_frame, 0.3, last_frame, 0.7, 0)
-    return combined_frame
-
-def plotPathScatter(filestem, xcoords, ycoords, vid_length):
-
-    combined_frame = superImposedFirstLast(filestem)
-    
-
-    f, a = plt.subplots(1, figsize=(14,6))
-    a.imshow(combined_frame) # combined_frame or last_frame
-    cmap_name = 'plasma'
-    cmap = mpl.cm.get_cmap(cmap_name)
-    cols = cmap(np.linspace(0,1,len(xcoords)))
-    a.scatter(xcoords,ycoords, c = cols, s=10)
-    a.set_xticks([])
-    a.set_yticks([])
-    # add legend for time
-    norm = mpl.colors.Normalize(vmin=0, vmax=vid_length)
-    plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), label = 'Time (sec)')
-
-    return f, a
-
-def plotSmoothedPath(filestem, xcoords, ycoords, smoothedx, smoothedy):
-
-    combined_frame = superImposedFirstLast(filestem)
-
-    f, a = plt.subplots(1, figsize=(14,6))
-    a.imshow(combined_frame) # combined_frame or last_frame
-    plt.plot(xcoords,ycoords, linewidth=8, color = 'forestgreen', label = 'raw') # raw coordinates
-    plt.plot(smoothedx,smoothedy, linewidth=2, color = 'lightgreen', label = 'smoothed') # smoothed
-    plt.legend()
-    return f, a
-
-def turnsStartsStops(times, xcoords, ycoords, vid_fps, increment):
     '''
-    From x and y coordinates of a path, group into increments of length binsize
+    From vectors of speed and bearings ...
+    group into bins based on a time increment
 
-    estimate the number of times the tardgirade stops (where speed is < threshold)
-    estimate the number of discrete turns in the path (where angle of turn > threshold)
-    estimate the total amount of angle space explored along the path
-    [old code] estimate the number of times there is a change in speed greater than a specified threshold
+    estimate when tardigrade stops (where speed is < threshold)
+    estimate when discrete turns in the path (where angle of turn > threshold)
+
+    Parameters
+    ----------
+    times : numpy array
+        times of each video frame
+    speed : numpy array
+        from distanceSpeedBearings, vector of speed in each video frame
+    bearing_changes : numpy array
+        from distanceSpeedBearings, vector of bearing change in each video frame
+    increment : float
+        increment duration (in seconds) to bin video frame bins
+
+    Returns
+    -------
+    
+    stops = binary vector (1 = stopped, 0 = moving)
+    turns = binary vector (1 = turning, 0 = not turning)
+
+    '''
+    
+    # initialize empty arrays
+    stops = np.zeros(len(speed))
+    turns = np.zeros(len(speed))
+    
+    # make bins
+    current_time = 0
+    video_length = times[-1]
+    
+    # define stop threshold
+    # if mean speed for a bin is below this threshold, it is a STOP!
+    mean_speed = np.mean(speed)
+    stop_threshold = 0.5 * mean_speed 
+    
+    # define turn threshold
+    # if change in bearing in a bin is greater than this threshold, it is a TURN!
+    turn_threshold = 28 # in degrees
+    
+    while current_time + increment <= video_length:
+        
+        # get bin
+        next_time = current_time + increment
+        start_bin = np.where(times >= current_time)[0][0]
+        end_bin = np.where(times >= next_time)[0][0]
+        
+        # find STOPs
+        # look at AVERAGE SPEED of this bin
+        # if below a threshold for speed? = a STOP
+        # in STOPS, set all frames of this bin to 1
+        if np.mean(speed[start_bin:end_bin]) <= stop_threshold:
+            stops[start_bin:end_bin] = 1
+                         
+        # find TURNS
+        # look at total change in bearing from this bin
+        # if ABOVE a threshold (eg 28 degrees)? = a TURN
+        # in TURNS, set all frames of this bin to 1
+        # what if turned a bit one way, then turned back? Hmmmm...
+        if np.sum(bearing_changes[start_bin:end_bin]) >= turn_threshold:
+            turns[start_bin:end_bin] = 1
+
+        current_time += increment
+    
+    # deal with last portion of video that is less than time increment in duration
+    if current_time < video_length:
+        start_bin = np.where(times >= current_time)[0][0]
+        if np.mean(speed[start_bin:]) <= stop_threshold:
+            stops[start_bin:] = 1
+        if np.sum(bearing_changes[start_bin:]) >= turn_threshold:
+            turns[start_bin:] = 1
+
+    return stops, turns
+
+def one_runs(a):
+    # Create an array that is 1 where a is 1, and pad each end with an extra 0.
+    isone = np.concatenate(([0], np.equal(a, 1).view(np.int8), [0]))
+    absdiff = np.abs(np.diff(isone))
+    # Runs start and end where absdiff is 1.
+    ranges = np.where(absdiff == 1)[0].reshape(-1, 2)
+    return ranges
+
+def distanceSpeedBearings(times, xcoords, ycoords, scale):
+    '''
+    for all video frames: 
+    make vectors of speed, distance, cumulative distance, bearing
 
     Parameters
     ----------
     times : numpy array
         times of each video frame
     xcoords : numpy array
-        x coordinates
+        x coordinates (usually smoothed)
     ycoords : numpy array
-        y coordinates.
-    vid_fps : integer
-        frames (i.e. coordinates) per second in video
-    increment : integer
-        increment duration (in seconds) for path coordinate bins
+        y coordinates (usually smoothed)
+    scale : float
+        number of pixels for 1 mm real distance
 
     Returns
     -------
 
-    num_stops = integer amount of # of stops
-    discrete_turns = integer amount of # of turns
-    angle_space = floating point number of cumulative changes in path angle
-    [old code] speed_changes = integer amount of # of changes in speed
+    vectors of same length as times:
+    distance = distance traveled per video frame
+    speed = speed of travel during video frame
+    cumulative_distance = distance traveled from beginning through video frame
+    bearing = change in bearing during video frame (this will be ZERO if stopped)
+    
+    stops = binary vector (1 = stopped, 0 = moving)
+    turns = binary vector (1 = turning, 0 = not turning)
 
     '''
 
-    # get the number of points per time increment
-    points_in_bin = int(vid_fps * increment)
-
-    # get duration of the video in seconds
-    video_length = np.around(len(xcoords) / vid_fps, decimals = 2)
-
-    # get distance traveled along path
-    path_distance = cumulativeDistance(xcoords, ycoords)
-
-    # get average speed
-    average_speed = np.around(path_distance / video_length, decimals = 2)
-
-    # bin the times and coordinates
-    binned_time = binList(times, points_in_bin)
-    binned_x = binList(xcoords, points_in_bin)
-    binned_y = binList(ycoords, points_in_bin)
-    speeds = np.zeros(len(binned_x))
-    bearings = np.zeros(len(binned_x))
-
-    # calculate speed and angle for each bin
-    for i, xbin in enumerate(binned_x): # could probably do list comprehension
-        start_coord = np.array([xbin[0], -binned_y[i][0]]) # we do -y because y=0 is the top of the image
-        end_coord = np.array([xbin[-1], -binned_y[i][-1]])
-
-        # calculate speed in this increment
-        distance_for_bin = np.linalg.norm(start_coord - end_coord)
-        time_in_bin = len(xbin) / vid_fps
-        speeds[i] = np.around(distance_for_bin / time_in_bin, decimals=2)
-
-        # calculate angle in this increment
+    # get vector of distances traveled in every frame
+    # could probably do list comprehension
+    distance = np.zeros(len(times))
+    speed = np.zeros(len(times))
+    cumulative_distance = np.zeros(len(times))
+    bearings = np.zeros(len(times))
+    bearing_changes = np.zeros(len(times))
+    
+    for i, time in enumerate(times[:-1]):
+        current_x = xcoords[i]
+        current_y = -ycoords[i] # we do -y because y=0 is the top of the image
+        next_x = xcoords[i+1]
+        next_y = -ycoords[i+1] # we do -y because y=0 is the top of the image
+        
+        start_coord = np.array([current_x, current_y])
+        end_coord = np.array([next_x, next_y])
+        
+        time_interval = times[i+1] - times[i]
+        
+        distance_in_frame = np.linalg.norm(start_coord - end_coord) / scale
+        
+        distance[i] = distance_in_frame
+        speed[i] = distance_in_frame / time_interval
+        
         bearings[i] = getBearing(start_coord, end_coord)
-        # print(start_coord, end_coord, angles[i])
-
-    # just printing the turn angles to test things out
-    # np.set_printoptions(suppress=True)
-    # print(bearings)
-
-    # ==> from speeds and angles, FIND speedChanges, discrete_turns, angle_space
-    # DEFINE THRESHOLDS for changes in speed or direction
-    # for turn, define a discrete turn as a turn that is greater than
-    #     X (?) degrees ... when SPEED is above a certain threshold?
-    # for stops, define a stop as an interval with speed < X% of average speed
-    #     X% (?) of the average speed across the path?
-    # [old code] for speed changes, define a change in speed as a change that is greater than
-    #     X% (?) of the average speed across the path
-
-    # [old] speed change threshold
-    # [old] speed_change_percentage_threshold = 33 # percent of average speed
-    # what is the magnitude of a 'real' change in speed?
-    # [old] speed_change_threshold = np.around(speed_change_percentage_threshold/100 * average_speed, decimals = 2)
-    # print('speed change threshold: ', speed_change_threshold)
-
-    # define stop thresholds
-    stop_percentage_threshold = 50 # percent of average speed
-    stop_magnitude_threshold = np.around(stop_percentage_threshold/100 * average_speed, decimals = 2)
-    #print('threshold for STOP: ', stop_magnitude_threshold)
-    moving = True # current state of the movement (False if 'stopped')
-
-    # define discrete turn thresholds
-    turn_degree_threshold = 28 # degrees
-    #print('threshold (degrees) for discrete turn: ', turn_degree_threshold)
-
-    # set counters to zero
-    # speed_changes = 0   # changes in speed that meet the thresholds above
-    num_stops = 0       # number of times the speed slows before a defined threshold
-    discrete_turns = 0  # changes in bearing that meet the thresholds above
-    angle_space = 0     # cumulative total of changes in bearing
-
-    # keep track of which bins have no movement (i.e. stops)
-    stop_times = []
-
-    # keep track of which bins have turns
-    turn_times = []
-
-    for i, speed in enumerate(speeds[:-1]):
-
-        # [old code for speed change threshold]
-        # what was the change in speed?
-        # delta_speed = np.abs(speeds[i+1] - speeds[i])
-        # # was this a 'discrete' change in speed?
-        # if delta_speed >= speed_change_threshold:
-        #     #print('change in speed: ', delta_speed)
-        #     speed_changes += 1
-
-        # Decide if this bin is a STOP
-        if moving: # moving = True, the critter was MOVING before this bin
-            # is the critter moving now?
-            if speed <= stop_magnitude_threshold:
-                moving = False # this critter WAS moving but now it has STOPPED!
-                num_stops += 1
-                stop_times.append(binned_time[i])
-            # the critter was MOVING before, and it is still moving,
-            # so we leave moving=True
-
-        else: # moving = False, the critter was STOPPED before this bin
-             # is the critter moving now?
-             if speed > stop_magnitude_threshold:
-                 moving = True # this critter was STOPPED but now it is moving!
-             # if it is not moving before now,
-             # and it is not moving now,
-             # then we just leave moving=FALSE
-
-        # What was the change in bearing between this bin and the previous one?
-        # need some care:  if successive bearings cross north (i.e. 0/360) ...
-        # both will be near (within ~20 degrees) of 0 or 360
-        # and so we need to adjust how we calculate difference in bearing
-        if bearings[i] < 20 and bearings[i+1] > 340: # the path crossed North
-            delta_bearing = bearings[i] + 360 - bearings[i+1]
-        elif bearings[i] > 340 and bearings[i+1] < 20: # the path crossed North
-            delta_bearing = 360 - bearings[i] + bearings[i+1]
+        
+        if i == 0:
+            cumulative_distance[i] = distance_in_frame
+            bearing_changes[i] = 0
         else:
-            delta_bearing = np.abs(bearings[i+1]-bearings[i])
-        angle_space += delta_bearing # cumulative total of changes in bearing
+            cumulative_distance[i] = cumulative_distance[i-1] +  distance_in_frame
+            delta_bearing = change_in_bearing(bearings[i], bearings[i-1])
+            bearing_changes[i] = delta_bearing
+    
+    return distance, speed, cumulative_distance, bearings, bearing_changes
 
-        # Decide if this bin is a 'discrete' change in bearing (i.e. a 'turn')?
-        # if moving and delta_bearing >= turn_degree_threshold:
-        if delta_bearing >= turn_degree_threshold:
-            #print('A TURN!')
-            discrete_turns += 1
-            turn_times.append(binned_time[i])
+def need_tracking():
+    exit('\n ==> Need to run trackCritter.py before analyzing the path!\n')
 
-    angle_space = np.around(angle_space, decimals=2)
-    printMe = False
-    if printMe == True:
-        #printString = 'Speed changes: ' + str(speed_changes)
-        printString = 'Stops: ' + str(num_stops)
-        printString += ', Discrete turns: ' + str(discrete_turns)
-        printString += ', Explored angles: ' + str(angle_space)
-        print(printString)
+def getScale(info):
 
-    return num_stops, discrete_turns, angle_space, stop_times, turn_times
+    # does info have the scale already?
+    if 'scale' in info.keys():    
+        scale = float(info['scale'])
+    else:
+
+        scaleFile = glob.glob('*scale.txt')
+        if len(scaleFile) > 0:
+            with open(scaleFile[0],'r') as f:
+                stuff = f.readlines()
+                for thing in stuff:
+                    if '=' in thing:
+                        scale = float(thing.split('=')[1])
+                    else:
+                        scale = float(thing)
+        else:
+            print('no scale for ' + info['file_stem'])
+            print('... measure 1mm on the micrometer (see image) ... ')
+            micrometerFiles = glob.glob('*micrometer*')
+            if len(micrometerFiles) > 0:
+                import measureImage
+                micrometerFile = micrometerFiles[0]
+                scale = float(measureImage.main(micrometerFile))
+    
+            else:
+                print('no micrometer image ... ')
+                scale = 1
+        
+        # update the excel file
+        print('... adding scale to excel file for this clip ... ')
+        excel_filename = info['file_stem'] + '.xlsx'
+        parameters = gait_analysis.identity_print_order()
+        vals = [info[x] for x in parameters]
+        parameters.append('scale')
+        vals.append(scale)
+        
+        d = {'Parameter':parameters,'Value':vals}
+        df = pd.DataFrame(d)
+        with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
+            df.to_excel(writer, index=False, sheet_name='identity')
+        
+    #print('Scale is ' + str(scale))
+    return scale
 
 def getBearing(p1, p2):
     '''
@@ -402,22 +360,6 @@ def binList(my_list, bin_size):
     '''
     binned_list = [my_list[x:x+bin_size] for x in range(0, len(my_list), bin_size)]
     return binned_list
-
-def getDataLabel(area, distance, vid_length, angle_space = 0, discrete_turns = 0, num_stops = 0):
-    # convert from pixels?
-    speed = np.around(distance/vid_length, decimals = 2)
-    data_label = 'Area : ' + str(area)
-    data_label += ', Distance : ' + str(distance)
-    data_label += ', Time: ' + str(vid_length)
-    data_label += ', Speed: ' + str(speed)
-    data_label += ', Stops: ' + str(num_stops)
-
-    # angle space
-    if angle_space > 0:
-        data_label += ', Angles explored: ' + str(angle_space)
-        data_label += ', Turns: ' + str(discrete_turns)
-
-    return data_label
 
 def cumulativeDistance(x,y):
     '''
@@ -469,36 +411,13 @@ def smoothFiltfilt(x, pole=3, freq=0.1):
     filtered = scipy.signal.filtfilt(b,a,x)
     return filtered
 
-def getVideoData(videoFile, printOut = True):
-    if len(glob.glob(videoFile)) == 0:
-        exit('Cannot find ' + videoFile)
-    else:
-        vid = cv2.VideoCapture(videoFile)
-        vid_width  = int(vid.get(3))
-        vid_height = int(vid.get(4))
-        vid_fps = int(np.round(vid.get(5)))
-        vid_frames = int(vid.get(7))
-        vid.release()
-        vid_length = np.around(vid_frames / vid_fps, decimals = 2)
-    if printOut == True:
-        printString = 'width: ' + str(vid_width)
-        printString += ', height: ' + str(vid_height)
-        printString += ', fps: ' + str(vid_fps)
-        printString += ', #frames: ' + str(vid_frames)
-        printString += ', duration: ' + str(vid_length)
-        print(printString)
-    return (vid_width, vid_height, vid_fps, vid_frames, vid_length)
-
-
-if __name__ == "__main__":
-
+if __name__== "__main__":
 
     if len(sys.argv) > 1:
-        tracking_data = sys.argv[1]
+        movie_file = sys.argv[1]
     else:
-        tracking_list = glob.glob('*tracked*')
-        tracking_data = tracking_list[0]
+       movie_file = gait_analysis.select_movie_file()
+       
+    print('Movie is ' + movie_file)
 
-    #print('Getting data from ' + tracking_data)
-
-    main(tracking_data)
+    main(movie_file)

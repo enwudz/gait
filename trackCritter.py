@@ -24,21 +24,51 @@ from matplotlib import cm
 import glob
 import sys
 from scipy import stats
+import gait_analysis
+import pandas as pd
 
 def main(movie_file):
+    
+    # get or make excel file for this clip
+    excel_file_exists, excel_filename = gait_analysis.check_for_excel(movie_file)
+    if excel_file_exists == False:
+        import initializeClip
+        initializeClip.main(movie_file)
+        continue_tracking()
+        
+    # check if the tracking data is already there ... ask if want to run again
+    tracking_data = pd.read_excel(excel_filename, sheet_name='pathtracking')
+    if len(tracking_data) > 0:
+        print('... looks like there is already tracking data for this clip!')
+        continue_tracking()
     
     # get and save first frame
     first_frame = getFirstFrame(movie_file)
     cv2.imwrite(movie_file.split('.')[0] + '_first.png', first_frame, [cv2.IMWRITE_PNG_COMPRESSION, 0])
-    
+        
     # make background image using N random frames of video
     # (or load a background image that is already made)
     background_image = backgroundFromRandomFrames(movie_file, 100)
 
     # run through video and compare each frame with background
-    findCritter(movie_file, background_image, 25) # typical threshold is 25, scale of 1 to 255
+    centroid_coordinates, areas = findCritter(movie_file, background_image, 25) # typical threshold is 25, scale of 1 to 255
+    
+    # save the centroid_coordinates and areas to the excel file
+    times = [x[0] for x in centroid_coordinates]
+    xcoords = [x[1] for x in centroid_coordinates]
+    ycoords = [x[2] for x in centroid_coordinates]
+    
+    d = {'times':times, 'xcoords':xcoords, 'ycoords':ycoords, 'areas':areas}
+    df = pd.DataFrame(d)
+    with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
+        df.to_excel(writer, index=False, sheet_name='pathtracking')
 
-    return
+    return df
+
+def continue_tracking():
+    selection = input('\n ... (c)ontinue tracking, or (q)uit ?  ')
+    if selection != 'c':
+        exit('')
 
 def findCritter(video_file, background, pixThreshold = 25):
 
@@ -160,7 +190,9 @@ def findCritter(video_file, background, pixThreshold = 25):
     cv2.destroyAllWindows()
 
     # save centroids and areas
-    writeData(fstem, centroid_coordinates, areas)
+    # writeData(fstem, centroid_coordinates, areas)
+    
+    return centroid_coordinates, areas
 
 def writeData(filestem, centroid_coordinates, areas):
     outfile = filestem + '_tracked.csv'
@@ -434,9 +466,8 @@ if __name__== "__main__":
     if len(sys.argv) > 1:
         movie_file = sys.argv[1]
     else:
-        movie_list = glob.glob('*.mov')
-        movie_file = movie_list[0]
-
+       movie_file = gait_analysis.select_movie_file()
+       
     print('Movie is ' + movie_file)
 
     main(movie_file)
