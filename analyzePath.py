@@ -53,7 +53,7 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
 
     # read in data
     frametimes = tracked_data.times.values
-    areas = tracked_data.areas.values
+    areas = tracked_data.areas.values / scale**2
     xcoords = tracked_data.xcoords.values
     ycoords = tracked_data.ycoords.values 
     
@@ -91,7 +91,7 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
     
     path_stats = zip(parameters, vals)
     df2 = pd.DataFrame(path_stats)
-    df2.columns = ['Path parameters', 'Values']
+    df2.columns = ['path parameter', 'value']
     with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
         df2.to_excel(writer, index=False, sheet_name='path_stats')
     
@@ -187,10 +187,10 @@ def stopsTurns(times, speed, bearing_changes, increment):
     # deal with last portion of video that is less than time increment in duration
     if current_time < video_length:
         start_bin = np.where(times >= current_time)[0][0]
-        if np.mean(speed[start_bin:]) <= stop_threshold:
-            stops[start_bin:] = 1
-        if np.sum(bearing_changes[start_bin:]) >= turn_threshold:
-            turns[start_bin:] = 1
+        if np.mean(speed[start_bin:-1]) <= stop_threshold:
+            stops[start_bin:-1] = 1
+        if np.sum(bearing_changes[start_bin:-1]) >= turn_threshold:
+            turns[start_bin:-1] = 1
 
     return stops, turns
 
@@ -415,9 +415,14 @@ if __name__== "__main__":
 
     if len(sys.argv) > 1:
         movie_file = sys.argv[1]
+        try:
+            plot_style = sys.argv[2]
+        except:
+            plot_style = 'none'
     else:
-       movie_file = gait_analysis.select_movie_file()
+        movie_file = gait_analysis.select_movie_file()
+        plot_style = 'none'
        
     print('Movie is ' + movie_file)
 
-    main(movie_file)
+    main(movie_file, plot_style)

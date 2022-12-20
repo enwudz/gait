@@ -10,6 +10,7 @@ import glob
 import initializeClip
 import trackCritter
 import analyzePath
+import plotPath
 import gait_analysis
 import sys
 
@@ -17,6 +18,7 @@ def main(movie_file):
     initializeClip.main(movie_file)
     trackCritter.main(movie_file)
     analyzePath.main(movie_file)
+    plotPath.main(movie_file,'track')
 
 if __name__== "__main__":
 
