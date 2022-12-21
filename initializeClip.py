@@ -24,14 +24,14 @@ It tries to extract info from the filename
 
 """
 import sys
-import gait_analysis
+import gaitFunctions
 import pandas as pd
 import re
 
 def main(mov_file):
     
     # is there already an excel file for this clip?
-    excel_file_exists, excel_filename = gait_analysis.check_for_excel(mov_file)
+    excel_file_exists, excel_filename = gaitFunctions.check_for_excel(mov_file)
         
     # if there is a file, extract the info from the identity sheet
     if excel_file_exists:
@@ -47,7 +47,7 @@ def main(mov_file):
         make_excel(excel_filename, info)
     
     # print the info we have, and invite user to modify the file
-    print_order = gait_analysis.identity_print_order()
+    print_order = gaitFunctions.identity_print_order()
     
     print('\nHere is info we have - feel free to edit ' + excel_filename + '\n')
     printed = []
@@ -64,7 +64,7 @@ def main(mov_file):
     return info
 
 def make_excel(excel_filename, info):
-    print_order = gait_analysis.identity_print_order()
+    print_order = gaitFunctions.identity_print_order()
     vals = [info[x] for x in print_order]
     d = {'Parameter':print_order,'Value':vals}
     df = pd.DataFrame(d)
@@ -144,7 +144,7 @@ if __name__== "__main__":
     if len(sys.argv) > 1:
         mov_file = sys.argv[1]
     else:
-        mov_file = gait_analysis.select_movie_file()
+        mov_file = gaitFunctions.select_movie_file()
         
     if '.mov' in mov_file:
         main(mov_file)

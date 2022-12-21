@@ -24,13 +24,15 @@ from matplotlib import cm
 import glob
 import sys
 from scipy import stats
-import gait_analysis
+import gaitFunctions
 import pandas as pd
 
 def main(movie_file):
     
+    difference_threshold = 12
+    
     # get or make excel file for this clip
-    excel_file_exists, excel_filename = gait_analysis.check_for_excel(movie_file)
+    excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file)
     if excel_file_exists == False:
         import initializeClip
         initializeClip.main(movie_file)
@@ -51,7 +53,7 @@ def main(movie_file):
     background_image = backgroundFromRandomFrames(movie_file, 100)
 
     # run through video and compare each frame with background
-    centroid_coordinates, areas = findCritter(movie_file, background_image, 25) # typical threshold is 25, scale of 1 to 255
+    centroid_coordinates, areas = findCritter(movie_file, background_image, difference_threshold) # typical threshold is 25, scale of 1 to 255
     
     # save the centroid_coordinates and areas to the excel file
     times = [x[0] for x in centroid_coordinates]
@@ -466,7 +468,7 @@ if __name__== "__main__":
     if len(sys.argv) > 1:
         movie_file = sys.argv[1]
     else:
-       movie_file = gait_analysis.select_movie_file()
+       movie_file = gaitFunctions.select_movie_file()
        
     print('Movie is ' + movie_file)
 

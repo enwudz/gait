@@ -11,7 +11,7 @@ import glob
 import numpy as np
 import pandas as pd
 import scipy.signal
-import gait_analysis
+import gaitFunctions
 
 '''
 WISH LIST
@@ -33,7 +33,7 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
     # tracking data is from trackCritter.py, and is in an excel file for this clip
     
     # load excel file for this clip
-    excel_file_exists, excel_filename = gait_analysis.check_for_excel(movie_file)
+    excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file)
     if excel_file_exists:
         df = pd.read_excel(excel_filename, sheet_name='identity', index_col=None)
         info = dict(zip(df['Parameter'].values, df['Value'].values))
@@ -84,8 +84,8 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
     clip_duration = frametimes[-1]
     total_distance = np.sum(distance)
     average_speed = np.mean(speed[:-1])
-    num_turns = len(gait_analysis.one_runs(turns))
-    num_stops = len(gait_analysis.one_runs(stops))
+    num_turns = len(gaitFunctions.one_runs(turns))
+    num_stops = len(gaitFunctions.one_runs(stops))
     cumulative_bearings = np.sum(bearing_changes)
     vals = [median_area, clip_duration, total_distance, average_speed, num_turns, num_stops, cumulative_bearings, time_increment]
     
@@ -298,7 +298,7 @@ def getScale(info):
         # update the excel file
         print('... adding scale to excel file for this clip ... ')
         excel_filename = info['file_stem'] + '.xlsx'
-        parameters = gait_analysis.identity_print_order()
+        parameters = gaitFunctions.identity_print_order()
         vals = [info[x] for x in parameters]
         parameters.append('scale')
         vals.append(scale)
@@ -415,7 +415,7 @@ if __name__== "__main__":
         except:
             plot_style = 'none'
     else:
-        movie_file = gait_analysis.select_movie_file()
+        movie_file = gaitFunctions.select_movie_file()
         plot_style = 'none'
        
     print('Movie is ' + movie_file)

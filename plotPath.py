@@ -12,14 +12,14 @@ from matplotlib.patches import Rectangle
 import numpy as np
 import cv2
 import sys
-import gait_analysis
+import gaitFunctions
 import pandas as pd
 import glob
 
 def main(movie_file, plot_style = 'track'): # track or time
 
     # load excel file for this clip
-    excel_file_exists, excel_filename = gait_analysis.check_for_excel(movie_file)
+    excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file)
     if excel_file_exists:
         tracked_df = pd.read_excel(excel_filename, sheet_name='pathtracking', index_col=None)
         if len(tracked_df.columns) <= 4:
@@ -79,7 +79,7 @@ def main(movie_file, plot_style = 'track'): # track or time
         speed_xlim = a1.get_xlim()
         speed_ylim = a1.get_ylim()
         stops = tracked_df.stops.values
-        stop_bouts = gait_analysis.one_runs(stops)
+        stop_bouts = gaitFunctions.one_runs(stops)
         
         if len(stop_bouts) > 0:
             for bout in stop_bouts:
@@ -104,7 +104,7 @@ def main(movie_file, plot_style = 'track'): # track or time
         # add turns on the bearing changes axis (a3)
         bearing_ylim = a3.get_ylim()
         turns = tracked_df.turns.values
-        turn_bouts = gait_analysis.one_runs(turns)
+        turn_bouts = gaitFunctions.one_runs(turns)
         
         if len(turn_bouts) > 0:
             for bout in turn_bouts:
@@ -233,7 +233,7 @@ if __name__== "__main__":
         except:
             plot_style = 'none'
     else:
-        movie_file = gait_analysis.select_movie_file()
+        movie_file = gaitFunctions.select_movie_file()
         plot_style = 'none'
 
     print('Plot style is ' + plot_style)

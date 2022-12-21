@@ -3,8 +3,9 @@ import cv2
 import sys
 import os
 import glob
-import gait_analysis
+import gaitFunctions
 import pandas as pd
+from time import sleep
 
 # aside: want to make a movie from a bunch of frames?
 # brew install ffmpeg
@@ -23,7 +24,7 @@ def main(movie_file, resize=100):
     # in terminal, navigate to the directory that has your movies
     
     # load excel file for this clip
-    excel_file_exists, excel_filename = gait_analysis.check_for_excel(movie_file)
+    excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file)
     if excel_file_exists:
         df = pd.read_excel(excel_filename, sheet_name='identity', index_col=None)
         info = dict(zip(df['Parameter'].values, df['Value'].values))
@@ -63,7 +64,13 @@ def main(movie_file, resize=100):
             if foot + '_up' not in foot_data and needFoot == True:
                 foot_to_track = foot
                 needFoot = False
-                
+            else:
+                needFoot = False
+        
+        if needFoot == False:
+            print('... all done with feet!')
+            break
+        
         print('Next foot to do is ' + foot_to_track + ' ...')
         selection = input('     (t)rack or (q)uit ? ')
         if selection != 't':
@@ -92,6 +99,7 @@ def main(movie_file, resize=100):
         k1 = foot + '_down'
         k2 = foot + '_up'
         if k1 in foot_data.keys():
+            
             print('\n')
             v1 = ' '.join([str(x) for x in foot_data[k1]])
             v2 = ' '.join([str(x) for x in foot_data[k2]])
@@ -119,7 +127,7 @@ def createMovDataFile(movieFolder, videoFile, first_frame, last_frame):
     if len(movieData) == 0:
         print('No mov_data.txt file, making one ...')
         vid = cv2.VideoCapture(os.path.join(movieFolder, videoFile))
-        vidlength = gait_analysis.getVideoStats(vid, printout=True)[0]
+        vidlength = gaitFunctions.getVideoStats(vid, printout=True)[0]
 
         print('\n Writing to ' + out_file + ' .... ')
         with open(out_file, 'w') as o:
@@ -177,13 +185,15 @@ def stepThroughFrames(folder_name, footname, resize=100):
 
         if i >= numFrames:
             i = 0
-            print('All done with this clip - going back to beginning!')
-            cv2.waitKey(50)
+            print('All done tracking ' + footname + '!')
+            print('... pausing a bit before going back to beginning - (q)uit this leg? ')
+            cv2.waitKey(1)
             cv2.destroyAllWindows()
+            sleep(2)
             
             # this is an opportunity to do some quality control on the downs and ups
             # quality control code . . .
-            problem = gait_analysis.qcDownsUps(footDown,footUp)
+            problem = gaitFunctions.qcDownsUps(footDown,footUp)
             if len(problem) > 0:
                 print(problem)
                 break
@@ -278,7 +288,7 @@ def stepThroughFrames(folder_name, footname, resize=100):
             data = [sorted(x) for x in [footDown, footUp]]
             
             # this is an opportunity to do some quality control on this data
-            problem = gait_analysis.qcDownsUps(footDown,footUp)
+            problem = gaitFunctions.qcDownsUps(footDown,footUp)
             if len(problem) > 0:
                 print(problem)
 
@@ -354,7 +364,7 @@ if __name__== "__main__":
         except:
             resize = 100
     else:
-        movie_file = gait_analysis.select_movie_file()
+        movie_file = gaitFunctions.select_movie_file()
         resize = 100
 
     print('Resizing to ' + str(resize) + '%')

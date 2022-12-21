@@ -11,13 +11,13 @@ import initializeClip
 import trackCritter
 import analyzePath
 import plotPath
-import gait_analysis
+import gaitFunctions
 import sys
 
 def main(movie_file):
     # initializeClip.main(movie_file)
-    # trackCritter.main(movie_file)
-    # analyzePath.main(movie_file)
+    trackCritter.main(movie_file)
+    analyzePath.main(movie_file)
     plotPath.main(movie_file,'track')
     plotPath.main(movie_file,'time')
 
@@ -34,7 +34,7 @@ if __name__== "__main__":
         else:
             print('Please provide a .mov file or type "a" or "all"')
     else:
-       movie_file = gait_analysis.select_movie_file()
+       movie_file = gaitFunctions.select_movie_file()
        print('Movie is ' + movie_file)
 
     main(movie_file)
