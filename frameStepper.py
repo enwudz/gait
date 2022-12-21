@@ -4,6 +4,7 @@ import sys
 import os
 import glob
 import gait_analysis
+import pandas as pd
 
 # aside: want to make a movie from a bunch of frames?
 # brew install ffmpeg
@@ -17,60 +18,94 @@ WISH LIST
 1. allow to change mind . . . e.g. hit 'x' if want to clear current entry
 '''
 
-def main(resize=100):
+def main(movie_file, resize=100):
 
     # in terminal, navigate to the directory that has your movies
+    
+    # load excel file for this clip
+    excel_file_exists, excel_filename = gait_analysis.check_for_excel(movie_file)
+    if excel_file_exists:
+        df = pd.read_excel(excel_filename, sheet_name='identity', index_col=None)
+        info = dict(zip(df['Parameter'].values, df['Value'].values))
+        
+        # check if there is any step data already; load if so
+        foot_data_df = pd.read_excel(excel_filename, sheet_name='steptracking', index_col=None)
+        
+        if len(foot_data_df) > 1:
+            # load foot_data dictionary
+            foot_data = dict(zip(foot_data_df['leg_state'].values,foot_data_df['times'].values))
+            # convert foot_data from string to list, to match data collection below
+            for leg_state in foot_data.keys():
+                foot_data[leg_state] = foot_data[leg_state].split(' ')
+                foot_data[leg_state] = [int(x) for x in foot_data[leg_state]]
+        else:
+            # make a foot_data dictionary
+            foot_data = {}
+    
+    else:
+        import initializeClip
+        info = initializeClip.main(movie_file)
+        foot_data = {}
 
-    # find the video to analyze
-    cwd = os.getcwd()
-    movie_folder = gait_analysis.selectOneFromList(gait_analysis.listDirectories()) # from gait_analysis
-    video_file = gait_analysis.getMovieFromFileList(movie_folder)
-    print('\n ... opening ' + video_file)
-
-    # get first frame
-    # f = getFirstFrame(video_file)
-    # displayFrame(f)
-
-    # look for frame folder in movie_folder
+    # look for frame folder for this movie
     # if none there, create one and save frames
-    frame_folder, first_frame, last_frame = saveFrames(movie_folder, video_file)
+    frame_folder = movie_file.split('.')[0] + '_frames'
+    frame_folder = saveFrames(frame_folder, movie_file)
 
-    # look for a 'mov_data.txt' file in movie_folder
-    # if none there, create one
-    createMovDataFile(movie_folder, video_file, first_frame, last_frame)
+    trackFeet = True
+    feet = getFeet()
+    
+    while trackFeet:
 
-    # get foot of interest
-    feet_to_do = getFeet()
+        # Do next foot
+        needFoot = True
+        for foot in feet:
+            if foot + '_up' not in foot_data and needFoot == True:
+                foot_to_track = foot
+                needFoot = False
+                
+        print('Next foot to do is ' + foot_to_track + ' ...')
+        selection = input('     (t)rack or (q)uit ? ')
+        if selection != 't':
+            trackFeet = False
+            break
 
-    for footname in feet_to_do:
-
-        print('... record data for ' + footname + '\n')
-
+        print('... record data for ' + foot_to_track + '\n')
+    
         # step through frames and label things
         # can enter a number for resize to scale video
-        data = stepThroughFrames(frame_folder, footname, resize) 
-
-        ## print out foot down and foot up data for this foot
-        foot_info = showFootDownUp(footname, data)
-        print(foot_info)
-
-        ## add new data to mov_data.txt file
-        with open(cwd + '/' + movie_folder + '/mov_data.txt', 'a') as o:
-            o.write(foot_info)
-
-    # if footname is R4, ask if we should run plot_steps and measurements
-    # (plot steps also asks if we should remove the frame folder)
-    if footname == 'R4':
-
-        selection = input ('\nRun plot_steps.py? (y) or (n): ')
-        if selection == 'y':
-            import plot_steps
-            plot_steps.main(movie_folder)
-
-        selection = input ('Measure stuff? (y) or (n): ')
-        if selection == 'y':
-            import measure_things
-            measure_things.main(movie_folder)
+        data = stepThroughFrames(frame_folder, foot_to_track, resize) 
+    
+        # print out foot down and foot up data for this foot
+        foot_step_times = showFootDownUp(foot_to_track, data)
+        print(foot_step_times)
+    
+        # add foot data to the foot dictionary
+        # data[0] is down times, data[1] is up times
+        foot_data[foot_to_track+'_down'] = data[0]
+        foot_data[foot_to_track+'_up'] = data[1]
+           
+    # print out foot dictionary    
+    good_keys = []
+    good_vals = []
+    for foot in feet:
+        k1 = foot + '_down'
+        k2 = foot + '_up'
+        if k1 in foot_data.keys():
+            print('\n')
+            v1 = ' '.join([str(x) for x in foot_data[k1]])
+            v2 = ' '.join([str(x) for x in foot_data[k2]])
+                              
+            print(foot + ' down: ' + v1)
+            print(foot + ' up:   ' + v2)
+            good_keys.extend([k1,k2])
+            good_vals.extend([v1,v2])
+             
+    # save foot dictionary to excel
+    d = {'leg_state':good_keys,'times':good_vals}
+    df = pd.DataFrame(d)
+    with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
+        df.to_excel(writer, index=False, sheet_name='steptracking')
 
     return
 
@@ -97,13 +132,15 @@ def createMovDataFile(movieFolder, videoFile, first_frame, last_frame):
 
 def getFeet():
     feet = ['L1', 'R1', 'L2', 'R2', 'L3', 'R3', 'L4', 'R4']
+    return feet
+
+def selectFeet():
     selection = input('Enter feet to analyze (separated by spaces) or select (a)ll: ')
     if selection in ['a','all','A']:
-        feet_to_do = feet
+        feet_to_do = getFeet()
     else:
         feet_to_do = selection.split(' ')
     return feet_to_do
-
 
 def showFootDownUp(footname, footdata):
     thing = '\n'
@@ -201,7 +238,7 @@ def stepThroughFrames(folder_name, footname, resize=100):
                 # get this time and add it to the list for this leg
                 footDown.append(t)
                 # print current list of times for foot down
-                print('down: ' + ' '.join([str(x) for x in footDown]))
+                print(footname + ' down: ' + ' '.join([str(x) for x in footDown]))
 
         elif key == ord('u'):  # foot up!
             print('you pressed u = foot up!')
@@ -213,7 +250,7 @@ def stepThroughFrames(folder_name, footname, resize=100):
                 # get this time and add it to the list for this leg
                 footUp.append(t)
                 # print current list of times for foot down
-                print('up: ' + ' '.join([str(x) for x in footUp]))
+                print(footname + ' up: ' + ' '.join([str(x) for x in footUp]))
                 
         elif key == ord('x'): # made a mistake and want to clear your latest entry
             if current_state == 'up':
@@ -247,31 +284,27 @@ def stepThroughFrames(folder_name, footname, resize=100):
 
             return data
 
-
-def saveFrames(movieFolder, videofile):
+def saveFrames(frame_folder, movie_file):
+    
     # check to see if frames folder exists; if not, make a folder
-    base_name = videofile.split('.')[0]
-    dest_folder = base_name + '_frames'
-
-    folder_name = os.path.join(base_name, dest_folder)
-
-    flist = glob.glob(folder_name)
+    flist = glob.glob(frame_folder)
 
     if len(flist) == 1:
-        print(' ... frames already saved for ' + videofile + '\n')
-        return folder_name, 0, 0 
+        print(' ... frames already saved for ' + movie_file + '\n')
+        return frame_folder
 
-    print('Saving frames for ' + videofile + ' . . . . ')
-    print('.... creating a directory =  ' + str(folder_name))
-    os.mkdir(folder_name)
+    print('Saving frames for ' + movie_file + ' . . . . ')
+    print('.... creating a directory =  ' + str(frame_folder))
+    os.mkdir(frame_folder)
 
     font = cv2.FONT_HERSHEY_SCRIPT_COMPLEX
 
-    vid = cv2.VideoCapture(os.path.join(movieFolder, videofile))
+    vid = cv2.VideoCapture(movie_file)
 
     print('.... saving frames!')
 
     frameTimes = []
+    base_name = movie_file.split('.')[0]
     
     while (vid.isOpened()):
         
@@ -291,14 +324,13 @@ def saveFrames(movieFolder, videofile):
             # save frame to file, with frameTime
             if frameTime > 0: # cv2 sometimes(?) assigns the last frame of the movie to time 0            
                 file_name = base_name + '_' + str(frameTime).zfill(8) + '.png'
-                cv2.imwrite(os.path.join(folder_name, file_name), frame)
+                cv2.imwrite(os.path.join(frame_folder, file_name), frame)
                 frameTimes.append(frameTime)
             
         else: # no frame here
             break
     vid.release()
-    return folder_name, frameTimes[0], frameTimes[-1]
-
+    return frame_folder
 
 def displayFrame(frame):
     # show the frame
@@ -306,7 +338,6 @@ def displayFrame(frame):
 
     cv2.waitKey(0)
     cv2.destroyAllWindows()
-
 
 def getFirstFrame(videofile):
     vidcap = cv2.VideoCapture(videofile)
@@ -317,10 +348,14 @@ def getFirstFrame(videofile):
 if __name__== "__main__":
 
     if len(sys.argv) > 1:
-        resize_factor = sys.argv[1]
-        resize = int(resize_factor)
-        print('resizing to ' + resize_factor + '%')
+        movie_file = sys.argv[1]
+        try:
+            resize = int(sys.argv[2])
+        except:
+            resize = 100
     else:
+        movie_file = gait_analysis.select_movie_file()
         resize = 100
 
-    main(resize)
+    print('Resizing to ' + str(resize) + '%')
+    main(movie_file, resize)

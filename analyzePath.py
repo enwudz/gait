@@ -84,8 +84,8 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
     clip_duration = frametimes[-1]
     total_distance = np.sum(distance)
     average_speed = np.mean(speed[:-1])
-    num_turns = len(one_runs(turns))
-    num_stops = len(one_runs(stops))
+    num_turns = len(gait_analysis.one_runs(turns))
+    num_stops = len(gait_analysis.one_runs(stops))
     cumulative_bearings = np.sum(bearing_changes)
     vals = [median_area, clip_duration, total_distance, average_speed, num_turns, num_stops, cumulative_bearings, time_increment]
     
@@ -106,9 +106,11 @@ def change_in_bearing(bearing1, bearing2):
     # both will be near (e.g. within ~20 degrees) of 0 or 360
     # and so we need to adjust how we calculate difference in bearing
     
-    if bearing1 > 340 and bearing2 < 20: # the path crossed North
+    buffer = 50
+    
+    if bearing1 > 360-buffer and bearing2 < buffer: # the path crossed North
         delta_bearing = bearing2 + 360 - bearing1
-    elif bearing2 > 340 and bearing1 < 20: # the path crossed North
+    elif bearing2 > 360-buffer and bearing1 < buffer: # the path crossed North
         delta_bearing = 360 - bearing2 + bearing1
     else:
         delta_bearing = np.abs(bearing1 - bearing2)
@@ -185,22 +187,15 @@ def stopsTurns(times, speed, bearing_changes, increment):
         current_time += increment
     
     # deal with last portion of video that is less than time increment in duration
-    if current_time < video_length:
-        start_bin = np.where(times >= current_time)[0][0]
-        if np.mean(speed[start_bin:-1]) <= stop_threshold:
-            stops[start_bin:-1] = 1
-        if np.sum(bearing_changes[start_bin:-1]) >= turn_threshold:
-            turns[start_bin:-1] = 1
+    # or don't . . . leave that off?
+    # if current_time < video_length:
+    #     start_bin = np.where(times >= current_time)[0][0]
+    #     if np.mean(speed[start_bin:-1]) <= stop_threshold:
+    #         stops[start_bin:-1] = 1
+    #     if np.sum(bearing_changes[start_bin:-1]) >= turn_threshold:
+    #         turns[start_bin:-1] = 1
 
     return stops, turns
-
-def one_runs(a):
-    # Create an array that is 1 where a is 1, and pad each end with an extra 0.
-    isone = np.concatenate(([0], np.equal(a, 1).view(np.int8), [0]))
-    absdiff = np.abs(np.diff(isone))
-    # Runs start and end where absdiff is 1.
-    ranges = np.where(absdiff == 1)[0].reshape(-1, 2)
-    return ranges
 
 def distanceSpeedBearings(times, xcoords, ycoords, scale):
     '''

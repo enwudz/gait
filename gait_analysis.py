@@ -16,6 +16,30 @@ def individualFromClipname(clipname):
     individual = clipname.split(res)[0]
     return individual
 
+def one_runs(a):
+    '''
+    
+    From a 1-d array (vector) of zeros and ones
+    Find the indices where each 'bout' of ones starts and stops
+
+    Parameters
+    ----------
+    a : numpy array
+        a vector of zeros and ones.
+
+    Returns
+    -------
+    ranges : numpy array
+        start and end indices of each 'run' of ones within a.
+
+    '''
+    # Create an array that is 1 where a is 1, and pad each end with an extra 0.
+    isone = np.concatenate(([0], np.equal(a, 1).view(np.int8), [0]))
+    absdiff = np.abs(np.diff(isone))
+    # Runs start and end where absdiff is 1.
+    ranges = np.where(absdiff == 1)[0].reshape(-1, 2)
+    return ranges
+
 def makeLegDict():
     leg_dict = {}
     legs = ['R1', 'R2', 'R3', 'R4', 'L1', 'L2', 'L3', 'L4']

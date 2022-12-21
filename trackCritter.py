@@ -116,7 +116,7 @@ def findCritter(video_file, background, pixThreshold = 25):
         contours, hierarchy = cv2.findContours(binary_frame, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         # draw contours on the original frame
-        # cv2.drawContours(frame, contours, -1, (0,255,0), 5)
+        cv2.drawContours(frame, contours, -1, (0,255,0), 5)
 
         # if more than one contour, make a decision about which contour is the target object
         # decision can be based on area of target ... or maybe last known position?
@@ -178,9 +178,9 @@ def findCritter(video_file, background, pixThreshold = 25):
         # saveFrameToFile(fstem, frame_number, frame) # frame or binary_frame
 
         # ==> SHOW THE MOVIE (with centroids, times, or whatever is added)
-        # cv2.imshow('press (q) to quit', frame) # frame or binary_frame
-        # if cv2.waitKey(25) & 0xFF == ord('q'):
-        #     break
+        cv2.imshow('press (q) to quit', frame) # frame or binary_frame
+        if cv2.waitKey(25) & 0xFF == ord('q'):
+            break
 
     # save last frame
     cv2.imwrite(video_file.split('.')[0] + '_last.png', saved_frame, [cv2.IMWRITE_PNG_COMPRESSION, 0])

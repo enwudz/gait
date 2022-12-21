@@ -8,6 +8,7 @@ Created on Mon Dec 19 17:01:09 2022
 
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from matplotlib.patches import Rectangle
 import numpy as np
 import cv2
 import sys
@@ -58,8 +59,76 @@ def main(movie_file, plot_style = 'track'): # track or time
         plt.show()
     
     else: # plot time vs. other parameters
-        pass
         
+        f = plt.figure(1, figsize=(8,6))
+
+        # plot time (x) vs. speed (left y axis)
+        a1 = f.add_axes([0.1, 0.1, 0.8, 0.6])
+        speed = tracked_df.speed.values
+        line1 = a1.plot(times[:-1],speed[:-1],color='tab:blue',label='speed')
+        a1.set_xlabel('Time (s)')
+        a1.set_ylabel('Speed (mm/s)', color = 'tab:blue')
+        
+        # plot time vs. cumulative distance (right y axis)
+        a2 = a1.twinx()
+        cumulative_distance = tracked_df.cumulative_distance.values
+        line2 = a2.plot(times[:-1],cumulative_distance[:-1],color='tab:red',label='distance')
+        a2.set_ylabel('Cumulative distance (mm)', color = 'tab:red')
+        
+        # add stops as rectangles to the speed graph
+        speed_xlim = a1.get_xlim()
+        speed_ylim = a1.get_ylim()
+        stops = tracked_df.stops.values
+        stop_bouts = gait_analysis.one_runs(stops)
+        
+        if len(stop_bouts) > 0:
+            for bout in stop_bouts:
+                start_time = times[bout[0]]
+                end_time = times[bout[1]]
+                a1.add_patch(Rectangle( xy=(start_time,speed_ylim[0]),
+                             width = end_time - start_time,
+                             height = speed_ylim[1] - speed_ylim[0],
+                             facecolor = 'lightgray', edgecolor=None))
+        
+        # add bearing changes on a separate axis above (a3)
+        bearing_changes = tracked_df.bearing_changes.values
+        a3 = f.add_axes([0.1, 0.8, 0.8, 0.1])
+        a3.plot(times[1:-1],bearing_changes[1:-1],color='tab:green')
+        a3.set_xticks([])
+        a3.set_ylabel('Change in\nbearing (˚)')
+        a3.set_xlim(speed_xlim)
+        a3.spines['top'].set_visible(False)
+        a3.spines['right'].set_visible(False)
+        a3.spines['bottom'].set_visible(False)
+        
+        # add turns on the bearing changes axis (a3)
+        bearing_ylim = a3.get_ylim()
+        turns = tracked_df.turns.values
+        turn_bouts = gait_analysis.one_runs(turns)
+        
+        if len(turn_bouts) > 0:
+            for bout in turn_bouts:
+                start_time = times[bout[0]]
+                end_time = times[bout[1]]
+                a3.add_patch(Rectangle( xy=(start_time,bearing_ylim[0]),
+                             width = end_time - start_time,
+                             height = bearing_ylim[1] - bearing_ylim[0],
+                             facecolor = 'lightgray', edgecolor=None))
+        
+        # tiny axis to show time?
+        a4 = f.add_axes([0.1, 0.74, 0.8, 0.02])
+        cmap_name = 'plasma'
+        cmap = mpl.cm.get_cmap(cmap_name)
+        cols = cmap(np.linspace(0,1,len(times[:-1])))
+        a4.scatter(times[:-1],np.ones(len(times[:-1])),c=cols,s=10) # color-coded time!
+        a4.set_xlim(speed_xlim)
+        a4.axis('off')
+        
+        # adjust parameters and show plot
+        lns = line1+line2
+        labs = [l.get_label() for l in lns]
+        a1.legend(lns, labs, loc='lower right')
+        plt.show()
 
 def plotPathColor(filestem, xcoords, ycoords, smoothedx, smoothedy, vid_length):
 
@@ -167,4 +236,5 @@ if __name__== "__main__":
         movie_file = gait_analysis.select_movie_file()
         plot_style = 'none'
 
+    print('Plot style is ' + plot_style)
     main(movie_file, plot_style)
