@@ -267,40 +267,39 @@ def fileTest(fname):
         print('Found ' + fname)
 
 
-# getUpDownTimes = a function to open a given file
-# (formatted as mov_data.txt, from frame_stepper)
-# and get up/down timing for a given leg
-# input = path to file
-# output = leg_dict, latest_datapoint
-#    where leg_dict = a dictionary of lists, of up and down timing
-#    keyed by leg, e.g. leg_dict['R4']['u']  ( = [ 2,5,6,8 ... ] )
 def getUpDownTimes(mov_data):
-    # fileTest(mov_data)
+    '''
+    a function to take a mov_data dictionary and get up/down timing for a given leg
 
+    Parameters
+    ----------
+    mov_data : dictionary
+        keys = leg_state (e.g. 'L1_up', or 'R4_down')
+        values = a string of integers representing timing in milliseconds
+
+    Returns
+    -------
+    up_down_times : dictionary
+        a dictionary of lists, of up and down timing.
+        keyed by leg, e.g. leg_dict['R4']['u']  ( = [ 2,5,6,8 ... ] )
+    latest_event : integer
+        the time in milliseconds at which the last up or down step was recorded.
+
+    '''
     up_down_times = {}
     latest_event = 0
 
-    with open(mov_data, 'r') as f:
-        for line in f:
-            if line.startswith('Length'):
-                movieLength = float(line.rstrip().split()[1])
-                # do not really care about movie length
-                # instead, care about the timing of the latest event recorded
-            if line.startswith('Data'):
-                currentLeg = line.rstrip().split()[2]
-                up_down_times[currentLeg] = {}
-            if line.startswith('Foot Down'):
-                line = line.rstrip()
-                footdown = parseFootLine(line)
-                up_down_times[currentLeg]['d'] = footdown
-                if max(footdown) > latest_event:
-                    latest_event = max(footdown)
-            if line.startswith('Foot Up'):
-                line = line.rstrip()
-                footup = parseFootLine(line)
-                up_down_times[currentLeg]['u'] = footup
-                if max(footup) > latest_event:
-                    latest_event = max(footup)
+    for leg_state in mov_data.keys():
+        leg,state = leg_state.split('_')
+        if leg not in up_down_times.keys():
+            up_down_times[leg] = {}
+        times = [int(x) for x in mov_data[leg_state].split()]
+        if max(times) > latest_event:
+            latest_event = max(times)
+        if state == 'down':
+            up_down_times[leg]['d'] = times
+        elif state == 'up':
+            up_down_times[leg]['u'] = times
 
     return up_down_times, latest_event
 
@@ -1870,3 +1869,6 @@ def get_plot_colors(num_colors=9, palette = 'default'):
         return plot_colors
     else:
         return plot_colors[:num_colors]
+    
+def needFrameStepper():
+    exit('Need to track legs with frameStepper.py\n')

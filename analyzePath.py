@@ -15,16 +15,7 @@ import gaitFunctions
 
 '''
 WISH LIST
-change to only one plot option (currenlty is scatter or line)
-change color for smoothed path = time gradient
-change color for raw path = light gray(?)
 
-get movie parameters from the *tracked* files instead of the movie
-    fps, time ... 
-    
-think about next step - what is going take these updated track files, and
-    combine clips from single tardigrades
-    save summary data
 
 '''
 
@@ -100,6 +91,8 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
         # plot!
         import plotPath
         plotPath.main(movie_file, plot_style) 
+        
+    return df, df2
 
 def change_in_bearing(bearing1, bearing2):
     # need some care:  if successive bearings cross north (i.e. 0/360) ...

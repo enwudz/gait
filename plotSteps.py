@@ -1,52 +1,65 @@
 #!/usr/bin/python
-from gait_analysis import *
+import gaitFunctions
 import sys
-import glob
-import shutil
-import cv2
+import pandas as pd
+# import glob
+# import shutil
+# import cv2
+# import os
 
-def main(data_folder):
+def main(movie_file):
 
-    # get data ... which folder should we look in?
-    # run this script in a directory that has directories containing data for clips
-    if len(data_folder) == 0: 
-        dirs = listDirectories()
-        data_folder = selectOneFromList(dirs)
-    mov_data = os.path.join(data_folder, 'mov_data.txt')
-    fileTest(mov_data)
+    # check if excel file exists
+    excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file)
+    if excel_file_exists:
+        df = pd.read_excel(excel_filename, sheet_name='steptracking', index_col=None)
+        
+        try:
+            mov_data = dict(zip(df['leg_state'].values, df['times'].values))
+        except:
+            gaitFunctions.needFrameStepper()
 
-    # parse movie data to get info about movie 
-    # (movie name, analyzed length, frame range for speed calculation, movie length)
-    movie_info = getMovieInfo(data_folder)
+        if len(mov_data) < 16:
+            exit('Need to finish tracking all legs with frameStepper.py! \n')
+            
+    else:
+        # if no, run initializeClip.py and prompt to do frameStepper
+        import initializeClip
+        initializeClip.main(movie_file)
+        gaitFunctions.needFrameStepper() # this exits
 
-    # if we have information about what frames to use to calculate speed
-    # ... save these two frames if we do not already have them
-    saveSpeedFrames(data_folder, movie_info)
+    # check if data in step_timing sheet
+    try:
+        # if yes, load it as step_data_df
+        step_data_df = pd.read_excel(excel_filename, sheet_name='step_timing', index_col=None)
+    except:
+        # if no, run analyzeSteps and get step_data_df
+        import analyzeSteps
+        step_data_df = analyzeSteps.main(movie_file)
 
-    # update mov_data.txt
-    updateMovieData(data_folder, movie_info)
+    # ==> get information about the clip from the identity tab
 
-    # remove the frames folder if it exists
-    removeFramesFolder(data_folder)
+    # ==> ask to remove the frames folder if it exists
+    gaitFunctions.removeFramesFolder(data_folder)
 
     # parse movie data to make a dictionary containing up and down timing for each leg
     # e.g. leg_dict['R4']['u']  ( = [ 2,5,6,8 ... ] )
-    leg_dict, video_end = getUpDownTimes(mov_data)
+    leg_dict, video_end = gaitFunctions.getUpDownTimes(mov_data) # <=== CHECK THIS ... update leg_dict to up_down_times?
 
     # quality control on leg_dict ... make sure up and down times are alternating!
-    qcLegDict(leg_dict)
+    gaitFunctions.qcLegDict(leg_dict)
 
     # plot steps - choose which legs to plot
-    legs = get_leg_combos()['legs_all']  # dictionary of all combos
+    legs = gaitFunctions.get_leg_combos()['legs_all']  # dictionary of all combos
     # OR choose individual legs to plot
     # legs = ['L4','R4'] # for an individual leg
     # plot_legs(leg_dict, legs, video_end)
 
     # save a bunch of figures of leg plots
-    save_leg_figures(data_folder, leg_dict, video_end)
+    gaitFunctions.save_leg_figures(data_folder, leg_dict, video_end)
 
     # save stance time and swing time figures
-    save_stance_figures(data_folder, leg_dict, legs)
+    gaitFunctions.save_stance_figures(data_folder, leg_dict, legs)
 
     # run save_step_data.py = gets information about every step of every leg
     # including timing of other legs' swings 

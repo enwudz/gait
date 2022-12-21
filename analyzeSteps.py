@@ -1,8 +1,9 @@
 #!/usr/bin/python
-import matplotlib.pyplot as plt
+
 import numpy as np
 import sys
-from gait_analysis import *
+import gaitFunctions
+import pandas as pd
 
 # this script collects step information for EACH(!) COMPLETE gait cycle
 #   stance length, swing length, gait cycle duration, duty factor
@@ -15,47 +16,42 @@ from gait_analysis import *
 # see an older version archived_3Dec21 which did:
 # for each step, print out all the step stats, and info about timing of other legs relative to that step
 
-def main(data_folder):
+def main(movie_file):
 
     add_swing = True # do we want to collect mid-swing times for all other legs for each step?
 
-    # get data ... which folder should we look in?
-    # run this script in a directory that has directories containing data for clips
-    if len(data_folder) == 0: 
-        # get list of directories in working folder
-        dirs = listDirectories()
-        # select a SINGLE directory that contains data to analyze
-        data_folder = selectOneFromList(dirs)
-    mov_data = os.path.join(data_folder, 'mov_data.txt')
-    fileTest(mov_data)
+    # get data for this movie
+    excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file)
+    if excel_file_exists:
+        df = pd.read_excel(excel_filename, sheet_name='steptracking', index_col=None)
+        
+        try:
+            mov_data = dict(zip(df['leg_state'].values, df['times'].values))
+        except:
+            gaitFunctions.needFrameStepper()
+
+        if len(mov_data) < 16:
+            exit('Need to finish tracking all legs with frameStepper.py! \n')
+    else:
+        import initializeClip
+        initializeClip.main(movie_file)
+        gaitFunctions.needFrameStepper()
 
     # collect step data from mov_data.txt
-    up_down_times, movieLength = getUpDownTimes(mov_data)
+    up_down_times, movieLength = gaitFunctions.getUpDownTimes(mov_data)
 
     '''
-    stepDataLines: 
-    legID DownTime UpTime stance stride gait duty midSwingTime
+    For each step of each leg, we are going to collect this info: 
+    legID DownTime UpTime stance swing gait duty midSwingTime
     '''
+    header = 'legID,DownTime,UpTime,stance,swing,gait,duty,midSwingTime'
 
-    # initialize an empty leg_dict dictionary to store data for each leg
-    # leg_dict['leg']['datatype'] = list of values
-    leg_dict = makeLegDict()
+    # get legs
+    legs = gaitFunctions.get_leg_combos()['legs_all']
 
-    # make an output file to save data for each step!
-    ofile = os.path.join(data_folder, 'all_step_data.csv')
-    o = open(ofile,'w')
-
-    # write a header row to the output file
-    header = 'ref_leg,down_time,up_time,stance_time,swing_time,gait_cycle,duty_factor,mid_swing'
-    o.write(header + '\n')
-
-    # define categories of legs
-    lateral_legs = ['R3','R2','R1','L1','L2','L3']
-    rear_legs = ['R4','L4']
-    all_legs = [rear_legs[0]] + lateral_legs + [rear_legs[1]]
-
-    # go through all legs, collect data for each step, and write to output file
-    for ref_leg in all_legs: 
+    #### go through all legs, collect data for each step, and save all information in a list of lines
+    data_for_steps = []
+    for ref_leg in legs: 
 
         # ref_leg is just a single leg ... we look at one leg at a time.
         # it is called ref_leg because we are going to timing of swings (e.g. mid, initiation) 
@@ -69,7 +65,7 @@ def main(data_folder):
         # get timing and step characteristics for all gait cycles for this leg
         downs = up_down_times[ref_leg]['d']
         ups = up_down_times[ref_leg]['u']
-        downs, ups, stance_times, swing_times, gait_cycles, duty_factors, mid_swings = getStepSummary(downs,ups)
+        downs, ups, stance_times, swing_times, gait_cycles, duty_factors, mid_swings = gaitFunctions.getStepSummary(downs,ups)
 
         # go through each down step for this leg
         for i,step in enumerate(downs[:-1]): 
@@ -79,27 +75,22 @@ def main(data_folder):
             # get and print information for this step
             step_stats = ','.join(str(x) for x in [ref_leg,step,ups[i],stance_times[i],swing_times[i],
                                                 gait_cycles[i],duty_factors[i],mid_swings[i]])
-            o.write(step_stats + '\n')
-
-    o.close()
+            data_for_steps.append(step_stats)
 
     if add_swing is True:
         print('Saving mid-swing times ... ')
+        data_for_steps_with_swings = []
 
-        # have output file (all_step_data) from the code above
-        # get the header from this file
-        with open(ofile, 'r') as f:
-            header = f.readlines()[0].rstrip()
-
-        # read the rest of this file into a list called data_for_steps
-        with open(ofile, 'r') as f:
-            data_for_steps = [x.rstrip() for x in f.readlines()[1:]]
+        # have output list (data_for_steps) from the code above
 
         # from this list, make two dictionaries of swing timing: mid_swing_dict
         # mid_swing_dict = a dictionary of leg:[mid_swings]
-        # start_swing_dict = a dicationary of leg:[leg_ups aka swing_starts]
+        # start_swing_dict = a dictionary of leg:[leg_ups aka swing_starts]
         mid_swing_dict = {}
         start_swing_dict = {}
+        
+        # get dictionaries of anterior and opposite legs
+        opposite_dict, anterior_dict = gaitFunctions.getOppAndAntLeg()
         
         for d in data_for_steps:
             stuff = d.rstrip().split(',')
@@ -120,26 +111,20 @@ def main(data_folder):
         # for each step, add mid_swing data for all other legs
         # ------> mid_swing data is scaled as a FRACTION of the gait_cycle <------
         # add appropriate info to header
-        for leg in all_legs:
+        for leg in legs:
             header += ',' + leg + '_mid_swings'
 
         # for each step, add start_swing data for the ANTERIOR leg and for the CONTRALATERAL leg
         # ------> start_swing data is scaled as a FRACTION of the gait_cycle <------
-        # get dictionaries of anterior and opposite legs
-        opposite_dict, anterior_dict = getOppAndAntLeg()
+        
         # add appropriate info to header
         header += ',anterior_swing_start,contralateral_swing_start'
-
-        # set up an output file and write the header
-        o2file = ofile.split('.')[0] + '_swings.csv'
-        o2 = open(o2file, 'w')
-        o2.write(header + '\n')
 
         # for each step (defining a gait cycle), get mid-swing timing of all other legs
         # where timing is defined as when the mid-swing occurs during the gait cycle of the reference leg
         # expressed as a decimal or fraction of the gait cycle of the reference leg
 
-        # NOTE lots of duplicate code here - should probably write functions for some of this
+        # NOTE lots of duplicate code below - should probably write functions for some of this
         for d in data_for_steps:
             stuff = d.rstrip().split(',')
             ref_leg = stuff[0]
@@ -150,7 +135,7 @@ def main(data_folder):
             output_string = ','
 
             # go through ALL legs and get timing of their mid-swings
-            for leg in all_legs:
+            for leg in legs:
                 if leg in mid_swing_dict.keys():
 
                     # get mid_swing times for this leg
@@ -210,18 +195,143 @@ def main(data_folder):
             else: # no data for this leg
                 output_string += opposite_leg + ':,'
 
-            # finished going through legs - print out line!
-            o2.write(d.rstrip() + output_string[:-1] + '\n')  # [:-1] is removing last comma
+            # finished going through legs - add data to the string for this step
+            step_data_string = d.rstrip() + output_string[:-1]  # [:-1] is removing last comma
+            data_for_steps_with_swings.append(step_data_string)
+        
+        ## whew! now we have all the step data!
+        #     there is a header with all of the info
+        #     .... and the step data is list of lines for each step
+        #     .... where each line is has values separated by commas
+        
+        ## can print the data out below (or modify this code to save to a file)
+        # print(header)
+        # for step in data_for_steps_with_swings:
+        #     print(step)
+            
+        ## can convert the data into a pandas dataframe!
+        columns = header.split(',')
+        step_data_df = pd.DataFrame([line.split(',') for line in data_for_steps_with_swings], columns=columns)
+        
+        # if we have data for speed at each frame, determine speed for each step of each leg
+        # and add this column to the dataframe
+        pathtracking_df = pd.read_excel(excel_filename, sheet_name='pathtracking', index_col=None)
+        if 'speed' in pathtracking_df.columns:
+            step_data_df = getSpeedForStep(step_data_df, pathtracking_df)
+        
+        ## Save the dataframe to the excel file, in the step_timing sheet
+        with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
+            step_data_df.to_excel(writer, index=False, sheet_name='step_timing')
+            
+        ## Calculate average step parameters for each leg, and write to excel file
+        saveStepStats(step_data_df, excel_filename)
+        
+        return step_data_df
 
-        # finished printing, close output file
-        o2.close()
+def saveStepStats(step_data_df, excel_filename):
+    
+    legs = gaitFunctions.get_leg_combos()['legs_all']
+    
+    stance_time = []
+    swing_time = []
+    gait_cycle = []
+    duty_factor = []
+    distances = []
+    
+    for leg in legs:
+        stance_time.append(np.mean([int(x)/1000 for x in step_data_df[step_data_df.legID==leg]['stance'].values]))
+        swing_time.append(np.mean([int(x)/1000 for x in step_data_df[step_data_df.legID==leg]['swing'].values]))
+        gait_cycle.append(np.mean([int(x)/1000 for x in step_data_df[step_data_df.legID==leg]['gait'].values]))
+        duty_factor.append(np.mean([float(x) for x in step_data_df[step_data_df.legID==leg]['duty'].values]))
+        distances.append(np.mean([float(x) for x in step_data_df[step_data_df.legID==leg]['distance_during_step'].values]))
+        
+    d = {'leg':legs, 'mean stance':stance_time, 'mean swing':swing_time,
+          'mean gait cycle':gait_cycle, 'mean duty factor':duty_factor,
+          'mean distance':distances}
+    
+    df = pd.DataFrame(d)
+    with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
+        df.to_excel(writer, index=False, sheet_name='step_stats')
 
+def getSpeedForStep(step_data_df, pathtracking_df):
+    '''
+    From a dataframe of step parameters for each step
+    and a dataframe of path parameters for each video frame (including speed)
+    return the step parameters dataframe, updated with columns for speed and distance
+
+    Parameters
+    ----------
+    step_data_df : pandas dataframe
+        data generated by analyzeSteps.py (this program)
+        each row = a step, with stance/swing/gait/duty values, 
+        ... and timing of swings of other legs with respect to this leg
+    pathtracking_df : pandas dataframe
+        from excel file associated with a particular video clip
+        sheet = pathfinding
+        data generated by analyzePath.py
+
+    Returns
+    -------
+    step_data_df : pandas datarame
+        input dataframe with a new columns added for speed and distance during each step
+
+    '''
+    
+    # extract data from input dataframes
+    frametimes = pathtracking_df.times.values
+    speeds = pathtracking_df.speed.values
+    distances = pathtracking_df.distance.values
+    
+    downs = step_data_df.DownTime.values
+    gait_durations = step_data_df.gait.values
+    
+    # make empty vectors for step_speed and step_distance
+    step_speed = np.zeros(len(downs))
+    step_distance = np.zeros(len(downs))
+    
+    # go through each step (down)
+    for i, step_start in enumerate(downs):
+        
+        # convert milliseconds to seconds
+        step_start = int(step_start) / 1000 
+
+        # find index in time that is equal to or greater than the beginning of this step
+        start_time_index = np.where(frametimes>=step_start)[0][0]
+        
+        # to find the time when this step ends, add gait_duration to beginning
+        step_end = step_start + int(gait_durations[i]) / 1000
+        
+        # find the index in time that is equal to or greater than the end of this step
+        end_time_index = np.where(frametimes>=step_end)[0][0]
+        
+        # use these indices to get the speeds in all frames between the beginning and end of these steps
+        speeds_during_step = speeds[start_time_index:end_time_index]
+        
+        # calculate the average speed during this step
+        average_speed_during_step = np.mean(speeds_during_step)
+        
+        # add the value of this average speed to step_speed
+        step_speed[i] = average_speed_during_step
+        
+        # calculate the distance traveled during this step
+        distance_traveled_during_step = np.sum(distances[start_time_index:end_time_index])
+        
+        # add this distance to to step_distance
+        step_distance[i] = distance_traveled_during_step
+    
+    # update step_data_df with the new columns for speed and distance
+    step_data_df['speed_during_step'] = step_speed
+    step_data_df['distance_during_step'] = step_distance
+    
+    return step_data_df
 
 if __name__== "__main__":
-    if len(sys.argv) > 1:
-            data_folder = sys.argv[1]
-            print('looking in ' + data_folder)
-    else:
-        data_folder = ''
 
-    main(data_folder)
+    if len(sys.argv) > 1:
+        movie_file = sys.argv[1]
+    else:
+       movie_file = gaitFunctions.select_movie_file()
+       
+    print('Movie is ' + movie_file)
+
+    main(movie_file)
