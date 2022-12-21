@@ -1,46 +1,65 @@
 # gait
  tardigrade gait analysis
 
-Record a video of walking tardigrade. We usually do videos of about 2 mins.
+Record a video of a moving critter. We usually do videos of about 2 mins.
 
-From this video, we will extract clips of tardigrades walking in a straight line.
-Ideally, the stage would not move as the tardigrade walks a straight line, so that we can calculate speed.
+From this video, we will extract clips of critters walking on a stationary background.
 
 Use QuickTime or another video editing app to save clips from your video.
-We want clips where the tardigrade is walking in a straight line, ideally with no stage motion.
-When you are finished saving clips, run 'files_to_folders.py'.
-This script will put each video into its own folder.
 
-1. Run frame_stepper.py
+Video analysis pipeline
 
-    First, it asks which clip you would like to analyze
-        in the folder containing this clip, it creates a mov_info.txt file if there is not one already
-        in mov_info.txt, it puts some info, e.g. movie name, movie length
+OK runThings.py = runs stuff below on a movie file, or on all!
+	Maybe rename to pathtracker
 
-    Then, it will ask you which LEG or LEGs you want to focus on / track
+OK initializeClip.py = makes an excel file to store all info and data from a clip
+OK 6 tabs: identity, pathtracking, path_stats, steptracking, step_timing, step_stats, gait_styles
 
-        you can enter one leg (e.g. 'L1')
-        or you can enter multiple legs, separated by spaces ('L1 R1 L2 R2')
-        or you can enter (a) to select all legs (it will run in order: L1 R1 L2 R2 L3 R3 L4 R4)
+OK trackCritter.py = adds tracking data to excel file for a clip
+	OK Asks which clip we want (if not provided)
+	OK Checks if the excel file is there, runs initializeClip if not
+	OK Checks if the tracking data is already there … asks if want to run again
+	OK TRACKS, and to pathtracking tab, adds frameTime, X, Y, Area
 
-        for each leg, you can step through the video frame by frame:
-            (n)ext frame or (p)revious frame
-        for the focus leg, type the appropriate letter at the appropriate frame:
-            leg (d)own or leg (u)p
+OK analyzePath.py = analyzes the tracking data, adds stops, turns, bearings
+OK Checks if the excel file is there, runs initializeClip if not, exits
+OK Checks if scale available in info from identity tab
+	OK If not, check for measured micrometer = '...scale.txt' file
+OK If no measured micrometer, measure it
+OK add scale to identity tab
+	OK Reads data from pathtracking tab, analyzes to get stuff below
+		OK If no data, stop and tell to run trackCritter first
+OK To pathtracking tab, adds smoothedX, smoothedY, distance, cumulative distance, speed, bearing, turns(0,1), stops(0,1)
+OK To path_stats tab, add summary data
+	OK convert area to mm^2
 
-        Keep track of mistakes, if any
+OK plotPath.py = options to plot data from pathtracking tab
+	OK Smoothed path (colored by time) and raw path (grey)
+	OK Time vs. speed (colored by time) … with turns and stops labeled
+		also include cumulative distance… on another y-axis?
 
-        hit Escape when done with your leg
-        
-        You can edit the mov_info.txt file to correct any mistakes in timing
+OK frameStepper.py = does the feets
+	OK Asks which clip we want (if not provided)
+	OK Makes sure the excel file is there
+	OK TRACKS, and to steptracking tab, adds the step timing
+OK Quality control on up / down times
+	OK Print out all step timing at end … just to have it
 
+Need analyzeSteps.py = analyzes the step data, adds inter-step timing data
+	(was save_step_data.py)
+Adds this data to step_timing tab
+	For each step, also get average speed over the step cycle?
+Calculates summary & averages for each leg, writes this to step_stats tab
 
+Need plotSteps.py = various options to plot steps
 
-2. Run the script save_step_data.py (be sure to run in python 3)
+Need gaitStyles.py = calculate and record gait styles
+Writes gait style data to gait_styles tab (or pathtracking tab?)
 
-3. See jupyter notebooks for additional analysis (in order)
-	average_step_plots.ipynb
-	leg_swing_groups.ipynb
+Need plotGaits.py = various options to plot gaits?
 
-4. To compare different experiments, see
-	compare_step_parameters.ipynb
+Need comparePaths.py = collect path data for 2(?) treatments and compares
+
+Need compareSteps.py = collect step data for 2(?) treatments and compares
+
+Need compareGaits.py = collect gait data for 2(?) treatments and compares
