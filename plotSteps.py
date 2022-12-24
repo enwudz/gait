@@ -32,11 +32,12 @@ def main(movie_file):
         gaitFunctions.removeFramesFolder(movie_file)
         
         # save a bunch of different combos of steps for ONE clip
-        # saveBunchOfPlots(mov_data) <=== OK ... for ONE clip
+        # saveBunchOfPlots(mov_data) # <=== OK ... for ONE clip
         
         # plot of steps and gait styles for ONE clip
-        # fig = gaitFunctions.plotStepsAndGait(movie_file, 'lateral') # <=== OK ... for ONE clip
-        # plt.show()
+        fig = gaitFunctions.plotStepsAndGait(movie_file, 'lateral') # <=== OK ... for ONE clip
+        ##### BUT SHOULD CHANGE BECAUSE CODE IS DUPLICATED FOR GETTING GAIT!
+        plt.show()
         
 
 

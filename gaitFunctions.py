@@ -925,11 +925,11 @@ def plotStepsAndGait(movie_file, leg_set='lateral'):
         all_combos, combo_colors = get_gait_combo_colors('lateral')
 
     # Get all frame times for this movie
-    tracked_data = loadTrackedPath(movie_file)
+    tracked_data, excel_filename = loadTrackedPath(movie_file)
     frame_times = tracked_data.times.values
 
     # trim frame_times to only include frames up to last recorded event
-    last_event_frame = np.min(np.where(frame_times > latest_event/1000))
+    last_event_frame = np.min(np.where(frame_times > latest_event))
     frame_times_with_events = frame_times[:last_event_frame]
 
     # get leg matrix
@@ -1213,7 +1213,7 @@ def make_leg_matrix(legs, up_down_times, frame_times):
         the order of this list will be the order of rows in the output matrix
     up_down_times : dictionary
         from getUpDownTimes here
-        timing is in milliseconds (so in integers!)
+        timing is seconds!
     frame_times : numpy array
         1 dimensional vector of all frame times from a movie ... in seconds!
 
@@ -1233,7 +1233,7 @@ def make_leg_matrix(legs, up_down_times, frame_times):
         # print(leg)
         ups = np.array(up_down_times[leg]['u'])
         downs = np.array(up_down_times[leg]['d'])
-        leg_vector = up_down_times_to_binary(downs/1000, ups/1000, frame_times)
+        leg_vector = up_down_times_to_binary(downs, ups, frame_times)
         leg_matrix[i, :] = leg_vector
 
     return leg_matrix
