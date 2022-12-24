@@ -20,25 +20,11 @@ def main(movie_file):
 
     add_swing = True # do we want to collect mid-swing times for all other legs for each step?
 
-    # get data for this movie
-    excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file)
-    if excel_file_exists:
-        df = pd.read_excel(excel_filename, sheet_name='steptracking', index_col=None)
-        
-        try:
-            mov_data = dict(zip(df['leg_state'].values, df['times'].values))
-        except:
-            gaitFunctions.needFrameStepper()
+    # load mov_data
+    mov_data, excel_filename = gaitFunctions.loadMovData(movie_file)
 
-        if len(mov_data) < 16:
-            exit('Need to finish tracking all legs with frameStepper.py! \n')
-    else:
-        import initializeClip
-        initializeClip.main(movie_file)
-        gaitFunctions.needFrameStepper()
-
-    # collect step data from mov_data.txt
-    up_down_times, movieLength = gaitFunctions.getUpDownTimes(mov_data)
+    # collect step data from mov_data
+    up_down_times, last_event = gaitFunctions.getUpDownTimes(mov_data)
 
     '''
     For each step of each leg, we are going to collect this info: 
@@ -227,7 +213,13 @@ def main(movie_file):
         saveStepStats(step_data_df, excel_filename)
         
         return step_data_df
-
+    
+def saveGaitStyles(up_down_times, excel_filename):
+    
+    # put stuff from TEMP here
+    
+    return
+    
 def saveStepStats(step_data_df, excel_filename):
     
     legs = gaitFunctions.get_leg_combos()['legs_all']
@@ -239,9 +231,9 @@ def saveStepStats(step_data_df, excel_filename):
     distances = []
     
     for leg in legs:
-        stance_time.append(np.mean([int(x)/1000 for x in step_data_df[step_data_df.legID==leg]['stance'].values]))
-        swing_time.append(np.mean([int(x)/1000 for x in step_data_df[step_data_df.legID==leg]['swing'].values]))
-        gait_cycle.append(np.mean([int(x)/1000 for x in step_data_df[step_data_df.legID==leg]['gait'].values]))
+        stance_time.append(np.mean([float(x) for x in step_data_df[step_data_df.legID==leg]['stance'].values]))
+        swing_time.append(np.mean([float(x) for x in step_data_df[step_data_df.legID==leg]['swing'].values]))
+        gait_cycle.append(np.mean([float(x) for x in step_data_df[step_data_df.legID==leg]['gait'].values]))
         duty_factor.append(np.mean([float(x) for x in step_data_df[step_data_df.legID==leg]['duty'].values]))
         distances.append(np.mean([float(x) for x in step_data_df[step_data_df.legID==leg]['distance_during_step'].values]))
         
@@ -292,14 +284,14 @@ def getSpeedForStep(step_data_df, pathtracking_df):
     # go through each step (down)
     for i, step_start in enumerate(downs):
         
-        # convert milliseconds to seconds
-        step_start = int(step_start) / 1000 
+        # convert step_start to float
+        step_start = float(step_start)
 
         # find index in time that is equal to or greater than the beginning of this step
         start_time_index = np.where(frametimes>=step_start)[0][0]
         
         # to find the time when this step ends, add gait_duration to beginning
-        step_end = step_start + int(gait_durations[i]) / 1000
+        step_end = step_start + float(gait_durations[i])
         
         # find the index in time that is equal to or greater than the end of this step
         end_time_index = np.where(frametimes>=step_end)[0][0]

@@ -102,7 +102,7 @@ def findCritter(video_file, background, pixThreshold = 25):
         frame_number += 1
         
         # frameTime = int(vid.get(cv2.CAP_PROP_POS_MSEC)) # this returns zeros at end of video
-        frameTime = float(frame_number)/fps
+        frameTime = round(float(frame_number)/fps,4)
 
         if ret != True:  # no frame!
             print('... video end!')

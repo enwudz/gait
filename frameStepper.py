@@ -26,8 +26,8 @@ def main(movie_file, resize=100):
     # load excel file for this clip
     excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file)
     if excel_file_exists:
-        df = pd.read_excel(excel_filename, sheet_name='identity', index_col=None)
-        info = dict(zip(df['Parameter'].values, df['Value'].values))
+        # df = pd.read_excel(excel_filename, sheet_name='identity', index_col=None)
+        # info = dict(zip(df['Parameter'].values, df['Value'].values))
         
         # check if there is any step data already; load if so
         foot_data_df = pd.read_excel(excel_filename, sheet_name='steptracking', index_col=None)
@@ -37,15 +37,15 @@ def main(movie_file, resize=100):
             foot_data = dict(zip(foot_data_df['leg_state'].values,foot_data_df['times'].values))
             # convert foot_data from string to list, to match data collection below
             for leg_state in foot_data.keys():
-                foot_data[leg_state] = foot_data[leg_state].split(' ')
-                foot_data[leg_state] = [int(x) for x in foot_data[leg_state]]
+                if len(foot_data[leg_state]) > 0:
+                    foot_data[leg_state] = foot_data[leg_state].split(' ')
         else:
             # make a foot_data dictionary
             foot_data = {}
     
     else:
-        import initializeClip
-        info = initializeClip.main(movie_file)
+        # import initializeClip
+        # info = initializeClip.main(movie_file)
         foot_data = {}
 
     # look for frame folder for this movie
@@ -53,49 +53,51 @@ def main(movie_file, resize=100):
     frame_folder = movie_file.split('.')[0] + '_frames'
     frame_folder = saveFrames(frame_folder, movie_file)
 
-    trackFeet = True
-    feet = getFeet()
-    
-    while trackFeet:
-
-        # Do next foot
-        needFoot = True
-        for foot in feet:
-            if foot + '_up' not in foot_data and needFoot == True:
-                foot_to_track = foot
-                needFoot = False
-            else:
-                needFoot = False
+    feet_done = getFeetDone(foot_data)
+    feet_to_do = getFeetToDo(feet_done)
+    if len(feet_to_do) > 0:
+        print('Still need to track steps for: ' + ', '.join(feet_to_do))
+    else:
+        print('Already finished all legs for this movie!')
         
-        if needFoot == False:
-            print('... all done with feet!')
-            break
+    for foot in feet_to_do:
         
-        print('Next foot to do is ' + foot_to_track + ' ...')
+        print('\nNext foot to do is ' + foot + ' ...')
         selection = input('     (t)rack or (q)uit ? ')
+        
         if selection != 't':
-            trackFeet = False
+            print('ok, we are done for now!')
             break
+        
+        else:
 
-        print('... record data for ' + foot_to_track + '\n')
+            print('... record data for ' + foot + '\n')
+        
+            # step through frames and label things
+            # can enter a number for resize to scale video
+            data = stepThroughFrames(frame_folder, foot, resize) 
+        
+            # print out foot down and foot up data for this foot
+            foot_step_times = showFootDownUp(foot, data)
+            print(foot_step_times)
+        
+            # add foot data to the foot dictionary
+            # data[0] is down times, data[1] is up times
+            foot_data[foot+'_down'] = data[0]
+            foot_data[foot+'_up'] = data[1] 
     
-        # step through frames and label things
-        # can enter a number for resize to scale video
-        data = stepThroughFrames(frame_folder, foot_to_track, resize) 
-    
-        # print out foot down and foot up data for this foot
-        foot_step_times = showFootDownUp(foot_to_track, data)
-        print(foot_step_times)
-    
-        # add foot data to the foot dictionary
-        # data[0] is down times, data[1] is up times
-        foot_data[foot_to_track+'_down'] = data[0]
-        foot_data[foot_to_track+'_up'] = data[1]
-           
+    # all done, save data!
+    saveData(excel_filename, foot_data)
+
+def saveData(excel_filename, foot_data):
+          
     # print out foot dictionary    
     good_keys = []
     good_vals = []
-    for foot in feet:
+    
+    all_feet = getAllFeet()
+    
+    for foot in all_feet:
         k1 = foot + '_down'
         k2 = foot + '_up'
         if k1 in foot_data.keys():
@@ -138,14 +140,27 @@ def createMovDataFile(movieFolder, videoFile, first_frame, last_frame):
 
     return out_file
 
-def getFeet():
+def getFeetDone(foot_data):
+    foot_keys = foot_data.keys()
+    foot = [x.split('_')[0] for x in foot_keys]
+    feet_done = list(set(foot))
+    return feet_done
+
+def getFeetToDo(feet_done):
+    allFeet = getAllFeet()
+    still_need = list(set(allFeet) - set(feet_done))
+    # make sure they are in the right order
+    feet_to_do = [x for x in allFeet if x in still_need ]
+    return feet_to_do
+
+def getAllFeet():
     feet = ['L1', 'R1', 'L2', 'R2', 'L3', 'R3', 'L4', 'R4']
     return feet
 
 def selectFeet():
     selection = input('Enter feet to analyze (separated by spaces) or select (a)ll: ')
     if selection in ['a','all','A']:
-        feet_to_do = getFeet()
+        feet_to_do = getAllFeet()
     else:
         feet_to_do = selection.split(' ')
     return feet_to_do
@@ -160,7 +175,7 @@ def showFootDownUp(footname, footdata):
 def filenameToTime(filename):
     t = filename.split('.')[0].split('_')[-1].lstrip('0')
     if len(t) > 0:
-        return int(t)
+        return t
     else:
         return 0
 
@@ -202,7 +217,7 @@ def stepThroughFrames(folder_name, footname, resize=100):
         #print('looking at ' + frames[i])
 
         im = cv2.imread(frames[i])
-        t = filenameToTime(frames[i])
+        t = float(filenameToTime(frames[i])) / 1000 # convert to seconds
 
         # resize if image too big for screen?
         if resize != 100:
@@ -238,7 +253,7 @@ def stepThroughFrames(folder_name, footname, resize=100):
 
         ## focus on one leg of interest and get timing of foot down and foot up
         elif key == ord('d'):  # foot down!
-            t = filenameToTime(frames[i])
+            # t = filenameToTime(frames[i])
             print('you pressed d = foot down!')
 
             if current_state == 'down':
@@ -252,7 +267,7 @@ def stepThroughFrames(folder_name, footname, resize=100):
 
         elif key == ord('u'):  # foot up!
             print('you pressed u = foot up!')
-            t = filenameToTime(frames[i])
+            # t = filenameToTime(frames[i])
             if current_state == 'up':
                 print('Current leg state is up ... skipping this time (' + str(t) + ')')
             else:
@@ -310,22 +325,26 @@ def saveFrames(frame_folder, movie_file):
     font = cv2.FONT_HERSHEY_SCRIPT_COMPLEX
 
     vid = cv2.VideoCapture(movie_file)
+    fps = vid.get(5)
 
     print('.... saving frames!')
 
-    frameTimes = []
     base_name = movie_file.split('.')[0]
     
+    frame_number = 0
     while (vid.isOpened()):
         
         ret, frame = vid.read()
         if ret: # found a frame
+        
+            frame_number += 1
             
             # Get frame time and save it in a variable
-            frameTime = int(vid.get(cv2.CAP_PROP_POS_MSEC))
+            # frameTime = int(vid.get(cv2.CAP_PROP_POS_MSEC))
+            frameTime = round(float(frame_number)/fps,4)
 
             # put the time variable on the video frame
-            frame = cv2.putText(frame, str(frameTime / 1000),
+            frame = cv2.putText(frame, str(frameTime),
                                 (100, 100),
                                 font, 1,
                                 (55, 55, 55),
@@ -333,9 +352,8 @@ def saveFrames(frame_folder, movie_file):
 
             # save frame to file, with frameTime
             if frameTime > 0: # cv2 sometimes(?) assigns the last frame of the movie to time 0            
-                file_name = base_name + '_' + str(frameTime).zfill(8) + '.png'
+                file_name = base_name + '_' + str(int(frameTime*1000)).zfill(4) + '.png'
                 cv2.imwrite(os.path.join(frame_folder, file_name), frame)
-                frameTimes.append(frameTime)
             
         else: # no frame here
             break

@@ -23,24 +23,15 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
     
     # tracking data is from trackCritter.py, and is in an excel file for this clip
     
-    # load excel file for this clip
-    excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file)
-    if excel_file_exists:
-        df = pd.read_excel(excel_filename, sheet_name='identity', index_col=None)
-        info = dict(zip(df['Parameter'].values, df['Value'].values))
-    else:
-        import initializeClip
-        info = initializeClip.main(movie_file)
-        need_tracking()
+    # load identity info for this clip
+    info = gaitFunctions.loadIdentityInfo(movie_file)
     
     # get scale (conversion between pixels and millimeters)
     scale = getScale(info)
     print('... 1 mm = ' + str(scale) + ' pixels')
         
     # load the tracked data
-    tracked_data = pd.read_excel(excel_filename, sheet_name = 'pathtracking')
-    if len(tracked_data) == 0:
-        need_tracking()
+    tracked_data, excel_filename = gaitFunctions.loadTrackedPath(movie_file)
 
     # read in data
     frametimes = tracked_data.times.values
@@ -255,9 +246,6 @@ def distanceSpeedBearings(times, xcoords, ycoords, scale):
             bearing_changes[i] = delta_bearing
     
     return distance, speed, cumulative_distance, bearings, bearing_changes
-
-def need_tracking():
-    exit('\n ==> Need to run trackCritter.py before analyzing the path!\n')
 
 def getScale(info):
 

@@ -56,21 +56,18 @@ def makeLegDict():
 
     return leg_dict
 
-def save_stance_figures(data_folder, leg_dict, legs):
+def save_stance_figures(movie_file, up_down_times, legs):
     for x in ['stance', 'swing']:
-        box_data, f, a = plot_stance(leg_dict, legs, x, False)
-        fname = os.path.join(data_folder, x + '_plot.png')
+        box_data, f, a = plot_stance(up_down_times, legs, x, False)
+        fname = movie_file.split('.')[0] + x + '_plot.png'
         plt.savefig(fname)
 
-
-def save_leg_figures(data_folder, leg_dict, video_end):
+def save_leg_figures(movie_file, up_down_times, video_end):
     leg_combos = get_leg_combos()
     for legs in leg_combos.keys():
-        f, a = plot_legs(leg_dict, leg_combos[legs], video_end, False)
-        figname = '_'.join(leg_combos[legs]) + '.png'
-        figname_path = os.path.join(data_folder, figname)
-        plt.savefig(figname_path)
-
+        f, a = plot_legs(up_down_times, leg_combos[legs], video_end, False)
+        figname = movie_file.split('.')[0] + '_' + '_'.join(leg_combos[legs]) + '.png'
+        plt.savefig(figname)
 
 # from list of leg_downs, leg_ups, get stance_times, swing_times, gait_cycles, duty_factors
 def getStepSummary(downs, ups):
@@ -280,8 +277,9 @@ def getUpDownTimes(mov_data):
     Returns
     -------
     up_down_times : dictionary
-        a dictionary of lists, of up and down timing.
+        a dictionary of lists, of up and down timing in seconds
         keyed by leg, e.g. leg_dict['R4']['u']  ( = [ 2,5,6,8 ... ] )
+        values are in seconds!
     latest_event : integer
         the time in milliseconds at which the last up or down step was recorded.
 
@@ -293,7 +291,7 @@ def getUpDownTimes(mov_data):
         leg,state = leg_state.split('_')
         if leg not in up_down_times.keys():
             up_down_times[leg] = {}
-        times = [int(x) for x in mov_data[leg_state].split()]
+        times = [float(x) for x in mov_data[leg_state].split()]
         if max(times) > latest_event:
             latest_event = max(times)
         if state == 'down':
@@ -304,7 +302,7 @@ def getUpDownTimes(mov_data):
     return up_down_times, latest_event
 
 # quality control ... make sure up and down times are alternating!
-def qcDownsUps(downs,ups):
+def qcDownsUps(downs, ups):
     combo_times = np.array(downs + ups)
     
     down_array = ['d'] * len(downs)
@@ -341,10 +339,10 @@ def check_for_excel(mov_file):
     return excel_file_exists, excel_filename
 
 # quality control for leg_dict 
-def qcLegDict(leg_dict):
-    for leg in leg_dict.keys():
-        downs = leg_dict[leg]['d']
-        ups = leg_dict[leg]['u']
+def qcLegDict(up_down_times):
+    for leg in up_down_times.keys():
+        downs = up_down_times[leg]['d']
+        ups = up_down_times[leg]['u']
         problem = qcDownsUps(downs,ups)
         if len(problem) > 0:
             print('Problem for ' + leg)
@@ -769,40 +767,177 @@ def gait_style_plot(dict_list, exp_names, leg_set = 'lateral'):
     
     return f, ax
 
-# for ONE clip - plot steps with color-coded gait styles
-# turn into a function where input is leg_set and movie_folder
-def plotStepsAndGait(movie_folder, leg_set):
+def need_tracking():
+    sys.exit('\n ==> Need to run trackCritter.py before analyzing the path!\n')
+
+def loadMovData(movie_file):
+    '''
+    get step up and down times for a movie
+    
+    Parameters
+    ----------
+    movie_file : string
+        file name of a movie (.mov).
+
+    Returns
+    -------
+    mov_data : dictionary
+        keys = leg_state (e.g. 'L1_up', or 'R4_down')
+        values = a string of integers representing timing in milliseconds
+    excel_filename : string
+        fine name of excel spreadsheet associated with movie_file.
+
+    '''
+    # 
+    excel_file_exists, excel_filename = check_for_excel(movie_file)
+    if excel_file_exists:
+        df = pd.read_excel(excel_filename, sheet_name='steptracking', index_col=None)
+        
+        try:
+            mov_data = dict(zip(df['leg_state'].values, df['times'].values))
+        except:
+            needFrameStepper()
+
+        if len(mov_data) < 16:
+            exit('Need to finish tracking all legs with frameStepper.py! \n')
+    else:
+        import initializeClip
+        initializeClip.main(movie_file)
+        needFrameStepper()
+    return mov_data, excel_filename
+
+def loadStepData(movie_file):
+    '''
+
+    Parameters
+    ----------
+    movie_file : string
+        file name of a movie (.mov).
+
+    Returns
+    -------
+    step_data : pandas dataframe
+        parameters for every step ... in step_timing sheet, from analyzeSteps.
+
+    '''
+    excel_file_exists, excel_filename = check_for_excel(movie_file)
+    
+    if excel_file_exists:
+        # check if data in step_timing sheet
+        try:
+            # if yes, load it as step_data_df
+            step_data = pd.read_excel(excel_filename, sheet_name='step_timing', index_col=None)
+        except:
+            # if no, run analyzeSteps and get step_data_df
+            import analyzeSteps
+            step_data = analyzeSteps.main(movie_file)
+    return step_data
+
+def loadTrackedPath(movie_file):
+    '''
+    From pathtracking tab, produced by trackCritter (and analyzePath)
+    frametimes, coordinates, per-frame speed, distance, bearings . . . 
+
+    Parameters
+    ----------
+    movie_file : string
+        file name of a movie (.mov).
+
+    Returns
+    -------
+    tracked_data : pandas dataframe
+        frametimes, coordinates, etc.
+    excel_filename : string
+        file name of excel file associated with the movie
+
+    '''
+    excel_file_exists, excel_filename = check_for_excel(movie_file)
+    
+    if excel_file_exists:
+    
+        # load the tracked data from trackCritter
+        tracked_data = pd.read_excel(excel_filename, sheet_name = 'pathtracking')
+        if len(tracked_data) == 0:
+            need_tracking()
+    return tracked_data, excel_filename
+
+def loadIdentityInfo(movie_file):
+    '''
+    get information about the clip from the identity tab of the excel spreadsheet associated with the clip
+
+    Parameters
+    ----------
+    movie_file : string
+        file name of a movie (.mov).
+
+    Returns
+    -------
+    identity_info : dictionary
+        movie identity information in identity sheet, from initializeClip
+        keys = movie data parameters, e.g. date, treatment, individualID, time_range ...
+        values = values for these parameters
+
+    '''
+    
+    excel_file_exists, excel_filename = check_for_excel(movie_file)
+    if excel_file_exists:
+        # check if data in the identity sheet
+        try:
+            identity_df = pd.read_excel(excel_filename, sheet_name='identity', index_col=None)
+        except:
+            exit('No data in identity sheet for ' + excel_filename)
+    
+        identity_info = dict(zip(identity_df['Parameter'].values, identity_df['Value'].values))
+    else:
+        exit('No excel file for this clip - run initializeClip!')
+        
+    return identity_info
+
+
+def plotStepsAndGait(movie_file, leg_set='lateral'):
+    
+    '''
+    for ONE clip - plot steps with color-coded gait styles
+    
+    Parameters
+    ----------
+    movie_file : string
+        file name of a movie (.mov).
+    
+    leg_set : string
+        which set of legs do we want to look at?
+        typically 'rear' or 'lateral'
+    '''
 
     # get step times for each leg for which we have data
-    mov_data = os.path.join(movie_folder, 'mov_data.txt')
+    mov_data, excel_filename = loadMovData(movie_file)
     up_down_times, latest_event = getUpDownTimes(mov_data)
 
     # quality control on up_down_times
-    qcUpDownTimes(up_down_times)
+    qcLegDict(up_down_times)
 
+    # which legs are we interested in here?
     if leg_set == 'rear':
         legs = get_leg_combos()['legs_4']
+        all_combos, combo_colors = get_gait_combo_colors('rear')
     else:
         legs = get_leg_combos()['legs_lateral']
+        all_combos, combo_colors = get_gait_combo_colors('lateral')
 
     # Get all frame times for this movie
-    frame_times = get_frame_times(movie_folder)
+    tracked_data = loadTrackedPath(movie_file)
+    frame_times = tracked_data.times.values
 
     # trim frame_times to only include frames up to last recorded event
-    last_event_frame = np.min(np.where(frame_times > latest_event*1000))
+    last_event_frame = np.min(np.where(frame_times > latest_event/1000))
     frame_times_with_events = frame_times[:last_event_frame]
 
     # get leg matrix
     leg_matrix = make_leg_matrix(legs, up_down_times, frame_times_with_events)
     legs = np.array(legs)
 
-    # set up colors
-    if leg_set == 'rear':
-        all_combos, combo_colors = get_gait_combo_colors('rear')
-    else:
-        all_combos, combo_colors = get_gait_combo_colors('lateral')
-
-    # make a vector of colors for each frame, depending on combination of swinging legs
+    # make swing_color_vector:
+    # a vector of colors for each frame, depending on combination of swinging legs
     swing_color_vector = []
 
     for col_ind in np.arange(np.shape(leg_matrix)[1]):
@@ -812,7 +947,7 @@ def plotStepsAndGait(movie_folder, leg_set):
         gait_style = get_swing_categories(swinging_leg_combo, leg_set)
         combo_color = combo_colors[gait_style]
         swing_color_vector.append(combo_color)
-
+        
     # set up plot
     # get colors for stance and swing
     stance_color, swing_color = stanceSwingColors()
@@ -820,22 +955,22 @@ def plotStepsAndGait(movie_folder, leg_set):
     # definitions for the axes
     # left, bottom, width, height
     if leg_set == 'rear':
-        rect_steps = [0.07, 0.07, 1, 0.5]
-        rect_gaits = [0.07, 0.6, 1, 0.2]
+        rect_steps = [0.07, 0.07, 0.95, 0.5]
+        rect_gaits = [0.07, 0.6,  0.95, 0.2]
         fig_height = int(len(legs))
     else:
-        rect_steps = [0.07, 0.07,  1, 0.6]
-        rect_gaits = [0.07, 0.70,  1, 0.1]
+        rect_steps = [0.07, 0.07,  0.95, 0.6]
+        rect_gaits = [0.07, 0.70,  0.95, 0.1]
         fig_height = int(len(legs) * 0.7)
 
     stepplot_colors = {1: swing_color, 0: stance_color}
-    gait_x = frame_times_with_events/1000
+    gait_x = frame_times_with_events
     
     fig = plt.figure(figsize=(10,fig_height))
     steps = plt.axes(rect_steps)
 
-    bar_width = gait_x[1] - gait_x[0]      
-
+    # make the steps plot = a horizontal stacked bar chart
+    bar_width = gait_x[1] - gait_x[0]     
     for i, leg in enumerate(legs):
         for j, x in enumerate(gait_x):
             steps.barh(i+1, bar_width, height=1, left=j*bar_width, 
@@ -848,6 +983,7 @@ def plotStepsAndGait(movie_folder, leg_set):
     steps.set_ylabel('legs', fontsize=16)
     steps.set_frame_on(False)
 
+    # make the gait plot = a horizontal stacked bar chart
     gaits = plt.axes(rect_gaits)
 
     for i,x in enumerate(gait_x):
@@ -855,14 +991,14 @@ def plotStepsAndGait(movie_folder, leg_set):
 
     gaits.set_ylabel('gait', fontsize=16)
 
-    gaits.set_xlim([0, gait_x[-1]])
-    steps.set_xlim([0, gait_x[-1]])
+    # gaits.set_xlim([0, gait_x[-1]])
+    # steps.set_xlim([0, gait_x[-1]])
 
     gaits.set_yticks([])
     gaits.set_xticks([])
     gaits.set_frame_on(False)
     
-    fig.suptitle(movie_folder.split(os.sep)[-1], fontsize=24)
+    fig.suptitle(movie_file.split('.')[0], fontsize=24)
     
     return fig
 
@@ -1076,9 +1212,10 @@ def make_leg_matrix(legs, up_down_times, frame_times):
         a list of leg names (e.g. ['R1','L1','R2','L2',... ])
         the order of this list will be the order of rows in the output matrix
     up_down_times : dictionary
-        from getUpDownTimes in this package
+        from getUpDownTimes here
+        timing is in milliseconds (so in integers!)
     frame_times : numpy array
-        1 dimensional vector of all frame times from a movie
+        1 dimensional vector of all frame times from a movie ... in seconds!
 
     Returns
     -------
@@ -1096,7 +1233,7 @@ def make_leg_matrix(legs, up_down_times, frame_times):
         # print(leg)
         ups = np.array(up_down_times[leg]['u'])
         downs = np.array(up_down_times[leg]['d'])
-        leg_vector = up_down_times_to_binary(downs, ups, frame_times / 1000)
+        leg_vector = up_down_times_to_binary(downs/1000, ups/1000, frame_times)
         leg_matrix[i, :] = leg_vector
 
     return leg_matrix
@@ -1281,9 +1418,9 @@ def get_metachronal_lag(df):
     return metachronal_lag, normalized_metachronal_lag
 
 # prompt to remove the folder containing individual frames saved from a clip
-def removeFramesFolder(data_folder):
-    frames_folder = os.path.join(data_folder, data_folder + '_frames')
-    fileList = glob.glob(os.path.join(data_folder, '*'))
+def removeFramesFolder(movie_file):
+    frames_folder = movie_file.split('.')[0] + '_frames'
+    fileList = glob.glob(frames_folder)
     if frames_folder in fileList:
         selection = input('Remove frames folder? (y) or (n): ')
         if selection == 'y':
@@ -1871,4 +2008,6 @@ def get_plot_colors(num_colors=9, palette = 'default'):
         return plot_colors[:num_colors]
     
 def needFrameStepper():
-    exit('Need to track legs with frameStepper.py\n')
+    sys.exit('Need to track legs with frameStepper.py\n')
+    
+    
