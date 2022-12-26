@@ -84,7 +84,18 @@ def main(movie_file, resize=100):
             # add foot data to the foot dictionary
             # data[0] is down times, data[1] is up times
             foot_data[foot+'_down'] = data[0]
-            foot_data[foot+'_up'] = data[1] 
+            foot_data[foot+'_up'] = data[1]
+            
+        # R4 is the last foot - could ask to do next steps after finishing
+        if foot == 'R4':
+            selection = input('\n... all done with feet, (r)un analyzeSteps.py ?')
+            if selection == 'y' or selection == 'r':
+                import analyzeSteps
+                analyzeSteps.main(movie_file)
+            
+            selection = input('\n... (r)emove frames folder for this clip ?')
+            if selection == 'y' or selection == 'r':
+                gaitFunctions.removeFramesFolder(movie_file)
     
     # all done, save data!
     saveData(excel_filename, foot_data)
@@ -352,7 +363,7 @@ def saveFrames(frame_folder, movie_file):
 
             # save frame to file, with frameTime
             if frameTime > 0: # cv2 sometimes(?) assigns the last frame of the movie to time 0            
-                file_name = base_name + '_' + str(int(frameTime*1000)).zfill(4) + '.png'
+                file_name = base_name + '_' + str(int(frameTime*1000)).zfill(5) + '.png'
                 cv2.imwrite(os.path.join(frame_folder, file_name), frame)
             
         else: # no frame here
