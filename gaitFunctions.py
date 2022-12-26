@@ -56,7 +56,8 @@ def makeLegDict():
 
     return leg_dict
 
-def save_stance_figures(movie_file, up_down_times, legs):
+def save_stance_figures(movie_file, up_down_times):
+    legs = get_leg_combos()['legs_all']
     for x in ['stance', 'swing']:
         box_data, f, a = plot_stance(up_down_times, legs, x, False)
         fname = movie_file.split('.')[0] + x + '_plot.png'
@@ -484,6 +485,7 @@ def stanceSwingColors():
     swing_color = [0.15, 0.15, 0.15]
     return stance_color, swing_color
 
+# addLegToPlot is deprecated in favor of plotStepsForLegs
 def addLegToPlot(f, a, ylev, footdown, footup, videoEnd=6.2):
     steps = []
     stepTimes = [0]
@@ -529,9 +531,6 @@ def addLegToPlot(f, a, ylev, footdown, footup, videoEnd=6.2):
                               edgecolor=None, facecolor=fc, fill=True, lw=1))
 
     return f, a
-
-def parseFootLine(footline):
-    return [int(x) / 1000 for x in footline.split(': ')[1].split()]
 
 
 # get durations of stances and swings for a leg
@@ -894,6 +893,261 @@ def loadIdentityInfo(movie_file):
     return identity_info
 
 
+def getGaits(movie_file, leg_set = 'lateral'):
+    '''
+
+    Parameters
+    ----------
+    movie_file: string
+        file name of a movie of a walking tardigrade
+        needs to be tracked with frameStepper before running this!
+    leg_set : string
+        either 'lateral' to get first 3 pairs, or 'rear' to get last pair
+
+    Returns
+    -------
+    frame_times : numpy array
+        frame times of movie clip, in seconds
+    gait_styles : list
+        list of gait styles, for every frame in frame_times
+    up_legs : list
+        list of which legs are swinging, for every frame in frame_times
+    leg_matrix : numpy array
+        rows = vector of swings (1's) and stances (0's) for each leg
+        columns = each frame of video clip.
+
+    '''
+        
+    # ===> See if we already have gait info in the excel_file
+    # in the 'gait_styles' tab
+    # get or make excel file for this clip
+    excel_file_exists, excel_filename = check_for_excel(movie_file)
+    if excel_file_exists:
+        gait_data = pd.read_excel(excel_filename, sheet_name='gait_styles')
+        if len(gait_data) > 0:
+            # if we have that info, just return it!
+            frame_times = gait_data.frametimes.values
+            if leg_set == 'rear':
+                gait_styles = gait_data.gaits_rear.values
+                up_legs = gait_data.swinging_rear.values
+            else:
+                gait_styles = gait_data.gaits_lateral.values
+                up_legs = gait_data.swinging_lateral.values
+            return frame_times, gait_styles, up_legs
+    else:
+        exit('Need to run frameStepper first!')
+    
+    # No gait data yet in excel file ... 
+    # ... let's get it
+    # ... and save it 
+    
+    # Get frame times for this movie ... WITHOUT tracked path!
+    vid = cv2.VideoCapture(movie_file)
+    fps = vid.get(5)
+    frame_times = []
+    frame_number = 0
+    print('Getting frame times for ' + movie_file)
+    while vid.isOpened():
+        
+        ret, frame = vid.read()
+        
+        if ret != True:  # no frame!
+            print('... video end!')
+            break
+        
+        frame_number += 1
+        frameTime = round(float(frame_number)/fps,4)
+        frame_times.append(frameTime)
+        
+    frame_times = np.array(frame_times)
+    
+    # Get up_down_times for this movie
+    mov_data, excel_filename = loadMovData(movie_file)
+    up_down_times, latest_event = getUpDownTimes(mov_data)
+
+    # trim frame_times to only include frames up to last recorded event
+    last_event_frame = np.min(np.where(frame_times > latest_event))
+    frame_times_with_events = frame_times[:last_event_frame]
+    
+    if leg_set == 'rear':
+        legs = get_leg_combos()['legs_4']
+        all_combos, combo_colors = get_gait_combo_colors('rear')
+    else:
+        legs = get_leg_combos()['legs_lateral']
+        all_combos, combo_colors = get_gait_combo_colors('lateral')
+    
+    # get leg matrix
+    leg_matrix = make_leg_matrix(legs, up_down_times, frame_times_with_events)
+    legs = np.array(legs)
+    
+    gait_styles = []
+    up_legs = []
+
+    for col_ind in np.arange(np.shape(leg_matrix)[1]):
+        one_indices = np.where(leg_matrix[:, col_ind] == 1)
+        swinging_legs = legs[one_indices]
+        swinging_leg_combo = '_'.join(sorted(swinging_legs))
+        up_legs.append(swinging_leg_combo)
+        gait_styles.append(get_swing_categories(swinging_leg_combo, leg_set))
+        
+    # append the last swinging_leg_combo and gait_style to make the size same as frame_times
+    extra_frames = len(frame_times)-len(gait_styles)
+    gait_styles.extend([gait_styles[-1]] * extra_frames)
+    up_legs.extend([up_legs[-1]] * extra_frames)
+    
+    return frame_times, gait_styles, up_legs
+
+def saveGaits(movie_file):
+    '''
+    Save gait styles for lateral legs and rear legs ...
+    ...to gait_styles of the excel spreadsheet associated with movie_file
+
+    Parameters
+    ----------
+    movie_file: string
+        file name of a movie of a walking tardigrade
+        needs to be tracked with frameStepper before running this!
+
+    Returns
+    -------
+    None.
+
+    '''
+    
+    frame_times, lateral_gait_styles, lateral_up_legs = getGaits(movie_file, 'lateral')
+    frame_times, rear_gait_styles, rear_up_legs = getGaits(movie_file, 'rear')
+    
+    d = {'frametimes':frame_times, 
+         'gaits_lateral':lateral_gait_styles, 'swinging_lateral':lateral_up_legs, 
+         'gaits_rear':rear_gait_styles, 'swinging_rear':rear_up_legs}
+    
+    df = pd.DataFrame(d)
+    excel_filename = movie_file.split('.')[0] + '.xlsx'
+    with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
+        df.to_excel(writer, index=False, sheet_name='gait_styles')
+
+
+def plotStepsForLegs(frames_swinging, steps, legs_to_plot = 'all'):
+    '''
+    For one video clip
+    Plot steps for selected legs in same order as in leg_combos['legs_all']
+
+    Parameters
+    ----------
+    frames_swinging : dictionary
+        keys = frame times in seconds.
+        values = list of which legs are swinging during this frame
+        frames_swinging comes from frameSwings(movie_file)
+    steps : axis object
+        a matplotlib axis object created by plt.axes([rectangle parameters])
+    legs_to_plot : list of legs to plot, or 'all', optional
+        DESCRIPTION. The default is 'all'.
+        Can also specify a list, e.g. ['L1','R1']
+
+    Returns
+    -------
+    steps : axis object
+        a matplotlib axis object created by plt.axes([rectangle parameters])
+        now containing plotted steps for list in legs_to_plot (or all legs)
+
+    '''
+    
+    # plot selected legs in same order as in leg_combos['legs_all']
+    all_legs = get_leg_combos()['legs_all']
+    
+    if legs_to_plot == 'all':
+        legs_to_plot = all_legs
+    else:
+        legs_to_plot = [x for x in all_legs if x in legs_to_plot]
+
+    stance_color, swing_color = stanceSwingColors()
+    
+    frame_times = sorted(frames_swinging.keys())
+    
+    for i, leg in enumerate(reversed(legs_to_plot)):
+        for j, frame_time in enumerate(frame_times[:-1]):
+            bar_width = frame_times[i+1] - frame_times[i]
+            if leg in frames_swinging[frame_time]:
+                bar_color = swing_color
+            else:
+                bar_color = stance_color
+            steps.barh(i+1, bar_width, height=1, left = j*bar_width,
+                       color = bar_color)
+
+    steps.set_ylim([0.5, len(legs_to_plot)+0.5])
+    steps.set_xlabel('Time (sec)', fontsize=16)
+    steps.set_yticks(np.arange(len(legs_to_plot))+1)
+    steps.set_yticklabels(legs_to_plot, fontsize=16)
+    steps.set_ylabel('legs', fontsize=16)
+    steps.set_frame_on(False)
+    
+    return steps
+
+def frameSwings(movie_file):
+    '''
+    From gait_style sheet in the excel file associated with movie_file
+    ... make a dictionary = frames_swinging
+
+    Parameters
+    ----------
+    movie_file : string
+        filename of a movie clip
+
+    Returns
+    -------
+    frames_swinging : dictionary
+        keys = frame times in seconds.
+        values = list of legs that are swinging during this frame
+
+    '''
+
+    frames_swinging = {}
+    
+    excel_file = movie_file.split('.')[0] + '.xlsx'
+    
+    try:
+        gait_df = pd.read_excel(excel_file, sheet_name='gait_styles')
+    except:
+        print('No gait_styles sheet in ' + excel_file)
+    
+    frametimes = gait_df['frametimes'].values
+    swinging_lateral = gait_df['swinging_lateral'].values
+    swinging_rear = gait_df['swinging_rear'].values
+    
+    for i, frame in enumerate(frametimes):
+        try:
+            lateral_swings = swinging_lateral[i].split('_')
+        except:
+            lateral_swings = []
+        try:
+            rear_swings = swinging_rear[i].split('_')
+        except:
+            rear_swings = []
+        frames_swinging[frame] = lateral_swings + rear_swings
+        
+    return frames_swinging
+
+
+def plotLegSet(movie_file, legs_to_plot = 'all'):  
+    '''
+    For one clip: step plots of given leg set
+    
+    Parameters
+    ----------
+    movie_file : string
+        file name of a movie (.mov).
+    
+    legs_to_plot : list (or the string 'all')
+        which list of legs do we want to look at ... or 'all'
+    '''
+    frames_swinging = frameSwings(movie_file)
+    fig_height = int(len(legs_to_plot))
+    fig = plt.figure(figsize=(10,fig_height))
+    rect_steps = [0.15, 0.25,  0.8, 0.65]
+    steps = plt.axes(rect_steps)
+    plotStepsForLegs(frames_swinging, steps, legs_to_plot)
+    return fig
+
 def plotStepsAndGait(movie_file, leg_set='lateral'):
     
     '''
@@ -909,96 +1163,43 @@ def plotStepsAndGait(movie_file, leg_set='lateral'):
         typically 'rear' or 'lateral'
     '''
 
-    # get step times for each leg for which we have data
-    mov_data, excel_filename = loadMovData(movie_file)
-    up_down_times, latest_event = getUpDownTimes(mov_data)
-
-    # quality control on up_down_times
-    qcLegDict(up_down_times)
-
-    # which legs are we interested in here?
+    # ====> RECODE THIS TO PLOT FROM gait_styles of the excel file?
+            
     if leg_set == 'rear':
         legs = get_leg_combos()['legs_4']
         all_combos, combo_colors = get_gait_combo_colors('rear')
-    else:
-        legs = get_leg_combos()['legs_lateral']
-        all_combos, combo_colors = get_gait_combo_colors('lateral')
-
-    # Get all frame times for this movie
-    tracked_data, excel_filename = loadTrackedPath(movie_file)
-    frame_times = tracked_data.times.values
-
-    # trim frame_times to only include frames up to last recorded event
-    last_event_frame = np.min(np.where(frame_times > latest_event))
-    frame_times_with_events = frame_times[:last_event_frame]
-
-    # get leg matrix
-    leg_matrix = make_leg_matrix(legs, up_down_times, frame_times_with_events)
-    legs = np.array(legs)
-
-    # make swing_color_vector:
-    # a vector of colors for each frame, depending on combination of swinging legs
-    swing_color_vector = []
-
-    for col_ind in np.arange(np.shape(leg_matrix)[1]):
-        one_indices = np.where(leg_matrix[:, col_ind] == 1)
-        swinging_legs = legs[one_indices]
-        swinging_leg_combo = '_'.join(sorted(swinging_legs))
-        gait_style = get_swing_categories(swinging_leg_combo, leg_set)
-        combo_color = combo_colors[gait_style]
-        swing_color_vector.append(combo_color)
-        
-    # set up plot
-    # get colors for stance and swing
-    stance_color, swing_color = stanceSwingColors()
-
-    # definitions for the axes
-    # left, bottom, width, height
-    if leg_set == 'rear':
         rect_steps = [0.07, 0.07, 0.95, 0.5]
         rect_gaits = [0.07, 0.6,  0.95, 0.2]
         fig_height = int(len(legs))
     else:
+        legs = get_leg_combos()['legs_lateral']
+        all_combos, combo_colors = get_gait_combo_colors('lateral')
         rect_steps = [0.07, 0.07,  0.95, 0.6]
         rect_gaits = [0.07, 0.70,  0.95, 0.1]
         fig_height = int(len(legs) * 0.7)
 
-    stepplot_colors = {1: swing_color, 0: stance_color}
-    gait_x = frame_times_with_events
-    
     fig = plt.figure(figsize=(10,fig_height))
     steps = plt.axes(rect_steps)
+    frames_swinging = frameSwings(movie_file)
+    plotStepsForLegs(frames_swinging, steps, legs)
+    plt.show()
 
-    # make the steps plot = a horizontal stacked bar chart
-    bar_width = gait_x[1] - gait_x[0]     
-    for i, leg in enumerate(legs):
-        for j, x in enumerate(gait_x):
-            steps.barh(i+1, bar_width, height=1, left=j*bar_width, 
-                    color = stepplot_colors[leg_matrix[i, j]])
+    # # make the gait plot = a horizontal stacked bar chart
+    # gaits = plt.axes(rect_gaits)
 
-    steps.set_ylim([0.5, len(legs)+0.5])
-    steps.set_xlabel('Time (sec)', fontsize=16)
-    steps.set_yticks(np.arange(len(legs))+1)
-    steps.set_yticklabels(legs, fontsize=16)
-    steps.set_ylabel('legs', fontsize=16)
-    steps.set_frame_on(False)
+    # for i,x in enumerate(gait_x):
+    #     gaits.barh(1, bar_width, height=0.8, left=i*bar_width, color = swing_color_vector[i])
 
-    # make the gait plot = a horizontal stacked bar chart
-    gaits = plt.axes(rect_gaits)
+    # gaits.set_ylabel('gait', fontsize=16)
 
-    for i,x in enumerate(gait_x):
-        gaits.barh(1, bar_width, height=0.8, left=i*bar_width, color = swing_color_vector[i])
+    # # gaits.set_xlim([0, gait_x[-1]])
+    # # steps.set_xlim([0, gait_x[-1]])
 
-    gaits.set_ylabel('gait', fontsize=16)
-
-    # gaits.set_xlim([0, gait_x[-1]])
-    # steps.set_xlim([0, gait_x[-1]])
-
-    gaits.set_yticks([])
-    gaits.set_xticks([])
-    gaits.set_frame_on(False)
+    # gaits.set_yticks([])
+    # gaits.set_xticks([])
+    # gaits.set_frame_on(False)
     
-    fig.suptitle(movie_file.split('.')[0], fontsize=24)
+    # fig.suptitle(movie_file.split('.')[0], fontsize=24)
     
     return fig
 
@@ -1427,188 +1628,6 @@ def removeFramesFolder(movie_file):
             print(' ... removing ' + frames_folder + '\n')
             shutil.rmtree(frames_folder)
 
-# check to see if we have the beginning and ending frames to calculate speed
-# if we do not have them, make them!
-def saveSpeedFrames(data_folder, movie_info):
-    
-    # check to see if we have the beginning and ending frames to calculate speed
-    haveSpeedFrames = False
-    beginning_speed_frame = os.path.join(data_folder,'beginning_speed_frame.png')
-    ending_speed_frame = os.path.join(data_folder,'ending_speed_frame.png')
-    fileList = glob.glob(os.path.join(data_folder, '*'))
-    
-    if beginning_speed_frame in fileList and ending_speed_frame in fileList:
-        print(' ... found the speed frames in ' + data_folder)
-    
-    else:
-        print(' ... no speed frames yet - saving them now!')
-        print('speed frame range ' + movie_info['speed_framerange'])
-
-        if movie_info['speed_start'] > 0 and movie_info['speed_end'] > 0:
-            
-            beginning_speed_range = int(movie_info['speed_start'] * 1000)
-            ending_speed_range = int(movie_info['speed_end'] * 1000)
-
-        # elif movie_info['speed_framerange'] == 'none':
-        else:
-            print(' ... no speed boundaries available, just getting first and last frames ...')
-            beginning_speed_range = int(movie_info['start_frame'] * 1000)
-            ending_speed_range = int(movie_info['end_frame'] * 1000)
-
-        need_beginning = True
-        need_ending = True
-
-        vid = cv2.VideoCapture(os.path.join(data_folder, movie_info['movie_name']))
-        while (vid.isOpened()):
-        
-            ret, frame = vid.read()
-            if ret: # found a frame
-                frameTime = int(vid.get(cv2.CAP_PROP_POS_MSEC))
-                if frameTime >= beginning_speed_range and need_beginning:
-                    print('saving ' + beginning_speed_frame + ' at ' + str(movie_info['speed_start']))
-                    cv2.imwrite(beginning_speed_frame, frame)
-                    need_beginning = False
-                if frameTime >= ending_speed_range and need_ending:
-                    print('saving ' + ending_speed_frame + ' at ' + str(movie_info['speed_end']))
-                    cv2.imwrite(ending_speed_frame, frame)
-                    need_ending = False
-            else: # no frame here
-                break
-
-        vid.release()
-    
-    return
-
-def dataAfterColon(line):
-    # given a string with ONE colon
-    # return data after the colon
-    return line.split(':')[1].replace(' ','')
-
-def getRangeFromText(text_range):
-    beginning = float(text_range.split('-')[0])
-    ending = float(text_range.split('-')[1])
-    return beginning, ending
-
-# get information about a clip (e.g. timing, tardigrade size, tardigrade speed) from mov_data.txt
-def getMovieInfo(data_folder):
-
-    mov_datafile = os.path.join(data_folder, 'mov_data.txt')
-
-    movie_info = {}
-    movie_info['movie_name'] = ''
-    movie_info['movie_length'] = 0
-    movie_info['analyzed_framerange'] = ''
-    movie_info['start_frame'] = 0
-    movie_info['end_frame'] = 0
-    movie_info['speed_framerange'] = ''
-    movie_info['speed_start'] = 0
-    movie_info['speed_end'] = 0
-    movie_info['tardigrade_width'] = 0
-    movie_info['tardigrade_length'] = 0
-    movie_info['field_width'] = 0
-    movie_info['distance_traveled'] = 0
-    movie_info['tardigrade_speed'] = 0
-
-    with open(mov_datafile, 'r') as f:
-        for line in f:
-            line = line.rstrip()
-            if line.startswith('MovieName'):
-                movie_info['movie_name'] = dataAfterColon(line)
-            if line.startswith('Length'):
-                movie_info['movie_length'] = float(dataAfterColon(line))
-            if line.startswith('Analyzed Frames'):
-                frameRange = dataAfterColon(line)
-                movie_info['analyzed_framerange'] = frameRange
-                movie_info['start_frame'], movie_info['end_frame'] = getRangeFromText(frameRange)
-            if line.startswith('Speed'):
-                if 'none' in line:
-                    movie_info['speed_framerange'] = 'none'
-                    movie_info['speed_start'], movie_info['speed_end'] = (0,0)
-                else:
-                    speedRange = dataAfterColon(line)
-                    movie_info['speed_framerange'] = speedRange
-                    movie_info['speed_start'], movie_info['speed_end'] = getRangeFromText(speedRange)
-            if line.startswith('Field'):
-                movie_info['field_width'] = float(dataAfterColon(line))
-            if line.startswith('Tardigrade Width'):
-                movie_info['tardigrade_width'] = float(dataAfterColon(line))
-            if line.startswith('Tardigrade Length'):
-                movie_info['tardigrade_length'] = float(dataAfterColon(line))
-            if line.startswith('Distance Traveled'):
-                movie_info['distance_traveled'] = float(dataAfterColon(line))
-            if line.startswith('Tardigrade Speed'):
-                if 'none' not in line:
-                    movie_info['tardigrade_speed'] = float(dataAfterColon(line))
-                else:
-                    movie_info['tardigrade_speed'] = dataAfterColon(line)
-
-        # if no information for 'Analyzed Frames', retrieve it from the movie
-        if movie_info['start_frame'] == 0 or movie_info['end_frame'] == 0:
-            print('No info about analyzed frame times ... getting that now ... ')
-            first_frame, last_frame = getStartEndTimesFromMovie(data_folder, movie_info)
-            print('   ... start is ' + str(first_frame) + ', end is ' + str(last_frame))
-            movie_info['start_frame'], movie_info['end_frame'] = first_frame, last_frame
-            movie_info['analyzed_framerange'] = str(first_frame) + '-' + str(last_frame)
-
-    return movie_info
-
-# from a treatment folder containing folders of clips
-# return a dictionary containing size and speed information for each clip
-def sizeAndSpeed(treatment_dir, clip_folders, scale = 1.06): # use 0 if do not want to convert from pix to µm
-    # scale is calculated by measuring the # pixels in the field of view of the scope
-    # and measuring the # of pixels / µm via a micrometer
-    # and using these to figure out what the distance of the field of view is
-    # in Jean's lab at 10X, field of view is 1.06 mm
-    # on Olympus CH30 at 10X, field of view is 1.1 mm
-
-    if scale > 0:
-        print('... converting from pixels to micrometers')
-
-    # set up a dictionary to contain size and speed data for each clip
-    size_speed = {}
-        
-    # go through all the selected clips and add data to size_speed dicionary
-    for clip in clip_folders:
-        data_folder = os.path.join(treatment_dir, clip)
-        
-        # get dictionary of  info about movie from mov_data.txt
-        movie_info = getMovieInfo(data_folder)
-
-        if scale > 0:
-            pix_to_um_conversion = (scale * 1000) / movie_info['field_width']
-            print('... for ' + clip + ', conversion is ' + str(np.around(pix_to_um_conversion,2)) + ' micrometers per pixel.')
-        else:
-            pix_to_um_conversion = 1   
-
-        # what is the time interval used to calculate speed?
-        size_speed[clip] = {}
-        size_speed[clip]['analyzed_time'] = movie_info['end_frame'] - movie_info['start_frame']
-
-        # get the field width, so we can convert pixels to µm
-        size_speed[clip]['field_width'] = movie_info['field_width']
-
-        # get distance and length, and convert to pixels
-        size_speed[clip]['tardigrade_length'] = movie_info['tardigrade_length'] * pix_to_um_conversion
-        size_speed[clip]['distance_traveled'] = movie_info['distance_traveled'] * pix_to_um_conversion
-
-        # area approximate as an ellipse. (length/2 * width/2 * pi)
-        tardigrade_area = (movie_info['tardigrade_width'] * pix_to_um_conversion) / 2 * (pix_to_um_conversion* movie_info['tardigrade_length']) / 2 * np.pi
-        size_speed[clip]['tardigrade_area'] = tardigrade_area
-        
-        # speed is distance / time ... so we can use pix_to_um_conversion to scale speed too
-
-        # some movie clips do not have speed info ... want to skip those!
-        try:
-            float(movie_info['tardigrade_speed'])
-        except:
-            print('No speed available for ' + clip)
-            size_speed[clip]['tardigrade_speed'] = 'none'
-        else:
-            speed = movie_info['tardigrade_speed'] * pix_to_um_conversion
-            size_speed[clip]['tardigrade_speed'] = movie_info['tardigrade_speed'] * pix_to_um_conversion
-
-    return size_speed
-
 def getStartEndTimesFromMovie(data_folder, movie_info):
     frameTimes = []
 
@@ -1627,44 +1646,7 @@ def getStartEndTimesFromMovie(data_folder, movie_info):
     frameTimes = [float(x)/1000 for x in frameTimes if x > 0]
     return frameTimes[0], frameTimes[-1]
 
-def updateMovieData(data_folder, movie_info):
 
-    # make a backup copy of mov_data.txt
-    movie_datafile = os.path.join(data_folder, 'mov_data.txt')
-    print('\nUpdating ' + movie_datafile)
-
-    backup_datafile = os.path.join(data_folder, 'backup_mov_data.txt' )
-    os.rename(movie_datafile, backup_datafile)
-
-    print_now = False
-
-    o = open(movie_datafile, 'w')
-    o.write('MovieName: ' + movie_info['movie_name'] + '\n' )
-    o.write('Length: ' + str(movie_info['movie_length']) + '\n' )
-    o.write('Analyzed Frames: ' + movie_info['analyzed_framerange'] + '\n' )
-    o.write('Tardigrade Width: ' + str(movie_info['tardigrade_width']) + '\n')
-    o.write('Tardigrade Length: ' + str(movie_info['tardigrade_length']) + '\n')
-    o.write('Field of View: ' + str(movie_info['field_width']) + '\n')
-    
-    if movie_info['speed_start'] > 0 and movie_info['speed_end'] > movie_info['speed_start']:
-        o.write('Speed Frames: ' + movie_info['speed_framerange'] + '\n' )
-        time_elapsed = movie_info['speed_end'] - movie_info['speed_start']
-        movie_info['tardigrade_speed'] = movie_info['distance_traveled'] / time_elapsed
-    else:
-        o.write('Speed Frames: none' + '\n' )
-
-    o.write('Distance Traveled: ' + str(movie_info['distance_traveled']) + '\n')
-    o.write('Tardigrade Speed: ' + str(movie_info['tardigrade_speed']) + '\n')
-    o.write('\n')
-
-    with open(backup_datafile, 'r') as f:
-        for line in f:
-            if 'Data for' in line:
-                print_now = True
-            if print_now == True:
-                o.write(line)
-
-    o.close()
 
 # in a pair of experiments loaded into df1 and df2 
 # plot step parameters for each experiment for a set of legs to compare

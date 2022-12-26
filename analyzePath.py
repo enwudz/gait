@@ -129,7 +129,7 @@ def stopsTurns(times, speed, bearing_changes, increment):
 
     '''
     
-    # initialize empty arrays
+    # empty arrays
     stops = np.zeros(len(speed))
     turns = np.zeros(len(speed))
     

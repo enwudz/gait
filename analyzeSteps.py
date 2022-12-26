@@ -13,6 +13,8 @@ import pandas as pd
 # ... and expresses these times as FRACTIONS of the leg's gait cycle
 # this script ALSO finds averages for all step parameters across all gait cycles for each leg
 
+# this script ALSO gets and saves gait styles for each frame of the movie!
+
 # see an older version archived_3Dec21 which did:
 # for each step, print out all the step stats, and info about timing of other legs relative to that step
 
@@ -211,8 +213,12 @@ def main(movie_file):
             
         ## Calculate average step parameters for each leg, and write to excel file
         saveStepStats(step_data_df, excel_filename)
+
+        # get and save gait styles for every frame
+        gaitFunctions.saveGaits(movie_file)
         
         return step_data_df
+
     
 def saveGaitStyles(up_down_times, excel_filename):
     

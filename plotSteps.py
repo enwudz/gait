@@ -18,9 +18,6 @@ def main(movie_file):
     
     for movie_file in movie_files:
         print('Getting data for ' + movie_file)
-        
-        # get mov_data and excel_file for this movie_file
-        mov_data, excel_filename = gaitFunctions.loadMovData(movie_file)
 
         # get step_data for this movie_file
         step_data = gaitFunctions.loadStepData(movie_file)
@@ -32,16 +29,22 @@ def main(movie_file):
         gaitFunctions.removeFramesFolder(movie_file)
         
         # save a bunch of different combos of steps for ONE clip
-        # saveBunchOfPlots(mov_data) # <=== OK ... for ONE clip
+        # saveBunchOfPlots(movie_file) # <=== OK ... for ONE clip
+        
+        # plot steps for a selected group of legs
+        # fig = gaitFunctions.plotLegSet(movie_file, 'all') # ['L1','L2','L3']) # list of legs, or 'all'
+        # plt.show()
         
         # plot of steps and gait styles for ONE clip
-        fig = gaitFunctions.plotStepsAndGait(movie_file, 'lateral') # <=== OK ... for ONE clip
-        ##### BUT SHOULD CHANGE BECAUSE CODE IS DUPLICATED FOR GETTING GAIT!
-        plt.show()
+        #fig = gaitFunctions.plotStepsAndGait(movie_file, 'lateral') # <=== NEED TO UPDATE FHIS FUNCTION
+        # plt.show()
         
 
 
-def saveBunchOfPlots(mov_data):
+def saveBunchOfPlots(movie_file):
+    # get mov_data and excel_file for this movie_file
+    mov_data, excel_filename = gaitFunctions.loadMovData(movie_file)
+    
     # parse movie data to make a dictionary containing up and down timing for each leg
     # e.g. leg_dict['R4']['u']  ( = [ 2,5,6,8 ... ] )
     up_down_times, video_end = gaitFunctions.getUpDownTimes(mov_data)
@@ -49,17 +52,11 @@ def saveBunchOfPlots(mov_data):
     # quality control on leg_dict ... make sure up and down times are alternating!
     gaitFunctions.qcLegDict(up_down_times)
 
-    # plot steps - choose which legs to plot
-    legs = gaitFunctions.get_leg_combos()['legs_all']  # dictionary of all combos
-    # OR choose individual legs to plot
-    # legs = ['L4','R4'] # for an individual leg
-    # plot_legs(leg_dict, legs, video_end)
-
     # save a bunch of figures of leg plots
     gaitFunctions.save_leg_figures(movie_file, up_down_times, video_end)
 
     # save stance time and swing time figures
-    gaitFunctions.save_stance_figures(movie_file, up_down_times, legs)
+    gaitFunctions.save_stance_figures(movie_file, up_down_times)
 
 # recreate plots from step_data_plots.ipynb
 
@@ -70,10 +67,10 @@ How much data: # steps (each leg, and total), total time
 #
 
 '''
-Step plots of given leg set
-    function is gaitFunctions.plotStepsAndGait
+For one clip: step plots and gait style for 'lateral' or 'rear' set
 '''
-#
+
+
 
 '''
 Compare gait parameters for different legs
