@@ -1628,6 +1628,15 @@ def removeFramesFolder(movie_file):
             print(' ... removing ' + frames_folder + '\n')
             shutil.rmtree(frames_folder)
 
+def cleanUpTrash(movie_file):
+    fstem = movie_file.split('.')[0]
+    bg = glob.glob(fstem + '*background.png')
+    fi = glob.glob(fstem + '*first.png')
+    la = glob.glob(fstem + '*last.png')
+    for f in [bg, fi, la]:
+        if len(f) > 0:
+            os.remove(f[0])
+
 def getStartEndTimesFromMovie(data_folder, movie_info):
     frameTimes = []
 
