@@ -85,20 +85,18 @@ def main(movie_file, resize=100):
             # data[0] is down times, data[1] is up times
             foot_data[foot+'_down'] = data[0]
             foot_data[foot+'_up'] = data[1]
-            
-        # R4 is the last foot - could ask to do next steps after finishing
-        if foot == 'R4':
-            selection = input('\n... all done with feet, (r)un analyzeSteps.py ?')
-            if selection == 'y' or selection == 'r':
-                import analyzeSteps
-                analyzeSteps.main(movie_file)
-            
-            selection = input('\n... (r)emove frames folder for this clip ?')
-            if selection == 'y' or selection == 'r':
-                gaitFunctions.removeFramesFolder(movie_file)
     
     # all done, save data!
     saveData(excel_filename, foot_data)
+
+    # R4 is the last foot - could ask to do next steps after finishing
+    if foot == 'R4':
+        selection = input('\n... all done with feet, (r)un analyzeSteps.py? ')
+        if selection == 'y' or selection == 'r':
+            import analyzeSteps
+            analyzeSteps.main(movie_file)
+        gaitFunctions.removeFramesFolder(movie_file)
+        gaitFunctions.cleanUpTrash(movie_file)
 
 def saveData(excel_filename, foot_data):
           
