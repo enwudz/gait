@@ -12,14 +12,16 @@ import trackCritter
 import analyzePath
 import plotPath
 import gaitFunctions
+import frameStepper
 import sys
 
 def main(movie_file):
-    # initializeClip.main(movie_file)
-    trackCritter.main(movie_file)
+    initializeClip.main(movie_file)
+    trackCritter.main(movie_file, 12) # try (movie_file, 12 OR 25) if tracking wonky
     analyzePath.main(movie_file)
     plotPath.main(movie_file,'track')
     plotPath.main(movie_file,'time')
+    frameStepper.main(movie_file)
 
 if __name__== "__main__":
 

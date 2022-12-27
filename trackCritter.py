@@ -27,9 +27,7 @@ from scipy import stats
 import gaitFunctions
 import pandas as pd
 
-def main(movie_file):
-    
-    difference_threshold = 12
+def main(movie_file, difference_threshold = 12):
     
     # get or make excel file for this clip
     excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file)
