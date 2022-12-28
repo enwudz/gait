@@ -28,10 +28,10 @@ import gaitFunctions
 import pandas as pd
 import re
 
-def main(mov_file):
+def main(movie_file):
     
     # is there already an excel file for this clip?
-    excel_file_exists, excel_filename = gaitFunctions.check_for_excel(mov_file)
+    excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file)
         
     # if there is a file, extract the info from the identity sheet
     if excel_file_exists:
@@ -42,36 +42,55 @@ def main(mov_file):
     # if there is no file ... guess info from the filestem, and make a file!
     else:      
         print('... no file yet - guessing info from file stem')
-        info = extract_info(mov_file)
+        info = extract_info(movie_file)
         print('... making an excel file: ' + excel_filename)
-        make_excel(excel_filename, info)
+        df = pd.DataFrame([info])
+        with pd.ExcelWriter(excel_filename) as writer:
+            df.to_excel(writer, index=False, sheet_name='identity')
+        
+        # get info for movie file
+        vid_width, vid_height, vid_fps, vid_frames, vid_length = gaitFunctions.getVideoData(movie_file, False)
+        info['width'] = vid_width
+        info['height'] = vid_height
+        info['fps'] = vid_fps
+        info['duration'] = vid_length
+        
+        # get and save frame times for movie if not already there
+        frame_times = gaitFunctions.getFrameTimes(movie_file)
+        info['#frames'] = len(frame_times)
+        
+        # save first and last frames if not already there
+        first_frame, last_frame = gaitFunctions.getFirstLastFrames(movie_file)
+        gaitFunctions.saveFirstLastFrames(movie_file, first_frame, last_frame)
+        
+        make_excel(excel_filename, info)  
     
     # print the info we have, and invite user to modify the file
     print_order = gaitFunctions.identity_print_order()
     
-    print('\nHere is info we have - feel free to edit ' + excel_filename + '\n')
+    print('\nHere is info we have:')
     printed = []
     for thing in print_order:
-        print(' ' + thing + ': ' + info[thing])
+        print(' ' + thing + ': ' + str(info[thing]))
         printed.append(thing)
         
     # what if there are things in the excel file that are not in print_order?
     for k in info.keys():
         if k not in printed:
             print(' ' + k  + ': ' + str(info[k]))
-    
-    print('\n')
+    print('\n If any of that needs to be changed, feel free to edit ' + excel_filename + '\n')
+
     return info
 
 def make_excel(excel_filename, info):
     print_order = gaitFunctions.identity_print_order()
-    vals = [info[x] for x in print_order]
+    vals = [info[x] for x in print_order if x in print_order]
     d = {'Parameter':print_order,'Value':vals}
     df = pd.DataFrame(d)
     df2 = pd.DataFrame()
-    with pd.ExcelWriter(excel_filename) as writer:
+    with pd.ExcelWriter(excel_filename, if_sheet_exists='replace', engine='openpyxl', mode='a') as writer:
         df.to_excel(writer, index=False, sheet_name='identity')
-        df2.to_excel(writer, index=False, sheet_name='pathtracking')
+        # pathtracking is already written from getFrameTimes above
         df2.to_excel(writer, index=False, sheet_name='path_stats')
         df2.to_excel(writer, index=False, sheet_name='steptracking')
         df2.to_excel(writer, index=False, sheet_name='step_timing')
@@ -116,9 +135,9 @@ def guess_the_thing(thing):
         else:
             return 'treatment'
     
-def extract_info(mov_file):
+def extract_info(movie_file):
     
-    file_stem = mov_file.split('.')[0]
+    file_stem = movie_file.split('.')[0]
     info = {}
     info['date'] = ''
     info['treatment'] = ''
@@ -142,11 +161,11 @@ def extract_info(mov_file):
 if __name__== "__main__":
 
     if len(sys.argv) > 1:
-        mov_file = sys.argv[1]
+        movie_file = sys.argv[1]
     else:
-        mov_file = gaitFunctions.select_movie_file()
+        movie_file = gaitFunctions.select_movie_file()
         
-    if '.mov' in mov_file:
-        main(mov_file)
+    if '.mov' in movie_file:
+        main(movie_file)
     else:
         exit('No .mov file found')

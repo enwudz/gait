@@ -44,8 +44,8 @@ def main(movie_file, resize=100):
             foot_data = {}
     
     else:
-        # import initializeClip
-        # info = initializeClip.main(movie_file)
+        import initializeClip
+        initializeClip.main(movie_file)
         foot_data = {}
 
     # look for frame folder for this movie
@@ -55,10 +55,12 @@ def main(movie_file, resize=100):
 
     feet_done = getFeetDone(foot_data)
     feet_to_do = getFeetToDo(feet_done)
+    finished_tracking = False
     if len(feet_to_do) > 0:
         print('Still need to track steps for: ' + ', '.join(feet_to_do))
     else:
         print('Already finished all legs for this movie!')
+        finished_tracking = True
         
     for foot in feet_to_do:
         
@@ -90,7 +92,12 @@ def main(movie_file, resize=100):
     saveData(excel_filename, foot_data)
 
     # R4 is the last foot - could ask to do next steps after finishing
-    if foot == 'R4':
+    if finished_tracking == True:
+        print('\nAlready tracked steps for ' + movie_file)
+        import analyzeSteps
+        analyzeSteps.main(movie_file)
+        
+    elif foot == 'R4':
         selection = input('\n... all done with feet, (r)un analyzeSteps.py? ')
         if selection == 'y' or selection == 'r':
             import analyzeSteps

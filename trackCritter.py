@@ -38,13 +38,12 @@ def main(movie_file, difference_threshold = 12):
         
     # check if the tracking data is already there ... ask if want to run again
     tracking_data = pd.read_excel(excel_filename, sheet_name='pathtracking')
-    if len(tracking_data) > 0:
+    if 'xcoords' in tracking_data.columns:
         print('... looks like there is already tracking data for this clip!')
         continue_tracking()
     
-    # get and save first frame
-    first_frame = getFirstFrame(movie_file)
-    cv2.imwrite(movie_file.split('.')[0] + '_first.png', first_frame, [cv2.IMWRITE_PNG_COMPRESSION, 0])
+    # get first and last frames
+    first_frame, last_frame = gaitFunctions.getFirstLastFrames(movie_file)
         
     # make background image using N random frames of video
     # (or load a background image that is already made)
@@ -86,7 +85,7 @@ def findCritter(video_file, background, pixThreshold = 25):
 
     frame_number = 0
     frames_in_video = getFrameCount(video_file)
-    dot_colors = makeColorList('cool', frames_in_video)
+    dot_colors = makeColorList('plasma', frames_in_video) # cool
     font = cv2.FONT_HERSHEY_DUPLEX
 
     centroid_coordinates = [] # container for (x,y) coordinates of centroid of target object at each frame
@@ -181,10 +180,7 @@ def findCritter(video_file, background, pixThreshold = 25):
         cv2.imshow('press (q) to quit', frame) # frame or binary_frame
         if cv2.waitKey(25) & 0xFF == ord('q'):
             break
-
-    # save last frame
-    cv2.imwrite(video_file.split('.')[0] + '_last.png', saved_frame, [cv2.IMWRITE_PNG_COMPRESSION, 0])
-    
+   
     # shut down the video capture object
     vid.release()
     cv2.destroyAllWindows()
@@ -380,7 +376,7 @@ def backgroundFromRandomFrames(movie_file, num_background_frames):
             
             # occasionally an empty frame will be encountered before the expected end of the video
             if (ret != True):  # no frame!
-                print('... empty image at frame ' + str(frame_counter) + '!')
+                print('... empty image at frame ' + str(frame_counter+1) + '!')
                 print('... expected ' + str(frames_in_video) + ' frames in ' + movie_file)
                 video_stack = video_stack[:,:,:image_index]
                 break
@@ -423,13 +419,23 @@ def getImageSize(img):
     num_rows, num_cols = np.shape(img)[:2]
     return num_rows, num_cols
 
-def getFrameCount(videofile):
+def getFrameCount(movie_file):
     """get the number of frames in a movie file"""
-    cap = cv2.VideoCapture(videofile)
-    num_frames = int(cap.get(cv2. CAP_PROP_FRAME_COUNT))
-    print('... number of frames in ' + videofile + ' : ' + str(num_frames) )
-    cap.release()
-    return num_frames
+    excel_ok = True
+    excel_filename = movie_file.split('.')[0] + 'xlsx'
+    
+    try:
+        info_df = pd.read_excel(excel_filename, sheet_name='identity', index_col=None)
+    except:
+        excel_ok = False
+        
+    if excel_ok:
+        info = dict(zip(info_df['Parameter'].values, info_df['Value'].values))
+    else:
+        import initializeClip
+        info = initializeClip.main(movie_file)
+    
+    return info['#frames']
 
 def getFirstFrame(videofile):
     """get the first frame from a movie, and return it as an image"""

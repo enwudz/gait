@@ -48,7 +48,7 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
     
     # get vectors for stops and turns
     time_increment = 0.5 # in seconds
-    stops, turns = stopsTurns(frametimes, speed, bearing_changes, time_increment)
+    stops, turns = stopsTurns(frametimes, speed, bearing_changes, bearings, time_increment)
     
     # add all tracking vectors to the excel file, 'pathtracking' tab
     d = {'times':frametimes, 'xcoords':xcoords, 'ycoords':ycoords, 'areas':areas, 
@@ -90,7 +90,7 @@ def change_in_bearing(bearing1, bearing2):
     # both will be near (e.g. within ~20 degrees) of 0 or 360
     # and so we need to adjust how we calculate difference in bearing
     
-    buffer = 50
+    buffer = 80
     
     if bearing1 > 360-buffer and bearing2 < buffer: # the path crossed North
         delta_bearing = bearing2 + 360 - bearing1
@@ -101,7 +101,7 @@ def change_in_bearing(bearing1, bearing2):
     
     return delta_bearing
 
-def stopsTurns(times, speed, bearing_changes, increment):    
+def stopsTurns(times, speed, bearing_changes, bearings, increment):    
     
     '''
     From vectors of speed and bearings ...
@@ -146,8 +146,11 @@ def stopsTurns(times, speed, bearing_changes, increment):
     # if change in bearing in a bin is greater than this threshold, it is a TURN!
     turn_threshold = 28 # in degrees
     
+    bin_number = 0
+    
     while current_time + increment <= video_length:
         
+        bin_number += 1
         # get bin
         next_time = current_time + increment
         start_bin = np.where(times >= current_time)[0][0]
@@ -160,13 +163,26 @@ def stopsTurns(times, speed, bearing_changes, increment):
         if np.mean(speed[start_bin:end_bin]) <= stop_threshold:
             stops[start_bin:end_bin] = 1
                          
-        # find TURNS
-        # look at total change in bearing from this bin
-        # if ABOVE a threshold (eg 28 degrees)? = a TURN
-        # in TURNS, set all frames of this bin to 1
-        # what if turned a bit one way, then turned back? Hmmmm...
-        if np.sum(bearing_changes[start_bin:end_bin]) >= turn_threshold:
-            turns[start_bin:end_bin] = 1
+        # find TURNS        
+        if bin_number == 1:
+            # ONE WAY ... easy:
+                # look at total change in bearing from this bin
+                # if ABOVE a threshold (eg 28 degrees)? = a TURN
+                # in TURNS, set all frames of this bin to 1
+                # what if turned a bit one way, then turned back? Hmmmm...
+                # this is a bit wonky if stopped or exploring very slowly
+            if np.sum(bearing_changes[start_bin:end_bin]) >= turn_threshold:
+                turns[start_bin:end_bin] = 1
+            stored_bin_average = np.mean(bearings[start_bin:end_bin])
+        else: 
+            # ANOTHER WAY ... a bit more involved
+                # get average bearing of PREVIOUS bin
+                # get average bearing of THIS bin
+                # if different ... then a turn
+            this_bin_average = np.mean(bearings[start_bin:end_bin])
+            if np.abs(stored_bin_average-this_bin_average) >= turn_threshold:
+                turns[start_bin:end_bin] = 1
+            stored_bin_average = this_bin_average
 
         current_time += increment
     

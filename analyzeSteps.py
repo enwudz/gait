@@ -7,22 +7,20 @@ import pandas as pd
 
 # this script collects step information for EACH(!) COMPLETE gait cycle
 #   stance length, swing length, gait cycle duration, duty factor
-# this script also finds the 'mid-swing' time for each gait cycle 
+# this script also finds the 'mid-swing' time for each of these gait cycles 
 # ... where mid-swing = halfway between leg-up and leg-down
-# this script ALSO finds the timing when ALL other legs are in mid-swing during the gait cycle of a leg
-# ... and expresses these times as FRACTIONS of the leg's gait cycle
+# this script ALSO finds the timing when ALL other legs are ...
+# ....in mid-swing during the gait cycle of a particular leg
+# ... and expresses these times as FRACTIONS of this leg's gait cycle
 # this script ALSO finds averages for all step parameters across all gait cycles for each leg
 
 # this script ALSO gets and saves gait styles for each frame of the movie!
-
-# see an older version archived_3Dec21 which did:
-# for each step, print out all the step stats, and info about timing of other legs relative to that step
 
 def main(movie_file):
 
     add_swing = True # do we want to collect mid-swing times for all other legs for each step?
 
-    # load mov_data
+    # load mov_data = a dictionary of UP and DOWN times for each leg
     mov_data, excel_filename = gaitFunctions.loadMovData(movie_file)
 
     # collect step data from mov_data
@@ -57,7 +55,10 @@ def main(movie_file):
 
         # go through each down step for this leg
         for i,step in enumerate(downs[:-1]): 
-            # there is one more down than any other value because we want the timing of COMPLETE gait cycles
+            
+            # there needs to be one more down than up because we want the timing of COMPLETE gait cycles
+            # in other words ... #downs = #ups + 1
+            # and the order needs to be corect
             # e.g. down-up down-up down-up down
 
             # get and print information for this step
@@ -65,7 +66,7 @@ def main(movie_file):
                                                 gait_cycles[i],duty_factors[i],mid_swings[i]])
             data_for_steps.append(step_stats)
 
-    if add_swing is True:
+    if add_swing is True: # do we want the mid-swing information for all other legs?
         print('Saving mid-swing times ... ')
         data_for_steps_with_swings = []
 

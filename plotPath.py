@@ -183,44 +183,9 @@ def getDataLabel(area, distance, vid_length, angle_space = 0, discrete_turns = 0
 
     return data_label
 
-def getFirstLastFrames(filestem):
-    first_frame_file = filestem + '_first.png'
-    last_frame_file = filestem + '_last.png'
-    
-    if len(glob.glob(first_frame_file)) > 0:
-        first_frame = cv2.imread(first_frame_file)
-    else:
-        print('... getting first frame ...')
-        vidcap = cv2.VideoCapture(filestem + '.mov')
-        success, image = vidcap.read()
-        if success:
-            first_frame = image
-        else:
-            print('cannot get an image from ' + filestem)
-            first_frame = None
-    
-    if len(glob.glob(last_frame_file)) > 0:
-        last_frame = cv2.imread(last_frame_file)
-    else:
-        print('... getting last frame ...')
-        vidcap = cv2.VideoCapture(filestem + '.mov')
-        frame_num = 1
-        good_frame = None
-        while vidcap.isOpened():
-            ret, frame = vidcap.read()
-            if ret == False:
-                print('Last successful frame = ' + str(frame_num))
-                last_frame = good_frame
-                vidcap.release()
-            else:
-                frame_num += 1
-                good_frame = frame
-    
-    return first_frame, last_frame
-
 def superImposedFirstLast(filestem):
     # superimpose first and last frames
-    first_frame, last_frame = getFirstLastFrames(filestem)
+    first_frame, last_frame = gaitFunctions.getFirstLastFrames(filestem)
     combined_frame = cv2.addWeighted(first_frame, 0.3, last_frame, 0.7, 0)
     return combined_frame
 
@@ -230,6 +195,7 @@ if __name__== "__main__":
         movie_file = sys.argv[1]
         try:
             plot_style = sys.argv[2]
+            print('hi!')
         except:
             plot_style = 'none'
     else:

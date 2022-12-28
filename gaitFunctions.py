@@ -363,7 +363,8 @@ def select_movie_file():
     return movie_file
 
 def identity_print_order():
-    return ['file_stem','date','treatment','individualID','time_range','initials']
+    return ['file_stem','date','treatment','individualID','time_range',
+            'initials','#frames','fps','width','height','duration']
 
 def getVideoData(movie_file, printOut = True):
     if len(glob.glob(movie_file)) == 0:
@@ -893,6 +894,105 @@ def loadIdentityInfo(movie_file):
     return identity_info
 
 
+def getFirstLastFrames(movie_file):
+    filestem = movie_file.split('.')[0]
+    
+    first_frame_file = filestem + '_first.png'
+    last_frame_file = filestem + '_last.png'
+    
+    if len(glob.glob(first_frame_file)) > 0:
+        first_frame = cv2.imread(first_frame_file)
+    else:
+        print('... getting first frame ...')
+        vidcap = cv2.VideoCapture(filestem + '.mov')
+        success, image = vidcap.read()
+        if success:
+            first_frame = image
+        else:
+            print('cannot get an image from ' + filestem)
+            first_frame = None
+    
+    if len(glob.glob(last_frame_file)) > 0:
+        last_frame = cv2.imread(last_frame_file)
+    else:
+        print('... getting last frame ...')
+        vidcap = cv2.VideoCapture(filestem + '.mov')
+        frame_num = 1
+        good_frame = None
+        while vidcap.isOpened():
+            ret, frame = vidcap.read()
+            if ret == False:
+                print('Last successful frame = ' + str(frame_num))
+                last_frame = good_frame
+                vidcap.release()
+            else:
+                frame_num += 1
+                good_frame = frame
+    
+    return first_frame, last_frame
+
+def saveFirstLastFrames(movie_file, first_frame, last_frame):
+    cv2.imwrite(movie_file.split('.')[0] + '_first.png', first_frame, [cv2.IMWRITE_PNG_COMPRESSION, 0])
+    cv2.imwrite(movie_file.split('.')[0] + '_last.png', last_frame, [cv2.IMWRITE_PNG_COMPRESSION, 0])
+
+def getFrameTimes(movie_file):
+    
+    needFrames = False
+    
+    # see if we can get the frame times from the excel file associated with this movie
+    excel_file_exists, excel_filename = check_for_excel(movie_file)
+    if excel_file_exists:
+        # see if we can read the data in the pathtracking sheet
+        try:
+            pathtracking_df = pd.read_excel(excel_filename, sheet_name='pathtracking', index_col=None)
+        except:
+            needFrames = True
+            
+        try:
+            frame_times = pathtracking_df['times'].values
+        except:
+            needFrames = True
+            
+    else:
+        needFrames = True
+    
+    # if needFrames is True, we need to run through the video, get the frames,
+    # and save themn to the pathtracking sheet
+    
+    if needFrames:
+        pathtracking_d = {}
+        vid = cv2.VideoCapture(movie_file)
+        fps = vid.get(5)
+        frame_times = []
+        frame_number = 0
+        print('Getting frame times for ' + movie_file)
+        while vid.isOpened():
+            
+            ret, frame = vid.read()
+            
+            if ret != True:  # no frame!
+                print('... video end!')
+                break
+            
+            frame_number += 1
+            frameTime = round(float(frame_number)/fps,4)
+            frame_times.append(frameTime)
+            
+        frame_times = np.array(frame_times)
+        pathtracking_d['times'] = frame_times
+
+        pathtracking_df = pd.DataFrame(pathtracking_d)
+        
+        with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
+            pathtracking_df.to_excel(writer, index=False, sheet_name='pathtracking')
+    
+    else:
+        # if needFrames is False, we can get the frames from the pathtracking_df
+        frame_times = pathtracking_df['times'].values
+    
+    return frame_times
+        
+
 def getGaits(movie_file, leg_set = 'lateral'):
     '''
 
@@ -942,24 +1042,7 @@ def getGaits(movie_file, leg_set = 'lateral'):
     # ... and save it 
     
     # Get frame times for this movie ... WITHOUT tracked path!
-    vid = cv2.VideoCapture(movie_file)
-    fps = vid.get(5)
-    frame_times = []
-    frame_number = 0
-    print('Getting frame times for ' + movie_file)
-    while vid.isOpened():
-        
-        ret, frame = vid.read()
-        
-        if ret != True:  # no frame!
-            print('... video end!')
-            break
-        
-        frame_number += 1
-        frameTime = round(float(frame_number)/fps,4)
-        frame_times.append(frameTime)
-        
-    frame_times = np.array(frame_times)
+    frame_times = getFrameTimes(movie_file)
     
     # Get up_down_times for this movie
     mov_data, excel_filename = loadMovData(movie_file)
