@@ -27,7 +27,7 @@ from scipy import stats
 import gaitFunctions
 import pandas as pd
 
-def main(movie_file, difference_threshold = 12):
+def main(movie_file, difference_threshold = 12, showTracking = True):
     
     # get or make excel file for this clip
     excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file)
@@ -50,7 +50,7 @@ def main(movie_file, difference_threshold = 12):
     background_image = backgroundFromRandomFrames(movie_file, 100)
 
     # run through video and compare each frame with background
-    centroid_coordinates, areas = findCritter(movie_file, background_image, difference_threshold) # typical threshold is 25, scale of 1 to 255
+    centroid_coordinates, areas = findCritter(movie_file, background_image, difference_threshold, showTracking) # typical threshold is 25, scale of 1 to 255
     
     # save the centroid_coordinates and areas to the excel file
     times = [x[0] for x in centroid_coordinates]
@@ -69,7 +69,7 @@ def continue_tracking():
     if selection != 'c':
         exit('')
 
-def findCritter(video_file, background, pixThreshold = 25):
+def findCritter(video_file, background, pixThreshold, showTracking):
 
     # go through video
     print('... starting video ' + video_file)
@@ -86,7 +86,6 @@ def findCritter(video_file, background, pixThreshold = 25):
     frame_number = 0
     frames_in_video = getFrameCount(video_file)
     dot_colors = makeColorList('plasma', frames_in_video) # cool
-    font = cv2.FONT_HERSHEY_DUPLEX
 
     centroid_coordinates = [] # container for (x,y) coordinates of centroid of target object at each frame
     areas = [] # container for calculated areas of target object at each frame
@@ -113,9 +112,6 @@ def findCritter(video_file, background, pixThreshold = 25):
 
         # find contours on the thresholded binary image
         contours, hierarchy = cv2.findContours(binary_frame, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-        # draw contours on the original frame
-        cv2.drawContours(frame, contours, -1, (0,255,0), 5)
 
         # if more than one contour, make a decision about which contour is the target object
         # decision can be based on area of target ... or maybe last known position?
@@ -160,26 +156,32 @@ def findCritter(video_file, background, pixThreshold = 25):
         centroid_coordinates.append((frameTime,cX,cY))
         areas.append(target_area)
 
-        # ==> SHOW CENTROIDS: show (color coded) centroids on frame
-        cv2.circle(frame, (cX, cY), 10, dot_colors[frame_number-1], -1)
-        # ==> OR show ALL centroids so far on the frame
-        # frame  = addCoordinatesToFrame(frame, centroid_coordinates, dot_colors)
-
-        # ==> SHOW TIME STAMPS: show (color coded) time stamps on frame
-        # put the time variable on the video frame
-        # frame = cv2.putText(frame, str(frameTime / 1000).ljust(5,'0'),
-        #                     (100, 100), # position
-        #                     font, 2,
-        #                     dot_colors[frame_number-1], # color
-        #                     4, cv2.LINE_8)
+        if showTracking:
+            # ==> SHOW CONTOURS: on the original frame
+            cv2.drawContours(frame, contours, -1, (0,255,0), 5)
+    
+            #  show (color coded) centroids on frame
+            cv2.circle(frame, (cX, cY), 10, dot_colors[frame_number-1], -1)
+            # ==> OR show ALL centroids so far on the frame
+            # frame  = addCoordinatesToFrame(frame, centroid_coordinates, dot_colors)
+    
+            # ==> SHOW TIME STAMPS: show (color coded) time stamps on frame
+            # put the time variable on the video frame
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            frame = cv2.putText(frame, str(frameTime).ljust(5,'0'),
+                                (100, 100), # position
+                                font, 1, # font, size
+                                dot_colors[frame_number-1], # color
+                                4, cv2.LINE_8)
+            
+            # ==> SHOW THE MOVIE (with centroids, times, or whatever is added)
+            cv2.imshow('press (q) to quit', frame) # frame or binary_frame
+            if cv2.waitKey(25) & 0xFF == ord('q'):
+                break
 
         # ==> SAVE FRAME TO FILE
         # saveFrameToFile(fstem, frame_number, frame) # frame or binary_frame
 
-        # ==> SHOW THE MOVIE (with centroids, times, or whatever is added)
-        cv2.imshow('press (q) to quit', frame) # frame or binary_frame
-        if cv2.waitKey(25) & 0xFF == ord('q'):
-            break
    
     # shut down the video capture object
     vid.release()

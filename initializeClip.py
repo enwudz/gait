@@ -32,12 +32,16 @@ def main(movie_file):
     
     # is there already an excel file for this clip?
     excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file)
+    
+    needFrames = False
         
     # if there is a file, extract the info from the identity sheet
     if excel_file_exists:
         print('... found an excel file for this clip!')
         df = pd.read_excel(excel_filename, sheet_name='identity', index_col=None)
         info = dict(zip(df['Parameter'].values, df['Value'].values))
+        if '#frames' not in info.keys():
+            needFrames = True
     
     # if there is no file ... guess info from the filestem, and make a file!
     else:      
@@ -47,7 +51,9 @@ def main(movie_file):
         df = pd.DataFrame([info])
         with pd.ExcelWriter(excel_filename) as writer:
             df.to_excel(writer, index=False, sheet_name='identity')
+        needFrames = True
         
+    if needFrames:
         # get info for movie file
         vid_width, vid_height, vid_fps, vid_frames, vid_length = gaitFunctions.getVideoData(movie_file, False)
         info['width'] = vid_width
@@ -63,7 +69,7 @@ def main(movie_file):
         first_frame, last_frame = gaitFunctions.getFirstLastFrames(movie_file)
         gaitFunctions.saveFirstLastFrames(movie_file, first_frame, last_frame)
         
-        make_excel(excel_filename, info)  
+        make_identity_sheet(excel_filename, info)  
     
     # print the info we have, and invite user to modify the file
     print_order = gaitFunctions.identity_print_order()
@@ -82,20 +88,13 @@ def main(movie_file):
 
     return info
 
-def make_excel(excel_filename, info):
+def make_identity_sheet(excel_filename, info):
     print_order = gaitFunctions.identity_print_order()
     vals = [info[x] for x in print_order if x in print_order]
     d = {'Parameter':print_order,'Value':vals}
     df = pd.DataFrame(d)
-    df2 = pd.DataFrame()
     with pd.ExcelWriter(excel_filename, if_sheet_exists='replace', engine='openpyxl', mode='a') as writer:
         df.to_excel(writer, index=False, sheet_name='identity')
-        # pathtracking is already written from getFrameTimes above
-        df2.to_excel(writer, index=False, sheet_name='path_stats')
-        df2.to_excel(writer, index=False, sheet_name='steptracking')
-        df2.to_excel(writer, index=False, sheet_name='step_timing')
-        df2.to_excel(writer, index=False, sheet_name='step_stats')
-        df2.to_excel(writer, index=False, sheet_name='gait_styles')
 
 def guess_the_thing(thing):
     ''' what is this thing?

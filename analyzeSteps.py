@@ -67,7 +67,7 @@ def main(movie_file):
             data_for_steps.append(step_stats)
 
     if add_swing is True: # do we want the mid-swing information for all other legs?
-        print('Saving mid-swing times ... ')
+        print('Saving mid-swing times to step_timing sheet ... ')
         data_for_steps_with_swings = []
 
         # have output list (data_for_steps) from the code above
@@ -147,7 +147,7 @@ def main(movie_file):
                     output_string += leg + ':,'
                     continue
 
-            # for leg that is ANTERIOR to ref_leg, get timing of swing starts (leg ups)
+            # for the leg that is ANTERIOR to ref_leg, get timing of swing starts (leg ups)
             anterior_leg = anterior_dict[ref_leg]
             if anterior_leg in start_swing_dict.keys():
                 # get start_swing times for this leg
@@ -166,7 +166,7 @@ def main(movie_file):
             else: # no data for this leg
                 output_string += anterior_leg + ':,'
 
-            # for leg that is CONTRALATERAL to ref_leg, get timing of swing starts (leg ups)
+            # for the leg that is CONTRALATERAL to ref_leg, get timing of swing starts (leg ups)
             opposite_leg = opposite_dict[ref_leg]
             if opposite_leg in start_swing_dict.keys():
                 # get start_swing times for this leg
@@ -217,6 +217,10 @@ def main(movie_file):
 
         # get and save gait styles for every frame
         gaitFunctions.saveGaits(movie_file)
+        
+        # clean up!
+        gaitFunctions.removeFramesFolder(movie_file)
+        gaitFunctions.cleanUpTrash(movie_file)
         
         return step_data_df
 

@@ -1021,9 +1021,15 @@ def getGaits(movie_file, leg_set = 'lateral'):
     # ===> See if we already have gait info in the excel_file
     # in the 'gait_styles' tab
     # get or make excel file for this clip
+    need_gait_styles = False
     excel_file_exists, excel_filename = check_for_excel(movie_file)
     if excel_file_exists:
-        gait_data = pd.read_excel(excel_filename, sheet_name='gait_styles')
+        
+        try:
+            gait_data = pd.read_excel(excel_filename, sheet_name='gait_styles')
+        except:
+            gait_data = pd.DataFrame({})
+            
         if len(gait_data) > 0:
             # if we have that info, just return it!
             frame_times = gait_data.frametimes.values
@@ -1033,50 +1039,57 @@ def getGaits(movie_file, leg_set = 'lateral'):
             else:
                 gait_styles = gait_data.gaits_lateral.values
                 up_legs = gait_data.swinging_lateral.values
-            return frame_times, gait_styles, up_legs
+            # return frame_times, gait_styles, up_legs
+        else:
+            need_gait_styles = True
+    
     else:
+        import initializeClip
+        initializeClip.main(movie_file)
         exit('Need to run frameStepper first!')
     
     # No gait data yet in excel file ... 
     # ... let's get it
     # ... and save it 
     
-    # Get frame times for this movie ... WITHOUT tracked path!
-    frame_times = getFrameTimes(movie_file)
-    
-    # Get up_down_times for this movie
-    mov_data, excel_filename = loadMovData(movie_file)
-    up_down_times, latest_event = getUpDownTimes(mov_data)
-
-    # trim frame_times to only include frames up to last recorded event
-    last_event_frame = np.min(np.where(frame_times > latest_event))
-    frame_times_with_events = frame_times[:last_event_frame]
-    
-    if leg_set == 'rear':
-        legs = get_leg_combos()['legs_4']
-        all_combos, combo_colors = get_gait_combo_colors('rear')
-    else:
-        legs = get_leg_combos()['legs_lateral']
-        all_combos, combo_colors = get_gait_combo_colors('lateral')
-    
-    # get leg matrix
-    leg_matrix = make_leg_matrix(legs, up_down_times, frame_times_with_events)
-    legs = np.array(legs)
-    
-    gait_styles = []
-    up_legs = []
-
-    for col_ind in np.arange(np.shape(leg_matrix)[1]):
-        one_indices = np.where(leg_matrix[:, col_ind] == 1)
-        swinging_legs = legs[one_indices]
-        swinging_leg_combo = '_'.join(sorted(swinging_legs))
-        up_legs.append(swinging_leg_combo)
-        gait_styles.append(get_swing_categories(swinging_leg_combo, leg_set))
+    if need_gait_styles:
         
-    # append the last swinging_leg_combo and gait_style to make the size same as frame_times
-    extra_frames = len(frame_times)-len(gait_styles)
-    gait_styles.extend([gait_styles[-1]] * extra_frames)
-    up_legs.extend([up_legs[-1]] * extra_frames)
+        # Get frame times for this movie ... WITHOUT tracked path!
+        frame_times = getFrameTimes(movie_file)
+        
+        # Get up_down_times for this movie
+        mov_data, excel_filename = loadMovData(movie_file)
+        up_down_times, latest_event = getUpDownTimes(mov_data)
+
+        # trim frame_times to only include frames up to last recorded event
+        last_event_frame = np.min(np.where(frame_times >= latest_event))
+        frame_times_with_events = frame_times[:last_event_frame]
+        
+        if leg_set == 'rear':
+            legs = get_leg_combos()['legs_4']
+            all_combos, combo_colors = get_gait_combo_colors('rear')
+        else:
+            legs = get_leg_combos()['legs_lateral']
+            all_combos, combo_colors = get_gait_combo_colors('lateral')
+        
+        # get leg matrix
+        leg_matrix = make_leg_matrix(legs, up_down_times, frame_times_with_events)
+        legs = np.array(legs)
+        
+        gait_styles = []
+        up_legs = []
+    
+        for col_ind in np.arange(np.shape(leg_matrix)[1]):
+            one_indices = np.where(leg_matrix[:, col_ind] == 1)
+            swinging_legs = legs[one_indices]
+            swinging_leg_combo = '_'.join(sorted(swinging_legs))
+            up_legs.append(swinging_leg_combo)
+            gait_styles.append(get_swing_categories(swinging_leg_combo, leg_set))
+            
+        # append the last swinging_leg_combo and gait_style to make the size same as frame_times
+        extra_frames = len(frame_times)-len(gait_styles)
+        gait_styles.extend([gait_styles[-1]] * extra_frames)
+        up_legs.extend([up_legs[-1]] * extra_frames)
     
     return frame_times, gait_styles, up_legs
 
@@ -1106,6 +1119,8 @@ def saveGaits(movie_file):
     
     df = pd.DataFrame(d)
     excel_filename = movie_file.split('.')[0] + '.xlsx'
+    
+    print('Saving gaits to gait_styles sheet ... ')
     with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
         df.to_excel(writer, index=False, sheet_name='gait_styles')
 

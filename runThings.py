@@ -13,15 +13,18 @@ import analyzePath
 import plotPath
 import gaitFunctions
 import frameStepper
+import analyzeSteps
 import sys
 
-def main(movie_file):
-    initializeClip.main(movie_file)
-    trackCritter.main(movie_file, 25) # try (movie_file, 12 OR 25) if tracking wonky
-    analyzePath.main(movie_file)
-    plotPath.main(movie_file,'track')
-    plotPath.main(movie_file,'time')
-    # frameStepper.main(movie_file)
+def main(movie_file): # I am on 29 and 30
+    # initializeClip.main(movie_file)
+    # trackCritter.main(movie_file, 25, True) # try (movie_file, 12 OR 25) if tracking wonky
+    # analyzePath.main(movie_file)
+    # plotPath.main(movie_file,'track')
+    # plotPath.main(movie_file,'time')
+    frameStepper.main(movie_file)
+    # analyzeSteps.main(movie_file)
+    
 
 if __name__== "__main__":
 

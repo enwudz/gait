@@ -20,33 +20,32 @@ WISH LIST
 '''
 
 def main(movie_file, resize=100):
-
-    # in terminal, navigate to the directory that has your movies
+    
+    foot_data = {}
     
     # load excel file for this clip
     excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file)
     if excel_file_exists:
-        # df = pd.read_excel(excel_filename, sheet_name='identity', index_col=None)
-        # info = dict(zip(df['Parameter'].values, df['Value'].values))
         
         # check if there is any step data already; load if so
-        foot_data_df = pd.read_excel(excel_filename, sheet_name='steptracking', index_col=None)
-        
-        if len(foot_data_df) > 1:
-            # load foot_data dictionary
-            foot_data = dict(zip(foot_data_df['leg_state'].values,foot_data_df['times'].values))
-            # convert foot_data from string to list, to match data collection below
-            for leg_state in foot_data.keys():
-                if len(foot_data[leg_state]) > 0:
-                    foot_data[leg_state] = foot_data[leg_state].split(' ')
-        else:
-            # make a foot_data dictionary
-            foot_data = {}
-    
+        try:
+            foot_data_df = pd.read_excel(excel_filename, sheet_name='steptracking', index_col=None)
+        except:
+            foot_data_df = pd.DataFrame(foot_data)        
+            
     else:
         import initializeClip
         initializeClip.main(movie_file)
-        foot_data = {}
+        foot_data_df = pd.DataFrame(foot_data)  
+        
+    if 'times' in foot_data_df.columns:
+        
+        # load foot_data dictionary
+        foot_data = dict(zip(foot_data_df['leg_state'].values,foot_data_df['times'].values))
+        # convert foot_data from string to list, to match data collection below
+        for leg_state in foot_data.keys():
+            if len(foot_data[leg_state]) > 0:
+                foot_data[leg_state] = foot_data[leg_state].split(' ')        
 
     # look for frame folder for this movie
     # if none there, create one and save frames
@@ -68,7 +67,7 @@ def main(movie_file, resize=100):
         selection = input('     (t)rack or (q)uit ? ')
         
         if selection != 't':
-            print('ok, we are done for now!')
+            print('\no ...  ok, we are done for now!\n')
             break
         
         else:
@@ -102,8 +101,6 @@ def main(movie_file, resize=100):
         if selection == 'y' or selection == 'r':
             import analyzeSteps
             analyzeSteps.main(movie_file)
-        gaitFunctions.removeFramesFolder(movie_file)
-        gaitFunctions.cleanUpTrash(movie_file)
 
 def saveData(excel_filename, foot_data):
           
@@ -112,6 +109,7 @@ def saveData(excel_filename, foot_data):
     good_vals = []
     
     all_feet = getAllFeet()
+    print('Saving step data in the steptracking tab of ' + excel_filename)
     
     for foot in all_feet:
         k1 = foot + '_down'
@@ -130,6 +128,7 @@ def saveData(excel_filename, foot_data):
     # save foot dictionary to excel
     d = {'leg_state':good_keys,'times':good_vals}
     df = pd.DataFrame(d)
+    
     with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
         df.to_excel(writer, index=False, sheet_name='steptracking')
 
