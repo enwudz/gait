@@ -305,7 +305,7 @@ def getSpeedForStep(step_data_df, pathtracking_df):
         step_end = step_start + float(gait_durations[i])
         
         # find the index in time that is equal to or greater than the end of this step
-        end_time_index = np.where(frametimes>=step_end)[0][0]
+        end_time_index = np.where(frametimes>=round(step_end,3))[0][0]
         
         # use these indices to get the speeds in all frames between the beginning and end of these steps
         speeds_during_step = speeds[start_time_index:end_time_index]
