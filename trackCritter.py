@@ -50,14 +50,14 @@ def main(movie_file, difference_threshold = 12, showTracking = True):
     background_image = backgroundFromRandomFrames(movie_file, 100)
 
     # run through video and compare each frame with background
-    centroid_coordinates, areas = findCritter(movie_file, background_image, difference_threshold, showTracking) # typical threshold is 25, scale of 1 to 255
+    centroid_coordinates, areas, lengths = findCritter(movie_file, background_image, difference_threshold, showTracking) # typical threshold is 25, scale of 1 to 255
     
     # save the centroid_coordinates and areas to the excel file
     times = [x[0] for x in centroid_coordinates]
     xcoords = [x[1] for x in centroid_coordinates]
     ycoords = [x[2] for x in centroid_coordinates]
     
-    d = {'times':times, 'xcoords':xcoords, 'ycoords':ycoords, 'areas':areas}
+    d = {'times':times, 'xcoords':xcoords, 'ycoords':ycoords, 'areas':areas, 'lengths':lengths}
     df = pd.DataFrame(d)
     with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
         df.to_excel(writer, index=False, sheet_name='pathtracking')
@@ -65,8 +65,8 @@ def main(movie_file, difference_threshold = 12, showTracking = True):
     return df
 
 def continue_tracking():
-    selection = input('\n ... (c)ontinue tracking, or (q)uit ?  ')
-    if selection != 'c':
+    selection = input('\n ... (r)edo the tracking, or (q)uit ?  ')
+    if selection != 'r':
         exit('')
 
 def findCritter(video_file, background, pixThreshold, showTracking):
@@ -89,6 +89,7 @@ def findCritter(video_file, background, pixThreshold, showTracking):
 
     centroid_coordinates = [] # container for (x,y) coordinates of centroid of target object at each frame
     areas = [] # container for calculated areas of target object at each frame
+    lengths = [] # container for calculated lengths of target object at each frame
     
     stored_target = ''
 
@@ -141,7 +142,11 @@ def findCritter(video_file, background, pixThreshold, showTracking):
             cY = int(M["m01"] / M["m00"])
 
             # get area of target object
-            target_area = cv2.contourArea(target)        
+            target_area = cv2.contourArea(target)
+            
+            # get length of target object
+            center_points, radius = cv2.minEnclosingCircle(target)
+            target_length = 2 * radius 
             
         else:
             print('skipping this frame, cannot find target object')
@@ -155,6 +160,7 @@ def findCritter(video_file, background, pixThreshold, showTracking):
         # store coordinates
         centroid_coordinates.append((frameTime,cX,cY))
         areas.append(target_area)
+        lengths.append(target_length)
 
         if showTracking:
             # ==> SHOW CONTOURS: on the original frame
@@ -186,18 +192,16 @@ def findCritter(video_file, background, pixThreshold, showTracking):
     # shut down the video capture object
     vid.release()
     cv2.destroyAllWindows()
-
-    # save centroids and areas
-    # writeData(fstem, centroid_coordinates, areas)
     
-    return centroid_coordinates, areas
+    return centroid_coordinates, areas, lengths
 
-def writeData(filestem, centroid_coordinates, areas):
+def writeData(filestem, centroid_coordinates, areas, lengths):
     outfile = filestem + '_tracked.csv'
     o = open(outfile, 'w')
     for i, c in enumerate(centroid_coordinates):
         stuff = [str(thing) for thing in c]
-        o.write(','.join([stuff[0], str(areas[i]), stuff[1], stuff[2]]) + '\n')
+        o.write(','.join([stuff[0], str(areas[i]), str(lengths[i]), 
+                          stuff[1], stuff[2]]) + '\n')
         
     o.close()
 

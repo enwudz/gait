@@ -246,7 +246,10 @@ def saveStepStats(step_data_df, excel_filename):
         swing_time.append(np.mean([float(x) for x in step_data_df[step_data_df.legID==leg]['swing'].values]))
         gait_cycle.append(np.mean([float(x) for x in step_data_df[step_data_df.legID==leg]['gait'].values]))
         duty_factor.append(np.mean([float(x) for x in step_data_df[step_data_df.legID==leg]['duty'].values]))
-        distances.append(np.mean([float(x) for x in step_data_df[step_data_df.legID==leg]['distance_during_step'].values]))
+        try: # this will only work if analyzePath has already been run . . . 
+            distances.append(np.mean([float(x) for x in step_data_df[step_data_df.legID==leg]['distance_during_step'].values]))
+        except:
+            distances.append(0)
         
     d = {'leg':legs, 'mean stance':stance_time, 'mean swing':swing_time,
           'mean gait cycle':gait_cycle, 'mean duty factor':duty_factor,
@@ -280,17 +283,23 @@ def getSpeedForStep(step_data_df, pathtracking_df):
 
     '''
     
-    # extract data from input dataframes
+    # extract data from pathtracking dataframe
     frametimes = pathtracking_df.times.values
     speeds = pathtracking_df.speed.values
     distances = pathtracking_df.distance.values
+    stops = pathtracking_df.stops.values
+    turns = pathtracking_df.turns.values
     
+    # extract data from steptracking dataframe
     downs = step_data_df.DownTime.values
     gait_durations = step_data_df.gait.values
     
     # make empty vectors for step_speed and step_distance
     step_speed = np.zeros(len(downs))
     step_distance = np.zeros(len(downs))
+    
+    # make empty vector for cruising (i.e. not turning, not stopping)
+    step_cruising = np.empty(len(downs), dtype=bool)
     
     # go through each step (down)
     for i, step_start in enumerate(downs):
@@ -321,10 +330,19 @@ def getSpeedForStep(step_data_df, pathtracking_df):
         
         # add this distance to to step_distance
         step_distance[i] = distance_traveled_during_step
+        
+        # determine whether there was a stop or a turn during this step
+        stops_during_step = np.sum(stops[start_time_index:end_time_index])
+        turns_during_step = np.sum(turns[start_time_index:end_time_index])
+        if stops_during_step > 0 or turns_during_step > 0:
+            step_cruising[i] = False
+        else:
+            step_cruising[i] = True
     
-    # update step_data_df with the new columns for speed and distance
+    # update step_data_df with the new columns for speed and distance and cruising
     step_data_df['speed_during_step'] = step_speed
     step_data_df['distance_during_step'] = step_distance
+    step_data_df['cruising_during_step'] = step_cruising
     
     return step_data_df
 

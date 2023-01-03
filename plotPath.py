@@ -14,7 +14,7 @@ import cv2
 import sys
 import gaitFunctions
 import pandas as pd
-import glob
+# import glob
 
 def main(movie_file, plot_style = 'track'): # track or time
 
@@ -35,7 +35,8 @@ def main(movie_file, plot_style = 'track'): # track or time
     filestem = movie_file.split('.')[0]
     times = tracked_df.times.values
     
-    median_area = round(path_stats['area'],4)
+    # median_area = round(path_stats['area'],4)
+    median_length = round(path_stats['length'],4)
     clip_duration = round(path_stats['clip duration'],2)
     distance = round(path_stats['total distance'],3)
     angle_space = round(path_stats['cumulative bearings'],3)
@@ -52,7 +53,7 @@ def main(movie_file, plot_style = 'track'): # track or time
         f, a, a_colorbar = plotPathColor(filestem, xcoords, ycoords, smoothedx, smoothedy, times[-1])
         
         # # ==> add labels from experiment and show plot:
-        a.set_xlabel(getDataLabel(median_area, distance, clip_duration, angle_space, discrete_turns, num_stops ))
+        a.set_xlabel(getDataLabel(median_length, distance, clip_duration, angle_space, discrete_turns, num_stops ))
         a.set_xticks([])
         a.set_yticks([])
         a.set_title(filestem)
@@ -167,10 +168,10 @@ def plotSmoothedPath(filestem, xcoords, ycoords, smoothedx, smoothedy):
     plt.legend()
     return f, a
 
-def getDataLabel(area, distance, vid_length, angle_space = 0, discrete_turns = 0, num_stops = 0):
+def getDataLabel(length, distance, vid_length, angle_space = 0, discrete_turns = 0, num_stops = 0):
     # convert from pixels?
     speed = np.around(distance/vid_length, decimals = 2)
-    data_label = 'Size : ' + str(area)
+    data_label = 'Length : ' + str(length)
     data_label += ', Distance : ' + str(distance)
     data_label += ', Time: ' + str(vid_length)
     data_label += ', Speed: ' + str(speed)

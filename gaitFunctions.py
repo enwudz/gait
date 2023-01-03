@@ -791,7 +791,11 @@ def loadMovData(movie_file):
     # 
     excel_file_exists, excel_filename = check_for_excel(movie_file)
     if excel_file_exists:
-        df = pd.read_excel(excel_filename, sheet_name='steptracking', index_col=None)
+        
+        try:
+            df = pd.read_excel(excel_filename, sheet_name='steptracking', index_col=None)
+        except:
+            needFrameStepper()
         
         try:
             mov_data = dict(zip(df['leg_state'].values, df['times'].values))
@@ -1157,12 +1161,15 @@ def plotStepsForLegs(frames_swinging, steps, legs_to_plot = 'all'):
         legs_to_plot = all_legs
     else:
         legs_to_plot = [x for x in all_legs if x in legs_to_plot]
-
+    
+    # plot with left on the top, right on the bottom    
+    legs_to_plot = list(reversed(legs_to_plot))
+        
     stance_color, swing_color = stanceSwingColors()
     
     frame_times = sorted(frames_swinging.keys())
     
-    for i, leg in enumerate(reversed(legs_to_plot)):
+    for i, leg in enumerate(legs_to_plot):
         for j, frame_time in enumerate(frame_times[:-1]):
             bar_width = frame_times[i+1] - frame_times[i]
             if leg in frames_swinging[frame_time]:
@@ -2097,6 +2104,6 @@ def get_plot_colors(num_colors=9, palette = 'default'):
         return plot_colors[:num_colors]
     
 def needFrameStepper():
-    sys.exit('Need to track legs with frameStepper.py\n')
+    sys.exit('==> Need to track legs with frameStepper.py <== \n')
     
     
