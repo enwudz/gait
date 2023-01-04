@@ -16,6 +16,13 @@ def getTrackingConfidence(problem_frames, difference_threshold, printme = False)
     tracking_confidence = round( 100 - (sum(problem_frames) / len(problem_frames)) * 100 , 2)
     if printme:
         print('Tracking confidence at a pixel threshold of ' + str(difference_threshold) + ' is ' + str(tracking_confidence) + '%')
+        if tracking_confidence < 90:
+            print('... you might want to try running trackCritter again with a different pixel threshold')
+            if difference_threshold < 15:
+                new_threshold = 25
+            else:
+                new_threshold = 12
+            print('... try a threshold of ' + str(new_threshold) + ' instead of ' + str(difference_threshold))
     return tracking_confidence
 
 def individualFromClipname(clipname):

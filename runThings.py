@@ -21,12 +21,12 @@ def main(movie_file): # I am on 60
     initializeClip.main(movie_file)
     ## ==>  try (movie_file, 12 OR 25) if tracking wonky; True is show tracking
     # trackCritter.main(movie_file, 12, True) 
-    analyzePath.main(movie_file)
+    # analyzePath.main(movie_file)
     # plotPath.main(movie_file,'track')
     # plotPath.main(movie_file,'time')
     # frameStepper.main(movie_file)
     # analyzeSteps.main(movie_file)
-    # plotSteps.main(movie_file)
+    plotSteps.main(movie_file)
 
 if __name__== "__main__":
 
