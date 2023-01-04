@@ -1,5 +1,5 @@
 # gait
- tardigrade gait analysis
+ Critter gait analysis
 
 Record a video of a moving critter. We usually do videos of about 2 mins.
 
