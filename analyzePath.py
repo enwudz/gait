@@ -32,6 +32,12 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
         
     # load the tracked data
     tracked_data, excel_filename = gaitFunctions.loadTrackedPath(movie_file)
+    
+    cols = tracked_data.columns.values
+    for c in cols:
+        if 'uncertainty' in c:
+            uncertainty_col = c
+            pixel_threshold = int(c.split('_')[-1])
 
     # read in data
     frametimes = tracked_data.times.values
@@ -39,6 +45,7 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
     lengths = tracked_data.lengths.values 
     xcoords = tracked_data.xcoords.values
     ycoords = tracked_data.ycoords.values
+    uncertainties = tracked_data[uncertainty_col].values
     
     # get medians for critter size: area and length
     median_area = np.median(areas) / scale**2
@@ -59,22 +66,27 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
     d = {'times':frametimes, 'xcoords':xcoords, 'ycoords':ycoords, 'areas':areas, 'lengths':lengths,
          'smoothed_x':smoothedx, 'smoothed_y':smoothedy, 'distance':distance,
          'speed':speed, 'cumulative_distance':cumulative_distance, 'bearings': bearings,
-         'bearing_changes':bearing_changes, 'stops':stops, 'turns':turns}
+         'bearing_changes':bearing_changes, 'stops':stops, 'turns':turns, uncertainty_col:uncertainties}
     df = pd.DataFrame(d)
     with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
         df.to_excel(writer, index=False, sheet_name='pathtracking')
     
     # add path tracking summary values to 'path_stats' tab
     # area, distance, average speed, num turns, num stops, bearings, time_increment for turns & stops
-    parameters = ['area','length','clip duration','total distance','average speed','# turns','# stops','cumulative bearings','bin duration']
+    parameters = ['area','length','clip duration','total distance','average speed',
+                  '# turns','# stops','cumulative bearings','bin duration',
+                  'pixel threshold','tracking confidence']
+    
     clip_duration = frametimes[-1]
     total_distance = np.sum(distance)
     average_speed = np.mean(speed[:-1])
     num_turns = len(gaitFunctions.one_runs(turns))
     num_stops = len(gaitFunctions.one_runs(stops))
     cumulative_bearings = np.sum(bearing_changes)
+    tracking_confidence = gaitFunctions.getTrackingConfidence(uncertainties, pixel_threshold)
     vals = [median_area, median_length, clip_duration, total_distance, 
-            average_speed, num_turns, num_stops, cumulative_bearings, time_increment]
+            average_speed, num_turns, num_stops, cumulative_bearings, 
+            time_increment, pixel_threshold, tracking_confidence]
     
     path_stats = zip(parameters, vals)
     df2 = pd.DataFrame(path_stats)

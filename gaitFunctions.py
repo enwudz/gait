@@ -11,6 +11,13 @@ import cv2
 from scipy.stats import sem
 import re
 
+
+def getTrackingConfidence(problem_frames, difference_threshold, printme = False):
+    tracking_confidence = round( 100 - (sum(problem_frames) / len(problem_frames)) * 100 , 2)
+    if printme:
+        print('Tracking confidence at a pixel threshold of ' + str(difference_threshold) + ' is ' + str(tracking_confidence) + '%')
+    return tracking_confidence
+
 def individualFromClipname(clipname):
     res = re.findall(r"[abcdefghijklmnopqrstuvwxyz_]+", clipname)[0]
     individual = clipname.split(res)[0]

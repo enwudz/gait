@@ -17,14 +17,14 @@ import analyzeSteps
 import plotSteps
 import sys
 
-def main(movie_file): # I am on 58
-    # initializeClip.main(movie_file)
-    # ## ==>  try (movie_file, 12 OR 25) if tracking wonky; True is show tracking
-    # trackCritter.main(movie_file, 25, True) 
-    # analyzePath.main(movie_file)
+def main(movie_file): # I am on 60
+    initializeClip.main(movie_file)
+    ## ==>  try (movie_file, 12 OR 25) if tracking wonky; True is show tracking
+    # trackCritter.main(movie_file, 12, True) 
+    analyzePath.main(movie_file)
     # plotPath.main(movie_file,'track')
     # plotPath.main(movie_file,'time')
-    frameStepper.main(movie_file)
+    # frameStepper.main(movie_file)
     # analyzeSteps.main(movie_file)
     # plotSteps.main(movie_file)
 
@@ -33,7 +33,7 @@ if __name__== "__main__":
     if len(sys.argv) > 1:
         selection =sys.argv[1]
         
-        # if designate one movie in command
+        # can designate ONE movie in command
         if 'mov' in selection:
             movie_file = sys.argv[1]
             
@@ -43,7 +43,7 @@ if __name__== "__main__":
             for movie_file in movie_files:
                 main(movie_file)
         
-        # can also list movie files and ask which one to do
+        # if nothing given in command, list movie files and ask which one to do
         else:
             movie_file = gaitFunctions.select_movie_file()
     else:

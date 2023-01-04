@@ -50,14 +50,20 @@ def main(movie_file, difference_threshold = 12, showTracking = True):
     background_image = backgroundFromRandomFrames(movie_file, 100)
 
     # run through video and compare each frame with background
-    centroid_coordinates, areas, lengths = findCritter(movie_file, background_image, difference_threshold, showTracking) # typical threshold is 25, scale of 1 to 255
+    centroid_coordinates, areas, lengths, problem_frames = findCritter(movie_file, background_image, difference_threshold, showTracking) # typical threshold is 25, scale of 1 to 255
     
     # save the centroid_coordinates and areas to the excel file
     times = [x[0] for x in centroid_coordinates]
     xcoords = [x[1] for x in centroid_coordinates]
     ycoords = [x[2] for x in centroid_coordinates]
     
-    d = {'times':times, 'xcoords':xcoords, 'ycoords':ycoords, 'areas':areas, 'lengths':lengths}
+    tracking_uncertainty_key = 'tracking_uncertainty_' + str(difference_threshold) 
+    d = {'times':times, 'xcoords':xcoords, 'ycoords':ycoords, 
+         'areas':areas, 'lengths':lengths, tracking_uncertainty_key:problem_frames}
+    
+    # report on tracking confidence
+    gaitFunctions.getTrackingConfidence(problem_frames, difference_threshold, True)
+    
     df = pd.DataFrame(d)
     with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
         df.to_excel(writer, index=False, sheet_name='pathtracking')
@@ -92,11 +98,13 @@ def findCritter(video_file, background, pixThreshold, showTracking):
     lengths = [] # container for calculated lengths of target object at each frame
     
     stored_target = ''
+    problem_frames = [] # list to keep track of frames with trouble tracking
 
     while vid.isOpened():
         
         ret, frame = vid.read()
         frame_number += 1
+        problem_frame = False
         
         # frameTime = int(vid.get(cv2.CAP_PROP_POS_MSEC)) # this returns zeros at end of video
         frameTime = round(float(frame_number)/fps,4)
@@ -118,6 +126,7 @@ def findCritter(video_file, background, pixThreshold, showTracking):
         # decision can be based on area of target ... or maybe last known position?
         if len(contours) > 1:
             print('frame ' + str(frame_number) + ' has ' + str(len(contours)) + ' detected objects!')
+            problem_frame = True
             if len(areas) == 0:
                 target_area = 7000 # just a guess
                 current_loc = (400,400)
@@ -161,6 +170,7 @@ def findCritter(video_file, background, pixThreshold, showTracking):
         centroid_coordinates.append((frameTime,cX,cY))
         areas.append(target_area)
         lengths.append(target_length)
+        problem_frames.append(problem_frame)
 
         if showTracking:
             # ==> SHOW CONTOURS: on the original frame
@@ -193,7 +203,7 @@ def findCritter(video_file, background, pixThreshold, showTracking):
     vid.release()
     cv2.destroyAllWindows()
     
-    return centroid_coordinates, areas, lengths
+    return centroid_coordinates, areas, lengths, problem_frames
 
 def writeData(filestem, centroid_coordinates, areas, lengths):
     outfile = filestem + '_tracked.csv'
@@ -354,8 +364,7 @@ def backgroundFromRandomFrames(movie_file, num_background_frames):
     if background_exists == False:
 
         # if no background image already, make one!
-        print("... not there! Making background image now ... ")
-
+        
         # Select n frames at random from the video
         frames_in_video = getFrameCount(movie_file)
         
@@ -374,6 +383,8 @@ def backgroundFromRandomFrames(movie_file, num_background_frames):
         frame_counter = 0
         image_index = 0
 
+        print("... no background image yet! Making one now ... ")
+
         # go through video
         vid = cv2.VideoCapture(movie_file)
         while (vid.isOpened()):
@@ -389,7 +400,9 @@ def backgroundFromRandomFrames(movie_file, num_background_frames):
 
             #print('Looking at frame ' + str(frame_counter) + ' of ' + str(frames_in_video))
             if frame_counter in background_frames:
-                print('getting frame ' + str(image_index+1) + ' of ' + str(num_background_frames) )
+                
+                if (image_index + 1) % 10 == 0:
+                    print('getting frame ' + str(image_index+1) + ' of ' + str(num_background_frames) )
                 gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                 video_stack[:,:,image_index] = gray_frame
                 image_index += 1
