@@ -10,22 +10,24 @@ import glob
 import initializeClip
 import trackCritter
 import analyzePath
-import plotPath
+import plotClip
 import gaitFunctions
 import frameStepper
 import analyzeSteps
 import plotSteps
 import sys
 
-def main(movie_file): # I am on 60
+def main(movie_file): 
+    # can 'comment' individual steps on or off
+    # <=== put a # before a line to comment it off
     initializeClip.main(movie_file)
     ## ==>  try (movie_file, 12 OR 25) if tracking wonky; True is show tracking
-    # trackCritter.main(movie_file, 12, True) 
-    # analyzePath.main(movie_file)
-    # plotPath.main(movie_file,'track')
-    # plotPath.main(movie_file,'time')
-    # frameStepper.main(movie_file)
-    # analyzeSteps.main(movie_file)
+    trackCritter.main(movie_file, 12, True) 
+    analyzePath.main(movie_file)
+    plotClip.main(movie_file,'track')
+    plotClip.main(movie_file,'speed')
+    frameStepper.main(movie_file)
+    analyzeSteps.main(movie_file)
     plotSteps.main(movie_file)
 
 if __name__== "__main__":

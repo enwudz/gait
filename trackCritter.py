@@ -34,13 +34,14 @@ def main(movie_file, difference_threshold = 12, showTracking = True):
     if excel_file_exists == False:
         import initializeClip
         initializeClip.main(movie_file)
-        continue_tracking()
         
     # check if the tracking data is already there ... ask if want to run again
     tracking_data = pd.read_excel(excel_filename, sheet_name='pathtracking')
     if 'xcoords' in tracking_data.columns:
         print('... looks like there is already tracking data for this clip!')
-        continue_tracking()
+        skip = continue_tracking()
+        if skip == 'skip':
+            return
     
     # get first and last frames
     first_frame, last_frame = gaitFunctions.getFirstLastFrames(movie_file)
@@ -71,9 +72,12 @@ def main(movie_file, difference_threshold = 12, showTracking = True):
     return df
 
 def continue_tracking():
-    selection = input('\n ... (r)edo the tracking, or (q)uit ?  ')
-    if selection != 'r':
+    selection = input('\n ... (r)edo the tracking, (s)kip for now, or (q)uit entirely?  ')
+    if selection == 's':
+        return 'skip'
+    elif selection != 'r':
         exit('')
+    return ''
 
 def findCritter(video_file, background, pixThreshold, showTracking):
 

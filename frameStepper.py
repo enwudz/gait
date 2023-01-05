@@ -282,6 +282,7 @@ def stepThroughFrames(folder_name, footname, resize=100):
 
     print('Select [e.g. click into] the image window and step through frames')
     print('... (n)ext frame, (p)revious frame, (b)eginning, (e)nd, (q)uit')
+    print('... (d)own step, (u)p step, (x) = clear most recent step entry')
     while True:
   
         if i >= numFrames:

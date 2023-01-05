@@ -16,7 +16,7 @@ import gaitFunctions
 import pandas as pd
 # import glob
 
-def main(movie_file, plot_style = 'track'): # track or time
+def main(movie_file, plot_style = ''): # track or speed or steps
 
     # load excel file for this clip
     excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file)
@@ -35,6 +35,7 @@ def main(movie_file, plot_style = 'track'): # track or time
     filestem = movie_file.split('.')[0]
     times = tracked_df.times.values
     
+    # collect data for path_stats
     # median_area = round(path_stats['area'],4)
     median_length = round(path_stats['length'],4)
     clip_duration = round(path_stats['clip duration'],2)
@@ -43,7 +44,10 @@ def main(movie_file, plot_style = 'track'): # track or time
     discrete_turns = path_stats['# turns']
     num_stops = path_stats['# stops']
     
-    if plot_style == 'track':
+    if len(plot_style) == 0: # choose a type of plot
+        plot_style = selectPlotStyle()
+    
+    if plot_style == 'track': # show critter path and smoothed path
     
         xcoords = tracked_df.xcoords.values
         ycoords = tracked_df.ycoords.values
@@ -59,77 +63,96 @@ def main(movie_file, plot_style = 'track'): # track or time
         a.set_title(filestem)
         plt.show()
     
-    else: # plot time vs. other parameters
+    elif plot_style == 'speed': # plot time vs. other parameters
         
         f = plt.figure(1, figsize=(8,6))
 
         # plot time (x) vs. speed (left y axis)
-        a1 = f.add_axes([0.1, 0.1, 0.8, 0.6])
-        speed = tracked_df.speed.values
-        line1 = a1.plot(times[:-1],speed[:-1],color='tab:blue',label='speed')
-        a1.set_xlabel('Time (s)')
-        a1.set_ylabel('Speed (mm/s)', color = 'tab:blue')
-        
-        # plot time vs. cumulative distance (right y axis)
-        a2 = a1.twinx()
-        cumulative_distance = tracked_df.cumulative_distance.values
-        line2 = a2.plot(times[:-1],cumulative_distance[:-1],color='tab:red',label='distance')
-        a2.set_ylabel('Cumulative distance (mm)', color = 'tab:red')
-        
-        # add stops as rectangles to the speed graph
+        a1 = f.add_axes([0.1, 0.1, 0.8, 0.6])      
+        a1, a2 = speedDistancePlot(a1, tracked_df)
         speed_xlim = a1.get_xlim()
-        speed_ylim = a1.get_ylim()
-        stops = tracked_df.stops.values
-        stop_bouts = gaitFunctions.one_runs(stops)
-        
-        if len(stop_bouts) > 0:
-            for bout in stop_bouts:
-                start_time = times[bout[0]]
-                end_time = times[bout[1]]
-                a1.add_patch(Rectangle( xy=(start_time,speed_ylim[0]),
-                             width = end_time - start_time,
-                             height = speed_ylim[1] - speed_ylim[0],
-                             facecolor = 'lightgray', edgecolor=None))
-        
-        # add bearing changes on a separate axis above (a3)
-        bearing_changes = tracked_df.bearing_changes.values
+                
+        # plot bearing changes on a separate axis above (a3)
         a3 = f.add_axes([0.1, 0.8, 0.8, 0.1])
-        a3.plot(times[1:-1],bearing_changes[1:-1],color='tab:green')
-        a3.set_xticks([])
-        a3.set_ylabel('Change in\nbearing (˚)')
+        a3 = bearingChangePlot(a3, tracked_df)
         a3.set_xlim(speed_xlim)
-        a3.spines['top'].set_visible(False)
-        a3.spines['right'].set_visible(False)
-        a3.spines['bottom'].set_visible(False)
         
-        # add turns on the bearing changes axis (a3)
-        bearing_ylim = a3.get_ylim()
-        turns = tracked_df.turns.values
-        turn_bouts = gaitFunctions.one_runs(turns)
-        
-        if len(turn_bouts) > 0:
-            for bout in turn_bouts:
-                start_time = times[bout[0]]
-                end_time = times[bout[1]]
-                a3.add_patch(Rectangle( xy=(start_time,bearing_ylim[0]),
-                             width = end_time - start_time,
-                             height = bearing_ylim[1] - bearing_ylim[0],
-                             facecolor = 'lightgray', edgecolor=None))
-        
-        # tiny axis to show time?
+        # tiny axis to show time
         a4 = f.add_axes([0.1, 0.74, 0.8, 0.02])
-        cmap_name = 'plasma'
-        cmap = mpl.cm.get_cmap(cmap_name)
-        cols = cmap(np.linspace(0,1,len(times[:-1])))
-        a4.scatter(times[:-1],np.ones(len(times[:-1])),c=cols,s=10) # color-coded time!
+        a4 = timeRibbonPlot(a4, tracked_df)
         a4.set_xlim(speed_xlim)
         a4.axis('off')
         
         # adjust parameters and show plot
-        lns = line1+line2
-        labs = [l.get_label() for l in lns]
-        a1.legend(lns, labs, loc='lower right')
         plt.show()
+
+def timeRibbonPlot(a4, tracked_df):
+    cmap_name = 'plasma'
+    times = tracked_df.times.values
+    cmap = mpl.cm.get_cmap(cmap_name)
+    cols = cmap(np.linspace(0,1,len(times[:-1])))
+    a4.scatter(times[:-1],np.ones(len(times[:-1])),c=cols,s=10) # color-coded time!
+    return a4
+
+def bearingChangePlot(a3, tracked_df):
+    bearing_changes = tracked_df.bearing_changes.values
+    times = tracked_df.times.values
+    a3.plot(times[1:-1],bearing_changes[1:-1],color='tab:green')
+    a3.set_xticks([])
+    a3.set_ylabel('Change in\nbearing (˚)')
+    a3.spines['top'].set_visible(False)
+    a3.spines['right'].set_visible(False)
+    a3.spines['bottom'].set_visible(False)
+    
+    # add turns on the bearing changes axis (a3)
+    bearing_ylim = a3.get_ylim()
+    turns = tracked_df.turns.values
+    turn_bouts = gaitFunctions.one_runs(turns)
+    
+    if len(turn_bouts) > 0:
+        for bout in turn_bouts:
+            start_time = times[bout[0]]
+            end_time = times[bout[1]]
+            a3.add_patch(Rectangle( xy=(start_time,bearing_ylim[0]),
+                         width = end_time - start_time,
+                         height = bearing_ylim[1] - bearing_ylim[0],
+                         facecolor = 'lightgray', edgecolor=None))
+    return a3
+
+def speedDistancePlot(a1, tracked_df):
+    
+    times = tracked_df.times.values
+    speed = tracked_df.speed.values
+    line1 = a1.plot(times[:-1],speed[:-1],color='tab:blue',label='speed')
+    a1.set_xlabel('Time (s)')
+    a1.set_ylabel('Speed (mm/s)', color = 'tab:blue')
+    
+    # plot time vs. cumulative distance (right y axis)
+    a2 = a1.twinx()
+    cumulative_distance = tracked_df.cumulative_distance.values
+    line2 = a2.plot(times[:-1],cumulative_distance[:-1],color='tab:red',label='distance')
+    a2.set_ylabel('Cumulative distance (mm)', color = 'tab:red')
+    
+    # add legend
+    lns = line1+line2
+    labs = [l.get_label() for l in lns]
+    a1.legend(lns, labs, loc='lower right')
+    
+    # add stops as rectangles to the speed graph
+    speed_ylim = a1.get_ylim()
+    stops = tracked_df.stops.values
+    stop_bouts = gaitFunctions.one_runs(stops)
+    
+    if len(stop_bouts) > 0:
+        for bout in stop_bouts:
+            start_time = times[bout[0]]
+            end_time = times[bout[1]]
+            a1.add_patch(Rectangle( xy=(start_time,speed_ylim[0]),
+                         width = end_time - start_time,
+                         height = speed_ylim[1] - speed_ylim[0],
+                         facecolor = 'lightgray', edgecolor=None))
+    return a1, a2
+    
 
 def plotPathColor(filestem, xcoords, ycoords, smoothedx, smoothedy, vid_length):
 
@@ -190,6 +213,26 @@ def superImposedFirstLast(filestem):
     combined_frame = cv2.addWeighted(first_frame, 0.3, last_frame, 0.7, 0)
     return combined_frame
 
+def selectPlotStyle():
+    print('\nPlot options: \n')
+    print('   1. track = show critter path on image')
+    print('   2. speed = show speed, distance, and turns')
+    print('   3. steps = show all steps, with speed and turns (need frameStepper)')
+    print('   4. legs  = show steps for a particular set of legs (need frameStepper)')
+    selection = input('\nChoose one: ')
+    if selection == '1':
+        plot_style = 'track'
+    elif selection == '2':
+        plot_style = 'speed'
+    elif selection == '3':
+        plot_style = 'steps'
+    elif selection == '4':
+        plot_style = 'legs'
+    else:
+        print('\ninvalid selection, choosing "track"')
+        plot_style = 'track'
+    return plot_style
+
 if __name__== "__main__":
 
     if len(sys.argv) > 1:
@@ -198,10 +241,10 @@ if __name__== "__main__":
             plot_style = sys.argv[2]
             print('hi!')
         except:
-            plot_style = 'none'
+            plot_style = ''
     else:
         movie_file = gaitFunctions.select_movie_file()
-        plot_style = 'none'
+        plot_style = ''
 
     print('Plot style is ' + plot_style)
     main(movie_file, plot_style)

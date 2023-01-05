@@ -12,29 +12,27 @@ import pandas as pd
 import numpy as np
 import sys
 
-def main(movie_data = ''):
+"""
+WISH LIST
+
+save a COMPARISON file (text?)
+    provide as part of command line
+    OR list available comparisons
+    IF no comparison, then get the groups
+
+"""
+
+def main(group_file = ''):
 
     ## ===> select groups to compare
 
     # groups = a dictionary to hold list of clips for each group
     # key = group name
     # value = list of clips in that group
-    groups = getGroups(movie_data)
-
-    # Put the available data into categories
-    dates, treatments, individuals, collectors = categorizeClips()
-
-    # Select the clips that should be in the group(s)
-    categories = ['treatment','date','individual','collector']
-    category_dicts = [treatments, dates, individuals, collectors]
-    for i, category in enumerate(categories):
-        groups = addToGroup(groups, category_dicts[i], category)
+    groups = getGroups(group_file)
     
     # Print out the groups (comment out?)
-    for group in sorted(groups.keys()):
-        print('\n' + group + ' group:')
-        print('\n'.join(sorted(groups[group])))
-        print('\n')
+    printGroups(groups)
 
     ## ===> load and combine data by group
 
@@ -47,6 +45,43 @@ def main(movie_data = ''):
         plotting = False
         if plotting == False:
             break
+
+def loadGroups(group_file):
+    
+    groups = {}
+    
+    with open(group_file,'r') as f:
+        for line in f:
+            line = line.rstrip()
+            if 'group:' in line:
+                category = line.split(': ')[1]
+                groups[category] = []
+            elif len(line) > 0:
+                groups[category].append(line)    
+                
+    return groups
+
+def saveGroups(groups):
+    
+    print('\nBriefly (~8-15 characters?) describe these groups (no spaces or periods)')
+    comparison_name = input('   (this description will be used as a saved file name):  ')
+    group_file = comparison_name + '_compare.txt'
+    print(' ... Saving ' + group_file + ' ...\n')
+    o = open(group_file, 'w')
+    for group in sorted(groups.keys()):
+        o.write('\ngroup: ' + group + '\n')
+        o.write('\n'.join(sorted(groups[group])))
+        o.write('\n')
+    o.close()
+    
+    return
+
+def printGroups(groups):
+    for group in sorted(groups.keys()):
+        print('\n' + group + ' group:')
+        print('\n'.join(sorted(groups[group])))
+        print('\n')
+    return
 
 def addToGroup(groups, category_dict, category_type):
 
@@ -105,15 +140,13 @@ def selectFromList(li):
             choice.append(li[ind])
     return choice
             
-def getGroups(movie_data = ''):
+def getGroups(group_file = ''):
 
     groups = {}
     
-    # if movie_data provided, then there is one group by definition
-    if len(movie_data) > 0:
-        numGroups = 1
-        mov_name = movie_file.split('.')[0]
-        groups[mov_name] = [movie_data]
+    # if group_file provided, load it in!
+    if len(group_file) > 0:
+        groups = loadGroups(group_file)
         return groups
 
     # if no movie_data file provided ... build up a group or groups to compare
@@ -136,6 +169,18 @@ def getGroups(movie_data = ''):
             
     for group in group_names:
         groups[group] = []
+        
+    # Put the available data into categories
+    dates, treatments, individuals, collectors = categorizeClips()
+
+    # Select the clips that should be in the group(s)
+    categories = ['treatment','date','individual','collector']
+    category_dicts = [treatments, dates, individuals, collectors]
+    for i, category in enumerate(categories):
+        groups = addToGroup(groups, category_dicts[i], category)
+        
+    # Save groups (comment out?)
+    saveGroups(groups)
 
     return groups
         
@@ -194,10 +239,50 @@ def categorizeClips():
                         collectors[collector] = [file]
 
     return dates, treatments, individuals, collectors
+
+
+def checkForSavedGroups():
     
+    group_list = glob.glob('*compare.txt')
+    if len(group_list) > 0:
+        
+        print('\nChoose from this list : ')
+        i = 1
+        li = sorted(group_list)
+        
+        for thing in li:
+            print(str(i) + ': ' + thing)
+            i += 1
+            
+        print(str(i) + ': make new groups to compare')
+        
+        entry = input('\nWhich ONE do you want? ')
+        
+        try:
+            choice = int(entry)
+        except:
+            print(choice + ' is an invalid choice, making new groups')
+            return ''
+        
+        if choice > len(li):
+            print('... OK we will make new groups to compare! ')
+            group_file = ''
+        else:
+            ind = choice - 1
+            group_file = li[ind]
+            print('\nYou chose ' + group_file + '\n')
+        
+    else:
+        group_file = ''
+    
+    return group_file
 
 if __name__== "__main__":
 
-    # enable providing a single or multiple excel file(s)?
-
-    main()
+    if len(sys.argv) > 1:
+        group_file = sys.argv[1]
+    else:
+        group_file = checkForSavedGroups()
+        
+    main(group_file)
+        
