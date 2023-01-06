@@ -101,47 +101,55 @@ def main(movie_file, plot_style = ''): # track or speed or steps
         f = plt.figure(1, figsize=(12,8))
         
         # plot time (x) vs. speed (left y axis)
-        speedax = f.add_axes([0.1, 0.55, 0.7, 0.3]) 
+        speedax = f.add_axes([0.1, 0.55, 0.65, 0.3]) 
         speedax, distax = speedDistancePlot(speedax, tracked_df)
         speed_xlim = speedax.get_xlim()
         speedax.set_xlabel('')
         
         # plot bearing changes on a separate axis above (a3)
-        bearingax = f.add_axes([0.1, 0.9, 0.7, 0.05])
+        bearingax = f.add_axes([0.1, 0.9, 0.65, 0.05])
         bearingax = bearingChangePlot(bearingax, tracked_df)
         bearingax.set_xlim(speed_xlim)
         
-        # plot the % cruising
+        # add 'cruising' percentage plot
+        cruisingax = f.add_axes([0.88, 0.55, 0.02, 0.4])
+        cruisingProportionPlot(cruisingax, tracked_df)
     
-        # plot the steps
-        steps = f.add_axes([0.1, 0.1, 0.7, 0.2])
-        steps = gaitFunctions.plotLegSet(steps, movie_file, 'all')
+        # plot the steps for the lateral legs
+        steps = f.add_axes([0.1, 0.1, 0.65, 0.15])
+        lateral_legs = gaitFunctions.get_leg_combos()['legs_lateral']
+        steps = gaitFunctions.plotLegSet(steps, movie_file, lateral_legs)
         steps.set_xlim(speed_xlim)
         
         # plot the gait styles for lateral legs
-        gaits_ax = f.add_axes([0.1, 0.35, 0.7, 0.05])
+        gaits_ax = f.add_axes([0.1, 0.26, 0.65, 0.04])
         gaits_ax = gaitFunctions.plotGaits(gaits_ax, movie_file, 'lateral')
         gaits_ax.set_xlim(speed_xlim)
         
-        # proportions and legend for gait styles? rear and lateral?
-        lateral_gait_proportions_ax = f.add_axes([0.83, 0.1, 0.02, 0.2])
+        # proportions and legend for gait styles: lateral
+        lateral_gait_proportions_ax = f.add_axes([0.83, 0.1, 0.02, 0.18])
         lateral_gait_proportions_ax = gaitFunctions.gaitStyleProportionsPlot(lateral_gait_proportions_ax, 
                                                                               [movie_file],
                                                                               'lateral')
         
-        rear_gait_proportions_ax = f.add_axes([0.83, 0.33, 0.02, 0.2])
-        rear_gait_proportions_ax = gaitFunctions.gaitStyleProportionsPlot(rear_gait_proportions_ax, 
-                                                                              [movie_file],
-                                                                              'rear')
-        
-        # plot the gait styles for rear legs?
-        reargaits_ax = f.add_axes([0.1, 0.45, 0.7, 0.05])
+        # plot the gait styles for rear legs
+        reargaits_ax = f.add_axes([0.1, 0.44, 0.65, 0.04])
         reargaits_ax = gaitFunctions.plotGaits(reargaits_ax, movie_file, 'rear')
         reargaits_ax.set_xlim(speed_xlim)
         
-        # add 'cruising' percentage plot
-        cruisingax = f.add_axes([0.92, 0.55, 0.02, 0.4])
-        cruisingProportionPlot(cruisingax, tracked_df)
+        # plot the steps for the rear legs
+        rear_steps = f.add_axes([0.1, 0.36, 0.65, 0.055])
+        rear_legs = gaitFunctions.get_leg_combos()['legs_4']
+        rear_steps = gaitFunctions.plotLegSet(rear_steps, movie_file, rear_legs)
+        rear_steps.set_xlim(speed_xlim)
+        rear_steps.set_xlabel('')
+        # rear_steps.set_xticks([])
+        
+        # proportions and legend for gait styles: rear
+        rear_gait_proportions_ax = f.add_axes([0.83, 0.33, 0.02, 0.18])
+        rear_gait_proportions_ax = gaitFunctions.gaitStyleProportionsPlot(rear_gait_proportions_ax, 
+                                                                              [movie_file],
+                                                                              'rear')
 
         plt.show()
         
@@ -169,7 +177,6 @@ def cruisingProportionPlot(ax, tracked_df):
     
     non_cruising_proportion = np.count_nonzero(stops + turns) / len(stops)
     cruising_proportion = 1 - non_cruising_proportion
-    print(non_cruising_proportion, cruising_proportion)
     
     cruising_color = 'lightcoral'
     
@@ -225,6 +232,7 @@ def speedDistancePlot(a1, tracked_df):
     line1 = a1.plot(times[:-1],speed[:-1],color='tab:blue',label='speed')
     a1.set_xlabel('Time (s)')
     a1.set_ylabel('Speed (mm/s)', color = 'tab:blue')
+    a1.set_xlim([0, times[-1]])
     
     # plot time vs. cumulative distance (right y axis)
     a2 = a1.twinx()
