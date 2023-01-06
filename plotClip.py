@@ -111,13 +111,19 @@ def main(movie_file, plot_style = ''): # track or speed or steps
         bearingax = bearingChangePlot(bearingax, tracked_df)
         bearingax.set_xlim(speed_xlim)
         
-        # add 'cruising' percentage plot
+        # 'cruising' percentage plot
         cruisingax = f.add_axes([0.88, 0.55, 0.02, 0.4])
         cruisingProportionPlot(cruisingax, tracked_df)
+
+        # time ribbon plot
+        timeribbonax = f.add_axes([0.1, 0.865, 0.65, 0.02])
+        timeribbonax = timeRibbonPlot(timeribbonax, tracked_df)
+        timeribbonax.set_xlim(speed_xlim)
+        timeribbonax.axis('off')
     
         # plot the steps for the lateral legs
         steps = f.add_axes([0.1, 0.1, 0.65, 0.15])
-        lateral_legs = gaitFunctions.get_leg_combos()['legs_lateral']
+        lateral_legs = gaitFunctions.get_leg_combos()[0]['legs_lateral']
         steps = gaitFunctions.plotLegSet(steps, movie_file, lateral_legs)
         steps.set_xlim(speed_xlim)
         
@@ -139,7 +145,7 @@ def main(movie_file, plot_style = ''): # track or speed or steps
         
         # plot the steps for the rear legs
         rear_steps = f.add_axes([0.1, 0.36, 0.65, 0.055])
-        rear_legs = gaitFunctions.get_leg_combos()['legs_4']
+        rear_legs = gaitFunctions.get_leg_combos()[0]['legs_4']
         rear_steps = gaitFunctions.plotLegSet(rear_steps, movie_file, rear_legs)
         rear_steps.set_xlim(speed_xlim)
         rear_steps.set_xlabel('')
@@ -157,16 +163,18 @@ def main(movie_file, plot_style = ''): # track or speed or steps
     elif plot_style == 'legs': # show steps for a particular set of legs (need frameStepper) 
         
         # choose legs to plot
-        leg_combos = gaitFunctions.get_leg_combos()
-        for k in sorted(leg_combos.keys()):
-            print(k)
+        leg_combos, combo_order = gaitFunctions.get_leg_combos()
+        print('Which legs should we show?')
+        leg_choice = gaitFunctions.selectOneFromList(combo_order)
+        legs = leg_combos[leg_choice]
             
         print('Here is a plot of the steps of the selected legs - close the plot window to proceed')
         
         # set up an axis for the steps
-        f = plt.figure(1, figsize=(12,8))
+        fig_height = len(legs)
+        f = plt.figure(1, figsize=(12,fig_height))
         ax = f.add_axes([0.1, 0.1, 0.85, 0.85])
-        ax = gaitFunctions.plotLegSet(ax, movie_file, 'all')
+        ax = gaitFunctions.plotLegSet(ax, movie_file, legs)
         plt.show()
 
 

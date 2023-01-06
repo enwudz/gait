@@ -25,11 +25,11 @@ def main(movie_file):
     # trackCritter.main(movie_file, 12, True) 
     # analyzePath.main(movie_file)
     # plotClip.main(movie_file,'track')
-    plotClip.main(movie_file,'speed')
+    # plotClip.main(movie_file,'speed')
     # frameStepper.main(movie_file)
     # analyzeSteps.main(movie_file)
-    # plotClip.main(movie_file,'steps')
-    # plotSteps.main(movie_file)
+    plotClip.main(movie_file,'steps')
+    # plotClip.main(movie_file,'legs')
 
 if __name__== "__main__":
 

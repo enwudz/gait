@@ -33,7 +33,7 @@ def main(movie_file):
     header = 'legID,DownTime,UpTime,stance,swing,gait,duty,midSwingTime'
 
     # get legs
-    legs = gaitFunctions.get_leg_combos()['legs_all']
+    legs = gaitFunctions.get_leg_combos()[0]['legs_all']
 
     #### go through all legs, collect data for each step, and save all information in a list of lines
     data_for_steps = []
@@ -233,7 +233,7 @@ def saveGaitStyles(up_down_times, excel_filename):
     
 def saveStepStats(step_data_df, excel_filename):
     
-    legs = gaitFunctions.get_leg_combos()['legs_all']
+    legs = gaitFunctions.get_leg_combos()[0]['legs_all']
     
     stance_time = []
     swing_time = []

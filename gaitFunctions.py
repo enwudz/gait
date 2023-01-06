@@ -71,7 +71,7 @@ def makeLegDict():
     return leg_dict
 
 def save_stance_figures(movie_file, up_down_times):
-    legs = get_leg_combos()['legs_all']
+    legs = get_leg_combos()[0]['legs_all']
     for x in ['stance', 'swing']:
         box_data, f, a = plot_stance(up_down_times, legs, x, False)
         fname = movie_file.split('.')[0] + x + '_plot.png'
@@ -207,19 +207,27 @@ def getIntervals(list1, list2, dec_round=3):
 
 
 def get_leg_combos():
-    leg_combos = {}
-    leg_combos['legs_all'] = ['L4', 'L3', 'L2', 'L1', 'R1', 'R2', 'R3', 'R4']
-    leg_combos['legs_lateral'] = ['L3', 'L2', 'L1', 'R1', 'R2', 'R3']
-    leg_combos['legs_all_right'] = ['R4', 'R3', 'R2', 'R1']
-    leg_combos['legs_all_left'] = ['L4', 'L3', 'L2', 'L1']
-    leg_combos['legs_right'] = ['R3', 'R2', 'R1']
-    leg_combos['legs_left'] = ['L3', 'L2', 'L1']
-    leg_combos['legs_1'] = ['R1', 'L1']
-    leg_combos['legs_2'] = ['R2', 'L2']
-    leg_combos['legs_3'] = ['R3', 'L3']
-    leg_combos['legs_4'] = ['R4', 'L4']
-    return leg_combos
 
+    combo_order = ['all legs', 'lateral legs',
+                   'left lateral legs', 'right lateral legs',
+                   'pair 1', 'pair 2', 'pair 3', 'pair 4',
+                   'all left legs', 'all right legs']
+    combos = [ ['L4', 'L3', 'L2', 'L1', 'R1', 'R2', 'R3', 'R4'],
+               ['L3', 'L2', 'L1', 'R1', 'R2', 'R3'],
+               ['L3', 'L2', 'L1'], ['R3', 'R2', 'R1'],
+               ['R1', 'L1'], ['R2', 'L2'], ['R3', 'L3'], ['R4', 'L4'],
+               ['L4', 'L3', 'L2', 'L1'], ['R4', 'R3', 'R2', 'R1'] ]
+               
+    leg_combos = dict(zip(combo_order, combos))
+
+    # legacy combos
+    leg_combos['legs_all'] = leg_combos['all legs']
+    leg_combos['all'] = leg_combos['all legs']
+    leg_combos['legs_lateral'] = leg_combos['lateral legs']
+    leg_combos['rear'] = leg_combos['pair 4']
+    leg_combos['legs_4'] = leg_combos['pair 4']
+
+    return leg_combos, combo_order
 
 # get dictionaries of opposite and anterior legs
 # keyed by each leg
@@ -385,19 +393,25 @@ def identity_print_order():
 def selectOneFromList(li):
     print('\nChoose from this list : ')
     i = 1
-    li = sorted(li)
     
     for thing in li:
         print(str(i) + ': ' + thing)
         i += 1
-    entry = input('\nWhich ONE do you want? ')
-    choice = int(entry)
+    entry = input('\nWhich ONE would you like? ')
+
+    try:
+        choice = int(entry)
+    except:
+        print('==> ' + choice + ' is not a valid selection!')
+        print(' ... defaulting to first item ... ')
+        choice = 1
     
     if choice > len(li):
-        err_message = '==> ' +  str(choice) + ' is invalid for list of ' + str(len(li)) + ' items!'
-        exit(err_message)
-    
-    ind = choice - 1
+        print('==> ' +  str(choice) + ' is invalid for list of ' + str(len(li)) + ' items!')
+        print(' ... defaulting to first item ... ')
+        ind = 0
+    else:
+        ind = choice - 1
     
     print('\nYou chose ' + li[ind] + '\n')
     return li[ind]
@@ -1086,10 +1100,10 @@ def getGaits(movie_file, leg_set = 'lateral'):
         frame_times_with_events = frame_times[:last_event_frame]
         
         if leg_set == 'rear':
-            legs = get_leg_combos()['legs_4']
+            legs = get_leg_combos()[0]['legs_4']
             all_combos, combo_colors = get_gait_combo_colors('rear')
         else:
-            legs = get_leg_combos()['legs_lateral']
+            legs = get_leg_combos()[0]['legs_lateral']
             all_combos, combo_colors = get_gait_combo_colors('lateral')
         
         # get leg matrix
@@ -1215,7 +1229,7 @@ def plotLegSet(ax, movie_file, legs_to_plot = 'all'):
     frames_swinging = frameSwings(movie_file)
     
     # plot selected legs in same order as in leg_combos['legs_all']
-    all_legs = get_leg_combos()['legs_all']
+    all_legs = get_leg_combos()[0]['legs_all']
     
     if legs_to_plot == 'all':
         legs_to_plot = all_legs
@@ -1549,7 +1563,7 @@ def get_leg_swing_counts(leg_matrix, leg_set = 'lateral'):
     # keys = leg_combo (e.g. 'L1_R2')
     # values = number of frames where that combination of legs = swinging simultaneously
 
-    leg_combos = get_leg_combos()
+    leg_combos = get_leg_combos()[0]
     if leg_set == 'rear':
         legs = leg_combos['legs_4']
     else:
@@ -1591,68 +1605,69 @@ def get_leg_swing_counts(leg_matrix, leg_set = 'lateral'):
 
     return leg_swing_counts
 
+# add_counts_to_dictionary is DEPRECATED
+##def add_counts_to_dictionary(new_data, existing_dictionary):
+##    # add counts from new dictionary to old dictionary
+##    # new_data is a dictionary of keys => counts
+##    # existing has keys => counts
+##
+##    # for each key of new_data 
+##    for k in new_data.keys():
+##
+##        # if this key is in existing_dictionary, add to existing counts
+##        if k in existing_dictionary.keys():
+##            existing_dictionary[k] += new_data[k]
+##
+##        # if this key is not in existing_dictionary, make an entry
+##        else:
+##            existing_dictionary[k] = new_data[k]
+##
+##    # return updated dictionary
+##    return existing_dictionary
 
-def add_counts_to_dictionary(new_data, existing_dictionary):
-    # add counts from new dictionary to old dictionary
-    # new_data is a dictionary of keys => counts
-    # existing has keys => counts
-
-    # for each key of new_data 
-    for k in new_data.keys():
-
-        # if this key is in existing_dictionary, add to existing counts
-        if k in existing_dictionary.keys():
-            existing_dictionary[k] += new_data[k]
-
-        # if this key is not in existing_dictionary, make an entry
-        else:
-            existing_dictionary[k] = new_data[k]
-
-    # return updated dictionary
-    return existing_dictionary
-
+# stepDataToDf is DEPRECATED
 # convert step data for a single clip into a dataframe
-def stepDataToDf(foldername, fname):
-    fpath = os.path.join(foldername, fname)
-    fileTest(fpath)  # to test if file exists before trying to open it
-    df = pd.read_csv(fpath, index_col=None)
+##def stepDataToDf(foldername, fname):
+##    fpath = os.path.join(foldername, fname)
+##    fileTest(fpath)  # to test if file exists before trying to open it
+##    df = pd.read_csv(fpath, index_col=None)
+##
+##    # add column that contains folder name
+##    num_rows = df.shape[0]
+##    exp_column = [foldername] * num_rows
+##    df['clip'] = exp_column
+##
+##    return df
 
-    # add column that contains folder name
-    num_rows = df.shape[0]
-    exp_column = [foldername] * num_rows
-    df['clip'] = exp_column
-
-    return df
-
-
+# foldersToDf is DEPRECATED
 # given multiple folders, combine step data from each folder into a dataframe
-def foldersToDf(folder_list, fname):
-    if len(folder_list) == 1:
-        step_data = stepDataToDf(folder_list[0], fname)
-    else:
-        step_data = stepDataToDf(folder_list[0], fname)
-        folder_list = folder_list[1:]
-        for folder in folder_list:
-            df = stepDataToDf(folder, fname)
-            step_data = pd.concat([step_data, df])
+##def foldersToDf(folder_list, fname):
+##    if len(folder_list) == 1:
+##        step_data = stepDataToDf(folder_list[0], fname)
+##    else:
+##        step_data = stepDataToDf(folder_list[0], fname)
+##        folder_list = folder_list[1:]
+##        for folder in folder_list:
+##            df = stepDataToDf(folder, fname)
+##            step_data = pd.concat([step_data, df])
+##
+##    return step_data
 
-    return step_data
-
-
+# experimentToDf is DEPRECATED
 # given a folder that contains multiple folders, each with step data
 # combine step data from each folder into a dataframe
-def experimentToDf(experiment_directory, fname):
-    os.chdir(experiment_directory)
-    # list directories in this folder
-    clip_directories = listDirectories()
+##def experimentToDf(experiment_directory, fname):
+##    os.chdir(experiment_directory)
+##    # list directories in this folder
+##    clip_directories = listDirectories()
+##
+##    clip_list = sorted(selectMultipleFromList(clip_directories))
+##    df = foldersToDf(clip_list, fname)
+##    os.chdir('../')
+##    return df
 
-    clip_list = sorted(selectMultipleFromList(clip_directories))
-    df = foldersToDf(clip_list, fname)
-    os.chdir('../')
-    return df
 
-
-# given a dataframe containing step data
+# given a dataframe containing step data (including a column for 'clip'
 # return metachronal lag (time between swings of hindlimbs and forelimbs)
 #     swing of foreleg step seen AFTER midleg swing AFTER hindleg swing!
 # and return normalized metachronal lag (normalized to hindlimb period)

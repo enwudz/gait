@@ -28,13 +28,53 @@ def main(group_file = ''):
         group_file = checkForSavedGroups()
     groups = getGroups(group_file)
     
-    # Print out the groups (comment out?)
-    printGroups(groups)
+    # Print out the groups (comment out if do not want to see)
+    # printGroups(groups)
 
     ## ===> load and combine data by group
 
+    # Make lists to collect dataframes from each group
+    tracking_dfs = [] # = from pathtracking tab
+    steptiming_dfs = [] # = from step_timing tab
+    gaitstyle_dfs = [] # = from gait_styles tab
+
+    # for each group ... go through list of clips in the group
+    # and add data from that clip to existing dataframe
+
+    for group in groups.keys():
+
+        # initialize empty dataframes for this group
+        tracking_df = pd.DataFrame()
+        steptiming_df = pd.DataFrame()
+        gaitstyle_df = pd.DataFrame()
+
+        # go through each clip in this group
+        clips = groups[group]
+        for i, clip in enumerate(clips):
+           
+            # if loading first clip, that becomes the existing dataframe
+            #     add a column for clip name (see below)
+            ##      num_rows = df.shape[0]
+            ##      exp_column = [clipname] * num_rows
+            ##      df['clip'] = exp_column
+            if i == 0:
+                pass
+            
+            
+    
+    # when loading subsequent clips
+    #     load dataframe and add a column for clip name
+    #     add to existing dataframe
+    
+    # to concatenate clips:  existing_df = pd.concat([existing_df, new_df])
+    # when load in data from a clip, include column in dataframe for that clip
+    ##    add column that contains clip name
+
+
 
     ## ===> offer options to plot
+    # see step_data_plots.ipynb for some ONE GROUP plots . . .
+    # see compare_step_parameters for some multiple group plots
 
     plotting = True
     while plotting:
@@ -220,7 +260,7 @@ def makeClipDict():
         # open file and get data from the identity tab
         try:
             df = pd.read_excel(file, sheet_name = 'identity', index_col=None)
-            # print('reading data from ' + file)
+            print('reading data from ' + file)
         except:
             print('No identity info available in ' + file)
             next
