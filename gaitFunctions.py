@@ -77,12 +77,12 @@ def save_stance_figures(movie_file, up_down_times):
         fname = movie_file.split('.')[0] + x + '_plot.png'
         plt.savefig(fname)
 
-def save_leg_figures(movie_file, up_down_times, video_end):
-    leg_combos = get_leg_combos()
-    for legs in leg_combos.keys():
-        f, a = plot_legs(up_down_times, leg_combos[legs], video_end, False)
-        figname = movie_file.split('.')[0] + '_' + '_'.join(leg_combos[legs]) + '.png'
-        plt.savefig(figname)
+# def save_leg_figures(movie_file, up_down_times, video_end):
+#     leg_combos = get_leg_combos()
+#     for legs in leg_combos.keys():
+#         f, a = plot_legs(up_down_times, leg_combos[legs], video_end, False)
+#         figname = movie_file.split('.')[0] + '_' + '_'.join(leg_combos[legs]) + '.png'
+#         plt.savefig(figname)
 
 # from list of leg_downs, leg_ups, get stance_times, swing_times, gait_cycles, duty_factors
 def getStepSummary(downs, ups):
@@ -238,32 +238,33 @@ def getPosteriorLeg():
     posterior_dict = dict(zip(legs, posteriors))
     return posterior_dict
 
-def plot_legs(legDict, legs, video_end, show=True):
-    leg_yvals = list(range(len(legs)))
+# plot_legs is deprecated
+# def plot_legs(legDict, legs, video_end, show=True):
+#     leg_yvals = list(range(len(legs)))
 
-    # start a plot for the data
-    figheight = len(legs)
-    (f, a) = plt.subplots(1, figsize=(10, figheight))  # set height on # of legs
+#     # start a plot for the data
+#     figheight = len(legs)
+#     (f, a) = plt.subplots(1, figsize=(10, figheight))  # set height on # of legs
 
-    # add a leg to the plot
-    for i, leg in enumerate(legs):
-        yval = leg_yvals[i]
-        fd = legDict[leg]['d']
-        fu = legDict[leg]['u']
-        f, a = addLegToPlot(f, a, yval, fd, fu, video_end)
+#     # add a leg to the plot
+#     for i, leg in enumerate(legs):
+#         yval = leg_yvals[i]
+#         fd = legDict[leg]['d']
+#         fu = legDict[leg]['u']
+#         f, a = addLegToPlot(f, a, yval, fd, fu, video_end)
 
-    # show the plot
-    a.set_xlim([0, video_end])
-    y_buff = 0.5
-    a.set_ylim([leg_yvals[0] - y_buff, leg_yvals[-1] + y_buff])
-    a.set_yticks(leg_yvals)
-    a.set_yticklabels(legs)
-    a.set_xlabel('Time (sec)')
-    a.set_ylabel('Legs')
-    plt.subplots_adjust(bottom=0.3)
-    if show:
-        plt.show()
-    return f, a
+#     # show the plot
+#     a.set_xlim([0, video_end])
+#     y_buff = 0.5
+#     a.set_ylim([leg_yvals[0] - y_buff, leg_yvals[-1] + y_buff])
+#     a.set_yticks(leg_yvals)
+#     a.set_yticklabels(legs)
+#     a.set_xlabel('Time (sec)')
+#     a.set_ylabel('Legs')
+#     plt.subplots_adjust(bottom=0.3)
+#     if show:
+#         plt.show()
+    # return f, a
 
 
 # test if a file can be found
@@ -374,31 +375,12 @@ def select_movie_file():
         movie_file = selectOneFromList(movie_files)
     else:
         movie_file = ''
+        print('Cannot find a movie (.mov) file - do you have one here?')
     return movie_file
 
 def identity_print_order():
     return ['file_stem','date','treatment','individualID','time_range',
             'initials','#frames','fps','width','height','duration']
-
-def getVideoData(movie_file, printOut = True):
-    if len(glob.glob(movie_file)) == 0:
-        exit('Cannot find ' + movie_file)
-    else:
-        vid = cv2.VideoCapture(movie_file)
-        vid_width  = int(vid.get(3))
-        vid_height = int(vid.get(4))
-        vid_fps = int(np.round(vid.get(5)))
-        vid_frames = int(vid.get(7))
-        vid.release()
-        vid_length = np.around(vid_frames / vid_fps, decimals = 2)
-    if printOut == True:
-        printString = 'width: ' + str(vid_width)
-        printString += ', height: ' + str(vid_height)
-        printString += ', fps: ' + str(vid_fps)
-        printString += ', #frames: ' + str(vid_frames)
-        printString += ', duration: ' + str(vid_length)
-        print(printString)
-    return (vid_width, vid_height, vid_fps, vid_frames, vid_length)
 
 def selectOneFromList(li):
     print('\nChoose from this list : ')
@@ -452,48 +434,27 @@ def selectMultipleFromList(li):
             print('\nYou chose them all\n')
             return li
 
-def pathToData(data_path):
-    if '/' in data_path:
-        folders = data_path.split('/')[1:]
-    elif '\\' in data_path:
-        folders = data_path.split('\\')[1:]
-    os_path = os.path.join(os.sep, os.sep.join(folders))
-    return os_path
 
-def getMovieFromFileList(movie_folder): # movie_folder needs to be complete path
-    
-    file_list = glob.glob(os.path.join(movie_folder, '*'))
 
-    movieList = []
-    for f in file_list:
-        if '.mov' in f or '.mp4' in f or '.avi' in f:
-            movieList.append(f.split('/')[-1])
-
-    if len(movieList) > 1:
-        sys.exit('I found ' + str(len(movieList)) + 'movies in ' + movie_folder)
+def getVideoData(movie_file, printOut = True):
+    if len(glob.glob(movie_file)) == 0:
+        exit('Cannot find ' + movie_file)
     else:
-        return (movieList[0])
-
-
-def getVideoStats(vid, printout=True):
-    numframes = vid.get(cv2.CAP_PROP_FRAME_COUNT)
-    vidfps = vid.get(cv2.CAP_PROP_FPS)
-    vidstart = vid.get(cv2.CAP_PROP_POS_MSEC)
-
-    vidlength = round(numframes / vidfps, 3)
-
-    frame_width = int(vid.get(3))
-    frame_height = int(vid.get(4))
-
-    if printout is True:
-        print('width = ', frame_width)
-        print('height = ', frame_height)
-        print('Number of Frames = ', numframes)
-        print('fps = ', vidfps)
-        print('Length = ', vidlength)
-        print('start = ', vidstart)
-
-    return vidlength, numframes, vidfps, vidstart, frame_width, frame_height
+        vid = cv2.VideoCapture(movie_file)
+        vid_width  = int(vid.get(3))
+        vid_height = int(vid.get(4))
+        vid_fps = int(np.round(vid.get(5)))
+        vid_frames = int(vid.get(7))
+        vid.release()
+        vid_length = np.around(vid_frames / vid_fps, decimals = 2)
+    if printOut == True:
+        printString = 'width: ' + str(vid_width)
+        printString += ', height: ' + str(vid_height)
+        printString += ', fps: ' + str(vid_fps)
+        printString += ', #frames: ' + str(vid_frames)
+        printString += ', duration: ' + str(vid_length)
+        print(printString)
+    return (vid_width, vid_height, vid_fps, vid_frames, vid_length)
 
 def stanceSwingColors():
     stance_color = [0.95, 0.95, 0.95]
@@ -501,51 +462,51 @@ def stanceSwingColors():
     return stance_color, swing_color
 
 # addLegToPlot is deprecated in favor of plotStepsForLegs
-def addLegToPlot(f, a, ylev, footdown, footup, videoEnd=6.2):
-    steps = []
-    stepTimes = [0]
-    stance_color, swing_color = stanceSwingColors()
+# def addLegToPlot(f, a, ylev, footdown, footup, videoEnd=6.2):
+#     steps = []
+#     stepTimes = [0]
+#     stance_color, swing_color = stanceSwingColors()
 
-    if footdown[0] < footup[0]:
-        steps.append('u')
-    else:
-        steps.append('d')
+#     if footdown[0] < footup[0]:
+#         steps.append('u')
+#     else:
+#         steps.append('d')
 
-    while len(footdown) > 0 and len(footup) > 0:
-        if footdown[0] < footup[0]:
-            steps.append('d')
-            stepTimes.append(footdown[0])
-            footdown = footdown[1:]
-        else:
-            steps.append('u')
-            stepTimes.append(footup[0])
-            footup = footup[1:]
+#     while len(footdown) > 0 and len(footup) > 0:
+#         if footdown[0] < footup[0]:
+#             steps.append('d')
+#             stepTimes.append(footdown[0])
+#             footdown = footdown[1:]
+#         else:
+#             steps.append('u')
+#             stepTimes.append(footup[0])
+#             footup = footup[1:]
 
-    # deal with last step
-    if len(footdown) > 0:
-        steps.append('d')
-        stepTimes.append(footdown[0])
-    elif len(footup) > 0:
-        steps.append('u')
-        stepTimes.append(footup[0])
+#     # deal with last step
+#     if len(footdown) > 0:
+#         steps.append('d')
+#         stepTimes.append(footdown[0])
+#     elif len(footup) > 0:
+#         steps.append('u')
+#         stepTimes.append(footup[0])
 
-    lastStepTime = videoEnd
-    stepTimes.append(lastStepTime)
-    rectHeight = 1
+#     lastStepTime = videoEnd
+#     stepTimes.append(lastStepTime)
+#     rectHeight = 1
 
-    for i, step in enumerate(stepTimes[:-1]):
-        if steps[i] == 'd':
-            fc = stance_color
-            ec = 'k'
-        else:
-            fc = swing_color
-            ec = 'k'
+#     for i, step in enumerate(stepTimes[:-1]):
+#         if steps[i] == 'd':
+#             fc = stance_color
+#             ec = 'k'
+#         else:
+#             fc = swing_color
+#             ec = 'k'
 
-        # ax.add_patch(Rectangle((1, 1), 2, 6))
-        a.add_patch(Rectangle((stepTimes[i], ylev - rectHeight / 2), stepTimes[i + 1] - stepTimes[i], rectHeight,
-                              edgecolor=None, facecolor=fc, fill=True, lw=1))
+#         # ax.add_patch(Rectangle((1, 1), 2, 6))
+#         a.add_patch(Rectangle((stepTimes[i], ylev - rectHeight / 2), stepTimes[i + 1] - stepTimes[i], rectHeight,
+#                               edgecolor=None, facecolor=fc, fill=True, lw=1))
 
-    return f, a
+#     return f, a
 
 
 # get durations of stances and swings for a leg
@@ -704,21 +665,33 @@ def find_nearest(num, arr):
     return array[idx]
 
 
-#### for swing combo
-# functions to convert up and down lists for a leg into a vector of 1's (ups) and 0's (downs)
+def proportionsFromList(li):
+    '''
+    Parameters
+    ----------
+    li : list of strings
+        a list containing a set of strings.
 
-def valuesToProportions(dict_with_numerical_values):
+    Returns
+    -------
+    dict_with_proportional_values : dictionary
+        keys = items in the input list
+        values = proportion of input list that is each item.
+
+    '''
+    dict_with_numerical_values = {}
     dict_with_proportional_values = {}
     
-    # get total of all values in dictionary
-    total_counts = 0
-    
-    for key in dict_with_numerical_values.keys():
-        total_counts += dict_with_numerical_values[key]
+    # count the number of each item in the input list
+    for k in li:
+        if k in dict_with_numerical_values.keys():
+            dict_with_numerical_values[k] += 1
+        else:
+            dict_with_numerical_values[k] = 1
     
     # calculate proportions of each count
-    for key in dict_with_numerical_values.keys():
-        dict_with_proportional_values[key] = dict_with_numerical_values[key] / total_counts
+    for k in dict_with_numerical_values.keys():
+        dict_with_proportional_values[k] = dict_with_numerical_values[k] / len(li)
         
     return dict_with_proportional_values
 
@@ -735,11 +708,37 @@ def get_gait_combo_colors(leg_set = 'lateral'):
         combo_colors = dict(zip(all_combos, plot_colors))
     return all_combos, combo_colors
 
-def gait_style_plot(dict_list, exp_names, leg_set = 'lateral'):
+def gaitStyleProportionsPlot(ax, movie_files, leg_set = 'lateral'):
+    '''
+ 
+    Parameters
+    ----------
+    ax : matplotlib axis object
+        empty axis object.
+    gait_style_vectors : list of vectors of gait_styles
+        From gait_styles sheet in the experiment excel file.
+        Can do more than one on a single plot
+    leg_set : string, optional
+        Which leg set to use. The default is 'lateral', but 'rear' is an option
+
+    Returns
+    -------
+    ax : matplotlib axis object
+        now filled with the gait style plot!
+
+    '''
     
-    barWidth = 0.85
-    num_bars = len(dict_list)
-    fig_width = 1.5 * num_bars
+    barWidth = 0.1
+
+    # get the gait vectors for the selected movie fiels
+    gait_style_vectors = []
+    exp_names = []
+    
+    for movie_file in movie_files:
+        exp_name = movie_file.split('.')[0]
+        exp_names.append(exp_name)
+        times, gait_style_vector = getGaitStyleVec(movie_file, leg_set)
+        gait_style_vectors.append(gait_style_vector)
 
     # set up colors
     if leg_set == 'rear':
@@ -747,11 +746,10 @@ def gait_style_plot(dict_list, exp_names, leg_set = 'lateral'):
     else:
         all_combos, combo_colors = get_gait_combo_colors('lateral')
 
-    f,ax = plt.subplots(1,1,figsize = (fig_width,5))
-
-    for i, swing_combo_dict in enumerate(dict_list):
-
-        combo_proportions = valuesToProportions(swing_combo_dict)
+    exp_names = []
+    for i, gait_styles_vec in enumerate(gait_style_vectors):
+        
+        combo_proportions = proportionsFromList(gait_styles_vec)
 
         for j, combo in enumerate(all_combos):
 
@@ -759,27 +757,31 @@ def gait_style_plot(dict_list, exp_names, leg_set = 'lateral'):
                 bottom = 0
 
             if i == 0: # first dataset ... plot everything at 0 value to make labels for legend
-                plt.bar(i, 0, bottom = bottom, color = combo_colors[combo],
+                ax.bar(i, 0, bottom = bottom, color = combo_colors[combo],
                            edgecolor='white', width=barWidth, label=combo.replace('_',' '))
 
-            if combo in swing_combo_dict.keys():
+            if combo in gait_styles_vec:
 
-                plt.bar(i, combo_proportions[combo], bottom = bottom, color = combo_colors[combo],
+                ax.bar(i, combo_proportions[combo], bottom = bottom, color = combo_colors[combo],
                     edgecolor='white', width=barWidth)
 
                 bottom += combo_proportions[combo]
 
-    ax.set_xticks(np.arange(len(exp_names)))
-    ax.set_xticklabels(exp_names, fontsize=12)
+    ax.set_xticks(np.arange(len(gait_style_vectors)))
+    if len(exp_names) > 1:
+        ax.set_xticklabels(exp_names)
+    else:
+        ax.set_xticks([])
 
     # Add a legend
     handles, labels = ax.get_legend_handles_labels()
-    plt.legend(reversed(handles), reversed(labels), loc='upper left',
-              bbox_to_anchor=(1,1), ncol=1)
+    ax.legend(reversed(handles), reversed(labels), loc='upper left',
+              bbox_to_anchor=(1,1), ncol=1, fontsize=8)
 
-    plt.ylabel('Proportion of frames', fontsize=16)
+    ax.set_ylabel(leg_set + ' gait styles')
+    ax.set_ylim([0,1])
     
-    return f, ax
+    return ax
 
 def need_tracking():
     sys.exit('\n ==> Need to run trackCritter.py before analyzing the path!\n')
@@ -1143,64 +1145,7 @@ def saveGaits(movie_file):
         df.to_excel(writer, index=False, sheet_name='gait_styles')
 
 
-def plotStepsForLegs(frames_swinging, steps, legs_to_plot = 'all'):
-    '''
-    For one video clip
-    Plot steps for selected legs in same order as in leg_combos['legs_all']
 
-    Parameters
-    ----------
-    frames_swinging : dictionary
-        keys = frame times in seconds.
-        values = list of which legs are swinging during this frame
-        frames_swinging comes from frameSwings(movie_file)
-    steps : axis object
-        a matplotlib axis object created by plt.axes([rectangle parameters])
-    legs_to_plot : list of legs to plot, or 'all', optional
-        DESCRIPTION. The default is 'all'.
-        Can also specify a list, e.g. ['L1','R1']
-
-    Returns
-    -------
-    steps : axis object
-        a matplotlib axis object created by plt.axes([rectangle parameters])
-        now containing plotted steps for list in legs_to_plot (or all legs)
-
-    '''
-    
-    # plot selected legs in same order as in leg_combos['legs_all']
-    all_legs = get_leg_combos()['legs_all']
-    
-    if legs_to_plot == 'all':
-        legs_to_plot = all_legs
-    else:
-        legs_to_plot = [x for x in all_legs if x in legs_to_plot]
-    
-    # plot with left on the top, right on the bottom    
-    legs_to_plot = list(reversed(legs_to_plot))
-        
-    stance_color, swing_color = stanceSwingColors()
-    
-    frame_times = sorted(frames_swinging.keys())
-    
-    for i, leg in enumerate(legs_to_plot):
-        for j, frame_time in enumerate(frame_times[:-1]):
-            bar_width = frame_times[i+1] - frame_times[i]
-            if leg in frames_swinging[frame_time]:
-                bar_color = swing_color
-            else:
-                bar_color = stance_color
-            steps.barh(i+1, bar_width, height=1, left = j*bar_width,
-                       color = bar_color)
-
-    steps.set_ylim([0.5, len(legs_to_plot)+0.5])
-    steps.set_xlabel('Time (sec)', fontsize=16)
-    steps.set_yticks(np.arange(len(legs_to_plot))+1)
-    steps.set_yticklabels(legs_to_plot, fontsize=16)
-    steps.set_ylabel('legs', fontsize=16)
-    steps.set_frame_on(False)
-    
-    return steps
 
 def frameSwings(movie_file):
     '''
@@ -1247,33 +1192,94 @@ def frameSwings(movie_file):
     return frames_swinging
 
 
-def plotLegSet(movie_file, legs_to_plot = 'all'):  
+def plotLegSet(ax, movie_file, legs_to_plot = 'all'):  
     '''
     For one clip: step plots of given leg set
     
     Parameters
     ----------
+    ax : matplotlib axis object
+    
     movie_file : string
         file name of a movie (.mov).
     
     legs_to_plot : list (or the string 'all')
         which list of legs do we want to look at ... or 'all'
+        
+    Returns
+    -------
+    ax : matplotlib axis object
+        now containing plotted steps for list in legs_to_plot (or all legs)
     '''
+    
     frames_swinging = frameSwings(movie_file)
-    fig_height = int(len(legs_to_plot))
-    fig = plt.figure(figsize=(10,fig_height))
-    rect_steps = [0.15, 0.25,  0.8, 0.65]
-    steps = plt.axes(rect_steps)
-    plotStepsForLegs(frames_swinging, steps, legs_to_plot)
-    return fig
+    
+    # plot selected legs in same order as in leg_combos['legs_all']
+    all_legs = get_leg_combos()['legs_all']
+    
+    if legs_to_plot == 'all':
+        legs_to_plot = all_legs
+    else:
+        legs_to_plot = [x for x in all_legs if x in legs_to_plot]
+    
+    # plot with left on the top, right on the bottom    
+    legs_to_plot = list(reversed(legs_to_plot))
+        
+    stance_color, swing_color = stanceSwingColors()
+    
+    frame_times = sorted(frames_swinging.keys())
+    
+    for i, leg in enumerate(legs_to_plot):
+        for j, frame_time in enumerate(frame_times[:-1]):
+            bar_width = frame_times[i+1] - frame_times[i]
+            if leg in frames_swinging[frame_time]:
+                bar_color = swing_color
+            else:
+                bar_color = stance_color
+            ax.barh(i+1, bar_width, height=1, left = j*bar_width,
+                       color = bar_color)
 
-def plotStepsAndGait(movie_file, leg_set='lateral'):
+    ax.set_ylim([0.5, len(legs_to_plot)+0.5])
+    ax.set_xlabel('Time (sec)')
+    ax.set_yticks(np.arange(len(legs_to_plot))+1)
+    ax.set_yticklabels(legs_to_plot)
+    ax.set_ylabel('legs')
+    ax.set_frame_on(False)
+    
+    return ax
+
+
+def getGaitStyleVec(movie_file, leg_set = 'lateral'):
+    excel_file = movie_file.split('.')[0] + '.xlsx'
+    
+    try:
+        gait_df = pd.read_excel(excel_file, sheet_name='gait_styles')
+    except:
+        print('No gait_styles sheet in ' + excel_file)
+        return None, None
+    
+    # get gait categories and colors for these categories        
+    if leg_set == 'rear':
+        all_combos, combo_colors = get_gait_combo_colors('rear')
+        data_column = 'gaits_rear'
+    else:
+        all_combos, combo_colors = get_gait_combo_colors('lateral')
+        data_column = 'gaits_lateral'
+        
+    times = gait_df.frametimes.values
+    gait_styles = gait_df[data_column].values
+    
+    return times, gait_styles
+
+def plotGaits(gaits_ax, movie_file, leg_set='lateral'):
     
     '''
     for ONE clip - plot steps with color-coded gait styles
     
     Parameters
     ----------
+    gaits_ax : a matplotlib axis object
+    
     movie_file : string
         file name of a movie (.mov).
     
@@ -1282,45 +1288,25 @@ def plotStepsAndGait(movie_file, leg_set='lateral'):
         typically 'rear' or 'lateral'
     '''
 
-    # ====> RECODE THIS TO PLOT FROM gait_styles of the excel file?
-            
-    if leg_set == 'rear':
-        legs = get_leg_combos()['legs_4']
-        all_combos, combo_colors = get_gait_combo_colors('rear')
-        rect_steps = [0.07, 0.07, 0.95, 0.5]
-        rect_gaits = [0.07, 0.6,  0.95, 0.2]
-        fig_height = int(len(legs))
-    else:
-        legs = get_leg_combos()['legs_lateral']
-        all_combos, combo_colors = get_gait_combo_colors('lateral')
-        rect_steps = [0.07, 0.07,  0.95, 0.6]
-        rect_gaits = [0.07, 0.70,  0.95, 0.1]
-        fig_height = int(len(legs) * 0.7)
-
-    fig = plt.figure(figsize=(10,fig_height))
-    steps = plt.axes(rect_steps)
-    frames_swinging = frameSwings(movie_file)
-    plotStepsForLegs(frames_swinging, steps, legs)
-    plt.show()
-
-    # # make the gait plot = a horizontal stacked bar chart
-    # gaits = plt.axes(rect_gaits)
-
-    # for i,x in enumerate(gait_x):
-    #     gaits.barh(1, bar_width, height=0.8, left=i*bar_width, color = swing_color_vector[i])
-
-    # gaits.set_ylabel('gait', fontsize=16)
-
-    # # gaits.set_xlim([0, gait_x[-1]])
-    # # steps.set_xlim([0, gait_x[-1]])
-
-    # gaits.set_yticks([])
-    # gaits.set_xticks([])
-    # gaits.set_frame_on(False)
+    # get the gait styles info from the movie_file
+    times, gait_styles = getGaitStyleVec(movie_file, leg_set)
     
-    # fig.suptitle(movie_file.split('.')[0], fontsize=24)
+    # get the plot colors for each gait style
+    all_combos, combo_colors = get_gait_combo_colors(leg_set)
+
+    previous_time = 0
+    for i, style in enumerate(gait_styles):
+        bar_width = times[i] - previous_time
+        gaits_ax.barh(1, bar_width, height=0.6, left=previous_time, color = combo_colors[style])
+        previous_time = times[i]
+
+    gaits_ax.set_ylabel('gait\n' + leg_set)
+
+    gaits_ax.set_yticks([])
+    gaits_ax.set_xticks([])
+    gaits_ax.set_frame_on(False)
     
-    return fig
+    return gaits_ax #  = a matplotlib axis
 
 def define_swing_categories():
     leg_combo_keys = ['tripod_canonical', 
@@ -1350,43 +1336,43 @@ def rearCombos(rearleg_swing_counts):
             
     return rear_combos
 
-def get_leg_swing_combos(movie_folder, leg_set = 'lateral'): # lateral or rear
+# def get_leg_swing_combos(movie_folder, leg_set = 'lateral'): # lateral or rear
 
-    leg_combos = get_leg_combos()
-    if leg_set == 'rear':
-        legs = leg_combos['legs_4']
-    else:
-        legs = leg_combos['legs_lateral']
+#     leg_combos = get_leg_combos()
+#     if leg_set == 'rear':
+#         legs = leg_combos['legs_4']
+#     else:
+#         legs = leg_combos['legs_lateral']
     
-    # set up variables to collect the data we need
-    leg_swing_combos = {}
-    total_frames = 0
+#     # set up variables to collect the data we need
+#     leg_swing_combos = {}
+#     total_frames = 0
 
-    # get frame_times for this movie (in milliseconds, e.g. [0 33 66 100 .... ])
-    frame_times = get_frame_times(movie_folder)
-    total_frames += len(frame_times)
+#     # get frame_times for this movie (in milliseconds, e.g. [0 33 66 100 .... ])
+#     frame_times = get_frame_times(movie_folder)
+#     total_frames += len(frame_times)
 
-    # get dictionary of up & down timing for this video clip
-    # keys = leg['u'] or leg['d'] where leg is in ['L4','L3','L2','L1' (or rights)]
-    up_down_times, latest_event = getUpDownTimes(os.path.join(movie_folder, 'mov_data.txt'))
+#     # get dictionary of up & down timing for this video clip
+#     # keys = leg['u'] or leg['d'] where leg is in ['L4','L3','L2','L1' (or rights)]
+#     up_down_times, latest_event = getUpDownTimes(os.path.join(movie_folder, 'mov_data.txt'))
 
-    # get matrix of up (1's) and down (0's) data for all legs
-    # rows = legs
-    # columns = frames of video
-    leg_matrix = make_leg_matrix(legs, up_down_times, frame_times)
+#     # get matrix of up (1's) and down (0's) data for all legs
+#     # rows = legs
+#     # columns = frames of video
+#     leg_matrix = make_leg_matrix(legs, up_down_times, frame_times)
 
-    # get dictionary of #frames swinging for different combinations of legs 
-    leg_swing_counts = get_leg_swing_counts(leg_matrix, leg_set)
+#     # get dictionary of #frames swinging for different combinations of legs 
+#     leg_swing_counts = get_leg_swing_counts(leg_matrix, leg_set)
 
-    # get counts of #frames in each type of swing category
-    for combo in leg_swing_counts.keys():
-        swing_category = get_swing_categories(combo, leg_set)
-        if swing_category in leg_swing_combos.keys():
-            leg_swing_combos[swing_category] += leg_swing_counts[combo]
-        else:       
-            leg_swing_combos[swing_category] = leg_swing_counts[combo]
+#     # get counts of #frames in each type of swing category
+#     for combo in leg_swing_counts.keys():
+#         swing_category = get_swing_categories(combo, leg_set)
+#         if swing_category in leg_swing_combos.keys():
+#             leg_swing_combos[swing_category] += leg_swing_counts[combo]
+#         else:       
+#             leg_swing_combos[swing_category] = leg_swing_counts[combo]
         
-    return leg_swing_combos
+#     return leg_swing_combos
 
 def combineDictionariesWithCommonKeys(dict_list):
     combined_dict = {}
@@ -1447,13 +1433,13 @@ def get_swing_categories(swing_combination, leg_set = 'lateral'):
     return gait_style
 
 
-def get_frame_times(movie_folder):
-    video_file = getMovieFromFileList(movie_folder)
-    vid = cv2.VideoCapture(os.path.join(movie_folder, video_file))
-    vidlength, numframes, vidfps, vidstart, frame_width, frame_height = getVideoStats(vid, False)
-    vid.release()
-    frame_times = np.array([int(x) for x in np.linspace(0, vidlength * 1000, int(numframes))])
-    return frame_times
+# def get_frame_times(movie_folder):
+#     video_file = getMovieFromFileList(movie_folder)
+#     vid = cv2.VideoCapture(os.path.join(movie_folder, video_file))
+#     vidlength, numframes, vidfps, vidstart, frame_width, frame_height = getVideoStats(vid, False)
+#     vid.release()
+#     frame_times = np.array([int(x) for x in np.linspace(0, vidlength * 1000, int(numframes))])
+#     return frame_times
 
 
 def uds_to_ones(ups, downs, leg_vector, frame_times):

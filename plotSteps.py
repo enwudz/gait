@@ -32,7 +32,9 @@ def main(movie_file):
         # saveBunchOfPlots(movie_file) # <=== OK ... for ONE clip
         
         # plot steps for a selected group of legs
-        fig = gaitFunctions.plotLegSet(movie_file, 'all') # ['L1','L2','L3']) # list of legs, or 'all'
+        fig = plt.figure(1, figsize = (12,8))
+        ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+        ax = gaitFunctions.plotLegSet(ax, movie_file, 'all') # ['L1','L2','L3']) # list of legs, or 'all'
         plt.show()
         
         # plot of steps and gait styles for ONE clip

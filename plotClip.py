@@ -34,7 +34,7 @@ def main(movie_file, plot_style = ''): # track or speed or steps
     # get stuff out of the dataframes
     filestem = movie_file.split('.')[0]
     times = tracked_df.times.values
-    
+     
     # collect data for path_stats
     # median_area = round(path_stats['area'],4)
     median_length = round(path_stats['length'],4)
@@ -49,6 +49,8 @@ def main(movie_file, plot_style = ''): # track or speed or steps
     
     if plot_style == 'track': # show critter path and smoothed path
     
+        print('Here is a plot of the path taken by the critter - close the plot window to proceed')
+        
         xcoords = tracked_df.xcoords.values
         ycoords = tracked_df.ycoords.values
         smoothedx = tracked_df.smoothed_x.values
@@ -64,27 +66,124 @@ def main(movie_file, plot_style = ''): # track or speed or steps
         plt.show()
     
     elif plot_style == 'speed': # plot time vs. other parameters
+    
+        print('Here is a plot the speed and distance and turns of the critter - close the plot window to proceed')
         
         f = plt.figure(1, figsize=(8,6))
 
         # plot time (x) vs. speed (left y axis)
-        a1 = f.add_axes([0.1, 0.1, 0.8, 0.6])      
-        a1, a2 = speedDistancePlot(a1, tracked_df)
-        speed_xlim = a1.get_xlim()
+        speedax = f.add_axes([0.1, 0.1, 0.63, 0.6])      
+        speedax, distax = speedDistancePlot(speedax, tracked_df)
+        speed_xlim = speedax.get_xlim()
                 
         # plot bearing changes on a separate axis above (a3)
-        a3 = f.add_axes([0.1, 0.8, 0.8, 0.1])
-        a3 = bearingChangePlot(a3, tracked_df)
-        a3.set_xlim(speed_xlim)
+        bearingax = f.add_axes([0.1, 0.8, 0.63, 0.1])
+        bearingax = bearingChangePlot(bearingax, tracked_df)
+        bearingax.set_xlim(speed_xlim)
         
         # tiny axis to show time
-        a4 = f.add_axes([0.1, 0.74, 0.8, 0.02])
-        a4 = timeRibbonPlot(a4, tracked_df)
-        a4.set_xlim(speed_xlim)
-        a4.axis('off')
+        timeribbonax = f.add_axes([0.1, 0.74, 0.63, 0.02])
+        timeribbonax = timeRibbonPlot(timeribbonax, tracked_df)
+        timeribbonax.set_xlim(speed_xlim)
+        timeribbonax.axis('off')
+        
+        # add 'cruising' percentage plot
+        cruisingax = f.add_axes([0.9, 0.1, 0.05, 0.8])
+        cruisingProportionPlot(cruisingax, tracked_df)
         
         # adjust parameters and show plot
         plt.show()
+    
+    elif plot_style == 'steps': # show all steps, with speed and turns and gait styles (need frameStepper)
+        
+        print('Here is a plot of all kinds of information about the path of the critter - close the plot window to proceed')
+    
+        f = plt.figure(1, figsize=(12,8))
+        
+        # plot time (x) vs. speed (left y axis)
+        speedax = f.add_axes([0.1, 0.55, 0.7, 0.3]) 
+        speedax, distax = speedDistancePlot(speedax, tracked_df)
+        speed_xlim = speedax.get_xlim()
+        speedax.set_xlabel('')
+        
+        # plot bearing changes on a separate axis above (a3)
+        bearingax = f.add_axes([0.1, 0.9, 0.7, 0.05])
+        bearingax = bearingChangePlot(bearingax, tracked_df)
+        bearingax.set_xlim(speed_xlim)
+        
+        # plot the % cruising
+    
+        # plot the steps
+        steps = f.add_axes([0.1, 0.1, 0.7, 0.2])
+        steps = gaitFunctions.plotLegSet(steps, movie_file, 'all')
+        steps.set_xlim(speed_xlim)
+        
+        # plot the gait styles for lateral legs
+        gaits_ax = f.add_axes([0.1, 0.35, 0.7, 0.05])
+        gaits_ax = gaitFunctions.plotGaits(gaits_ax, movie_file, 'lateral')
+        gaits_ax.set_xlim(speed_xlim)
+        
+        # proportions and legend for gait styles? rear and lateral?
+        lateral_gait_proportions_ax = f.add_axes([0.83, 0.1, 0.02, 0.2])
+        lateral_gait_proportions_ax = gaitFunctions.gaitStyleProportionsPlot(lateral_gait_proportions_ax, 
+                                                                              [movie_file],
+                                                                              'lateral')
+        
+        rear_gait_proportions_ax = f.add_axes([0.83, 0.33, 0.02, 0.2])
+        rear_gait_proportions_ax = gaitFunctions.gaitStyleProportionsPlot(rear_gait_proportions_ax, 
+                                                                              [movie_file],
+                                                                              'rear')
+        
+        # plot the gait styles for rear legs?
+        reargaits_ax = f.add_axes([0.1, 0.45, 0.7, 0.05])
+        reargaits_ax = gaitFunctions.plotGaits(reargaits_ax, movie_file, 'rear')
+        reargaits_ax.set_xlim(speed_xlim)
+        
+        # add 'cruising' percentage plot
+        cruisingax = f.add_axes([0.92, 0.55, 0.02, 0.4])
+        cruisingProportionPlot(cruisingax, tracked_df)
+
+        plt.show()
+        
+        
+    elif plot_style == 'legs': # show steps for a particular set of legs (need frameStepper) 
+        
+        # choose legs to plot
+        leg_combos = gaitFunctions.get_leg_combos()
+        for k in sorted(leg_combos.keys()):
+            print(k)
+            
+        print('Here is a plot of the steps of the selected legs - close the plot window to proceed')
+        
+        # set up an axis for the steps
+        f = plt.figure(1, figsize=(12,8))
+        ax = f.add_axes([0.1, 0.1, 0.85, 0.85])
+        ax = gaitFunctions.plotLegSet(ax, movie_file, 'all')
+        plt.show()
+
+
+def cruisingProportionPlot(ax, tracked_df):
+    
+    stops = tracked_df.stops.values
+    turns = tracked_df.turns.values
+    
+    non_cruising_proportion = np.count_nonzero(stops + turns) / len(stops)
+    cruising_proportion = 1 - non_cruising_proportion
+    print(non_cruising_proportion, cruising_proportion)
+    
+    cruising_color = 'lightcoral'
+    
+    ax.set_ylabel('Proportion Cruising', color = cruising_color)
+    ax.bar(1, cruising_proportion, bottom = 0, 
+           color = cruising_color, edgecolor = 'white', width = 0.5)
+    ax.bar(1, non_cruising_proportion, bottom = cruising_proportion,
+           color = 'lightgray', edgecolor = 'white', width = 0.5)
+    
+    ax.set_xticks([])
+    ax.set_ylim([0,1])
+    
+    return ax
+    
 
 def timeRibbonPlot(a4, tracked_df):
     cmap_name = 'plasma'

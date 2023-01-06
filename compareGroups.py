@@ -7,28 +7,25 @@ Created on Wed Jan  4 12:53:38 2023
 """
 
 import glob
-import gaitFunctions
+# import gaitFunctions
 import pandas as pd
-import numpy as np
+# import numpy as np
 import sys
 
 """
 WISH LIST
 
-save a COMPARISON file (text?)
-    provide as part of command line
-    OR list available comparisons
-    IF no comparison, then get the groups
 
 """
 
 def main(group_file = ''):
 
-    ## ===> select groups to compare
-
+    ## ===> get or select GROUPS to compare
     # groups = a dictionary to hold list of clips for each group
     # key = group name
     # value = list of clips in that group
+    if len(group_file) == 0:
+        group_file = checkForSavedGroups()
     groups = getGroups(group_file)
     
     # Print out the groups (comment out?)
@@ -83,37 +80,18 @@ def printGroups(groups):
         print('\n')
     return
 
-def addToGroup(groups, category_dict, category_type):
 
-    for group in sorted(groups.keys()):
-        
-        # if there's only one member of this category, we do not need to make a selection
-        if len(category_dict) == 1: 
-            return groups
-            
-        # if there is more than one member of this category, select what we want in the group
-        elif len(category_dict) > 1:
-            categories = list(sorted(category_dict.keys()))
-            print('\nWhat ' + category_type.upper() + '(s) should be in the group ' + group + '?')
-
-            selections = selectFromList(categories)
-
-            if selections == 'all':
-                for k in categories:
-                    groups[group].extend(category_dict[k])
-            else:
-                for selection in selections:
-                    groups[group].extend(category_dict[selection])
-
-            # make sure only unique items in the group list
-            groups[group] = list(set(sorted(groups[group])))
+def selectFromList(li, category = ''):
     
-    return groups
-
-def selectFromList(li):
-
+    if len(li) == 1: # no need to choose, just one thing
+        return li
+    
     choice = []
     i = 1
+    
+    if len(category) > 0:
+        print('\nWhich ' + category + ' should we choose?')
+        
     for thing in li:
         print('   ' + str(i) + ': ' + thing)
         i += 1
@@ -125,19 +103,19 @@ def selectFromList(li):
         selected_numbers = [int(x) for x in entry.split(' ')]
     except:
         print(entry + ' is not a valid selection, choosing them all')
-        choice = 'all'
-        return choice
+        return li
 
     for num in selected_numbers:
         if num - 1 == len(li):
             print('Choosing them all')
-            choice = 'all'
+            choice = li
         elif num > len(li):
             print(str(num) + ' is too big - choosing them all')
-            choice = 'all'
+            choice = li
         else:
             ind = int(num) - 1
             choice.append(li[ind])
+    
     return choice
             
 def getGroups(group_file = ''):
@@ -166,39 +144,79 @@ def getGroups(group_file = ''):
             group_names.append(default_name)
         else:
             group_names.append(selection)
-            
-    for group in group_names:
-        groups[group] = []
-        
-    # Put the available data into categories
-    dates, treatments, individuals, collectors = categorizeClips()
-
+    
     # Select the clips that should be in the group(s)
-    categories = ['treatment','date','individual','collector']
-    category_dicts = [treatments, dates, individuals, collectors]
-    for i, category in enumerate(categories):
-        groups = addToGroup(groups, category_dicts[i], category)
+    clipinfo, categories = makeClipDict()
+    for group in group_names:
+        
+        print('\nBUILDING GROUP: ' + group + '!')
+        groups[group] = makeGroup(clipinfo, categories)
         
     # Save groups (comment out?)
     saveGroups(groups)
 
     return groups
-        
 
-def categorizeClips():
-
-    print(' ... putting the clips into different categories ... ')
+def makeGroup(clipinfo, categories):
     
-    # make empty dictionaries to hold lists of clips
-    dates = {}
-    treatments = {}
-    individuals = {}
-    collectors = {}
+    cliplist = sorted(clipinfo.keys())
+    
+    for category in categories:
+        
+        # which options are available in this category?
+        options = []
+        for clip in cliplist:
+            if clipinfo[clip][category] not in options:
+                options.append(clipinfo[clip][category])
+        
+        # select which ones to keep
+        selections = selectFromList(options, category)
+        
+        # update cliplist with the 'kept' clips
+        # can probably do this with list comprehension . . .
+        keepers = []
+        for option in selections: # different options within a category
+            for clip in cliplist: 
+                if clipinfo[clip][category] == option:
+                    keepers.append(clip)
+        
+        cliplist = keepers
+    
+    return cliplist
 
-    # go through all data (excel) files and add them to the appropriate dictionaries
+        
+def makeClipDict():
+    '''
+    Parameters
+    -------
+    None ... though there need to be .xlsx files from tracking experiments
+    in the same folder
+
+    Returns
+    -------
+    clips : dictionary
+        keys = clip names
+        values = dictionaries of categories
+        e.g. clips[clip name]['treatment'] = 'drug'
+        or   clips[clip name]['date'] =      '8 Dec'
+        
+    categories : list
+        list of categories (keys)
+
+    '''
+    
+    print(' ... Getting experiment categories for clips ...')
+    
+    # make an empty dictionary
+    clips = {}
+    categories = ['treatment','date','initials','individualID'] # ,'time_range']
+    
+    # go through all data (excel) files
     excel_files = sorted(glob.glob('*.xlsx'))
 
     for file in excel_files:
+        clips[file] = {}
+        
         # open file and get data from the identity tab
         try:
             df = pd.read_excel(file, sheet_name = 'identity', index_col=None)
@@ -207,39 +225,14 @@ def categorizeClips():
             print('No identity info available in ' + file)
             next
         info = dict(zip(df['Parameter'].values, df['Value'].values))
-
-        for category in info.keys():
-            
-            if category == 'treatment':
-                treatment = info['treatment']
-                if treatment in treatments.keys():
-                    treatments[treatment].append(file)
-                else:
-                    treatments[treatment] = [file]
-                    
-            if category == 'date':
-                date = info['date']
-                if date in dates.keys():
-                    dates[date].append(file)
-                else:
-                    dates[date] = [file]
-                    
-            if category == 'individualID':
-                individual = info['individualID']
-                if individual in individuals.keys():
-                    individuals[individual].append(file)
-                else:
-                    individuals[individual] = [file]
-
-            if category == 'initials':
-                collector = info['initials']
-                if collector in collectors.keys():
-                    collectors[collector].append(file)
-                else:
-                        collectors[collector] = [file]
-
-    return dates, treatments, individuals, collectors
-
+        
+        for category in categories:
+            if category in info.keys():
+                clips[file][category] = info[category]
+            else:
+                clips[file][category] = ''
+                
+    return clips, categories
 
 def checkForSavedGroups():
     
@@ -282,7 +275,7 @@ if __name__== "__main__":
     if len(sys.argv) > 1:
         group_file = sys.argv[1]
     else:
-        group_file = checkForSavedGroups()
+        group_file = ''
         
     main(group_file)
         

@@ -20,7 +20,7 @@ def main(movie_file):
 
     add_swing = True # do we want to collect mid-swing times for all other legs for each step?
 
-    # load mov_data = a dictionary of UP and DOWN times for each leg
+    # load mov_data = a dictionary of UP and DOWN times for each leg ... or complain that this data is not available
     mov_data, excel_filename = gaitFunctions.loadMovData(movie_file)
 
     # collect step data from mov_data
