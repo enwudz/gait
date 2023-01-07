@@ -798,7 +798,7 @@ def gaitStyleProportionsPlot(ax, movie_files, leg_set = 'lateral'):
     return ax
 
 def need_tracking():
-    sys.exit('\n ==> Need to run trackCritter.py before analyzing the path!\n')
+    print('\n ==> Need to run trackCritter.py before analyzing the path!\n')
 
 def loadMovData(movie_file):
     '''
@@ -833,16 +833,49 @@ def loadMovData(movie_file):
             needFrameStepper()
 
         if len(mov_data) < 16:
-            exit('Need to finish tracking all legs with frameStepper.py! \n')
+            sys.exit('Need to finish tracking all legs with frameStepper.py! \n')
     else:
         import initializeClip
         initializeClip.main(movie_file)
         needFrameStepper()
     return mov_data, excel_filename
 
-def loadStepData(movie_file):
-    '''
 
+def loadGaitData(movie_file, excel_filename = ''):
+    '''
+    Parameters
+    ----------
+    movie_file : string
+        file name of a movie (.mov).
+    excel_filename : string
+        name of the excel file associated with a clip. The default is ''.
+
+    Returns
+    -------
+    gaitdata_df : pandas dataframe
+        contents of the gait_styles sheet in the excel file.
+
+    '''
+    if len(excel_filename) == 0:
+        excel_file_exists, excel_filename = check_for_excel(movie_file)
+    else:
+        excel_file_exists = True
+    
+    if excel_file_exists:
+        # check if data in step_timing sheet
+        try:
+            # if yes, load it as step_data_df
+            gaitdata_df = pd.read_excel(excel_filename, sheet_name='gait_styles', index_col=None)
+        except:
+            # if no, quit and report
+            print(' ... no gait_styles available in ' + excel_filename + '\n'
+                     ' ... be sure to run frameStepper.py and analyzePath.py ... ')
+            return None
+
+    return gaitdata_df
+
+def loadStepData(movie_file, excel_filename = ''):
+    '''
     Parameters
     ----------
     movie_file : string
@@ -850,22 +883,26 @@ def loadStepData(movie_file):
 
     Returns
     -------
-    step_data : pandas dataframe
+    stepdata_df : pandas dataframe
         parameters for every step ... in step_timing sheet, from analyzeSteps.
 
     '''
-    excel_file_exists, excel_filename = check_for_excel(movie_file)
+    if len(excel_filename) == 0:
+        excel_file_exists, excel_filename = check_for_excel(movie_file)
+    else:
+        excel_file_exists = True
     
     if excel_file_exists:
         # check if data in step_timing sheet
         try:
             # if yes, load it as step_data_df
-            step_data = pd.read_excel(excel_filename, sheet_name='step_timing', index_col=None)
+            stepdata_df = pd.read_excel(excel_filename, sheet_name='step_timing', index_col=None)
         except:
-            # if no, run analyzeSteps and get step_data_df
-            import analyzeSteps
-            step_data = analyzeSteps.main(movie_file)
-    return step_data
+            # if no, prompt to run analyzeSteps.py, and return None
+            print('... no step timing data yet, need to run analyzeSteps.py ... ')
+            return None
+    
+    return stepdata_df
 
 def loadTrackedPath(movie_file):
     '''
@@ -879,7 +916,7 @@ def loadTrackedPath(movie_file):
 
     Returns
     -------
-    tracked_data : pandas dataframe
+    tracked_df : pandas dataframe
         frametimes, coordinates, etc.
     excel_filename : string
         file name of excel file associated with the movie
@@ -890,10 +927,12 @@ def loadTrackedPath(movie_file):
     if excel_file_exists:
     
         # load the tracked data from trackCritter
-        tracked_data = pd.read_excel(excel_filename, sheet_name = 'pathtracking')
-        if len(tracked_data) == 0:
+        tracked_df = pd.read_excel(excel_filename, sheet_name = 'pathtracking')
+        if len(tracked_df) == 0:
             need_tracking()
-    return tracked_data, excel_filename
+            return None, None 
+        
+    return tracked_df, excel_filename
 
 def loadIdentityInfo(movie_file):
     '''
@@ -1183,10 +1222,7 @@ def frameSwings(movie_file):
     
     excel_file = movie_file.split('.')[0] + '.xlsx'
     
-    try:
-        gait_df = pd.read_excel(excel_file, sheet_name='gait_styles')
-    except:
-        print('No gait_styles sheet in ' + excel_file)
+    gait_df = loadGaitData(movie_file, excel_file)
     
     frametimes = gait_df['frametimes'].values
     swinging_lateral = gait_df['swinging_lateral'].values

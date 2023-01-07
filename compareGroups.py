@@ -7,7 +7,7 @@ Created on Wed Jan  4 12:53:38 2023
 """
 
 import glob
-# import gaitFunctions
+import gaitFunctions
 import pandas as pd
 # import numpy as np
 import sys
@@ -15,6 +15,10 @@ import sys
 """
 WISH LIST
 
+what if there is no stepdata or gaitdata or trackdata?
+
+WORKING ON THIS!!
+save group data ... and when loading data, check to see if it exists already.
 
 """
 
@@ -32,47 +36,14 @@ def main(group_file = ''):
     # printGroups(groups)
 
     ## ===> load and combine data by group
+    tracking_dfs, stepdata_dfs, gaitdata_dfs = loadData(groups)
 
-    # Make lists to collect dataframes from each group
-    tracking_dfs = [] # = from pathtracking tab
-    steptiming_dfs = [] # = from step_timing tab
-    gaitstyle_dfs = [] # = from gait_styles tab
-
-    # for each group ... go through list of clips in the group
-    # and add data from that clip to existing dataframe
-
-    for group in groups.keys():
-
-        # initialize empty dataframes for this group
-        tracking_df = pd.DataFrame()
-        steptiming_df = pd.DataFrame()
-        gaitstyle_df = pd.DataFrame()
-
-        # go through each clip in this group
-        clips = groups[group]
-        for i, clip in enumerate(clips):
-           
-            # if loading first clip, that becomes the existing dataframe
-            #     add a column for clip name (see below)
-            ##      num_rows = df.shape[0]
-            ##      exp_column = [clipname] * num_rows
-            ##      df['clip'] = exp_column
-            if i == 0:
-                pass
-            
-            
-    
-    # when loading subsequent clips
-    #     load dataframe and add a column for clip name
-    #     add to existing dataframe
-    
-    # to concatenate clips:  existing_df = pd.concat([existing_df, new_df])
-    # when load in data from a clip, include column in dataframe for that clip
-    ##    add column that contains clip name
-
-
+    print(tracking_dfs[1].head(10))
 
     ## ===> offer options to plot
+    
+    # these depend on how many groups we have
+    # and what kind of data we have (tracked path, step timing, gait styles)
     # see step_data_plots.ipynb for some ONE GROUP plots . . .
     # see compare_step_parameters for some multiple group plots
 
@@ -82,6 +53,114 @@ def main(group_file = ''):
         plotting = False
         if plotting == False:
             break
+
+def getSavedData(groupname):
+    
+    saved_datafile = groupname + '_data.xlsx'
+    
+    tracked_df = pd.DataFrame()
+    stepdata_df = pd.DataFrame()
+    gaitdata_df = pd.DataFrame()
+    
+    if len(glob.glob(saved_datafile)) == 0:
+        return tracked_df, stepdata_df, gaitdata_df
+    
+
+    
+    return tracked_df, stepdata_df, gaitdata_df
+
+def loadData(groups):
+    # Make lists to collect dataframes from each group
+    tracking_dfs = [] # = from pathtracking tab
+    stepdata_dfs = [] # = from step_timing tab
+    gaitdata_dfs = [] # = from gait_styles tab
+
+    # for each group ... go through list of clips in the group
+    # and add data from that clip to existing dataframe
+
+    for group in groups.keys():
+        
+        print(' ... loading data for ' + group + ' ... ')
+        
+        # check to see if there is data already saved for this group
+        tracked_df, stepdata_df, gaitdata_df = getSavedData(group)
+        
+        if len(tracked_df) == 0:
+
+            # go through each clip in this group
+            clips = groups[group]
+            for i, clip in enumerate(clips):
+                
+                
+                # if loading first clip, that becomes the dataframe to store all clips
+                # this means that the first clip MUST have all the data! hmmm....
+                if i == 0:
+                    
+                    # get pathtrackng data and add a column for the clip name
+                    tracked_df, excel_filename = gaitFunctions.loadTrackedPath(clip)
+                    tracked_df = addCliptoDF(tracked_df, clip)
+                    
+                    # get step_timing data and add a column for the clip name
+                    stepdata_df = gaitFunctions.loadStepData(clip, excel_filename)
+                    stepdata_df = addCliptoDF(stepdata_df, clip)
+                    
+                    # get step_timing data and add a column for the clip name
+                    gaitdata_df = gaitFunctions.loadGaitData(clip, excel_filename)
+                    gaitdata_df = addCliptoDF(gaitdata_df, clip)
+                
+                # when loading subsequent clips
+                #     load dataframe and add a column for clip name
+                #     add to existing dataframe
+                else:
+                    
+                    # get pathtrackng data and add a column for the clip name
+                    tdf, excel_filename = gaitFunctions.loadTrackedPath(clip)              
+                    if len(tdf) > 0:
+                        tdf = addCliptoDF(tdf, clip)
+                    else:
+                        print(' ... no path tracking data available for ' + clip)
+                    
+                    # get step_timing data and add a column for the clip name
+                    sdf = gaitFunctions.loadStepData(clip, excel_filename)
+                    if len(sdf) > 0:
+                        sdf = addCliptoDF(sdf, clip)
+                    else:
+                        print(' ... no step timing data available for ' + clip)
+                    sdf = addCliptoDF(sdf, clip)
+                    
+                    # get step_timing data and add a column for the clip name
+                    gdf = gaitFunctions.loadGaitData(clip, excel_filename)
+                    if len(gdf) > 0:
+                        gdf = addCliptoDF(gdf, clip)
+                    else:
+                        print(' ... no step gait style data available for ' + clip)
+                    gdf = addCliptoDF(gdf, clip)
+                    
+                    # concatenate new clips:  existing_df = pd.concat([existing_df, new_df])
+                    tracked_df = pd.concat([tracked_df, tdf])
+                    stepdata_df = pd.concat([stepdata_df, sdf])
+                    gaitdata_df = pd.concat([gaitdata_df, gdf])               
+                
+        # done collecting data for this group!
+        
+        # save data for this group
+        saved_datafile = group + '_data.xlsx'
+        print(saved_datafile)
+        
+        # add data for this group to the list of dataframes
+        tracking_dfs.append(tracked_df)
+        stepdata_dfs.append(stepdata_df)      
+        gaitdata_dfs.append(gaitdata_df)
+        
+    return tracking_dfs, stepdata_dfs, gaitdata_dfs
+
+
+def addCliptoDF(df, clip):
+    clipname = clip.split('.')[0]
+    num_rows = df.shape[0]
+    clip_column = [clipname] * num_rows
+    df['clip'] = clip_column
+    return df
 
 def loadGroups(group_file):
     
@@ -284,10 +363,10 @@ def checkForSavedGroups():
         li = sorted(group_list)
         
         for thing in li:
-            print(str(i) + ': ' + thing)
+            print('  ' + str(i) + ': ' + thing)
             i += 1
             
-        print(str(i) + ': make new groups to compare')
+        print('  ' + str(i) + ': make new groups to compare')
         
         entry = input('\nWhich ONE do you want? ')
         
