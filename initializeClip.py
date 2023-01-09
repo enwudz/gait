@@ -28,7 +28,7 @@ import gaitFunctions
 import pandas as pd
 import re
 
-def main(movie_file):
+def main(movie_file, printme = True):
     
     # is there already an excel file for this clip?
     excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file)
@@ -71,20 +71,21 @@ def main(movie_file):
         
         make_identity_sheet(excel_filename, info)  
     
-    # print the info we have, and invite user to modify the file
-    print_order = gaitFunctions.identity_print_order()
-    
-    print('\nHere is info we have:')
-    printed = []
-    for thing in print_order:
-        print(' ' + thing + ': ' + str(info[thing]))
-        printed.append(thing)
+    if printme:
+        # print the info we have, and invite user to modify the file
+        print_order = gaitFunctions.identity_print_order()
         
-    # what if there are things in the excel file that are not in print_order?
-    for k in info.keys():
-        if k not in printed:
-            print(' ' + k  + ': ' + str(info[k]))
-    print('\n If any of that needs to be changed, feel free to edit ' + excel_filename + '\n')
+        print('\nHere is info we have:')
+        printed = []
+        for thing in print_order:
+            print(' ' + thing + ': ' + str(info[thing]))
+            printed.append(thing)
+            
+        # what if there are things in the excel file that are not in print_order?
+        for k in info.keys():
+            if k not in printed:
+                print(' ' + k  + ': ' + str(info[k]))
+        print('\n If any of that needs to be changed, feel free to edit ' + excel_filename + '\n')
 
     return info
 

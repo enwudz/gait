@@ -44,139 +44,170 @@ def main(movie_file, plot_style = ''): # track or speed or steps
     discrete_turns = path_stats['# turns']
     num_stops = path_stats['# stops']
     
-    if len(plot_style) == 0: # choose a type of plot
+    if len(plot_style) == 0: # plot style not provided, choose a type of plot
         plot_style = selectPlotStyle()
+        style_specified = False
+    else:
+        style_specified = True
     
-    if plot_style == 'track': # show critter path and smoothed path
+    plotting = True
+    while plotting:
     
-        print('Here is a plot of the path taken by the critter - close the plot window to proceed')
+        if plot_style == 'track': # show critter path and smoothed path
         
-        xcoords = tracked_df.xcoords.values
-        ycoords = tracked_df.ycoords.values
-        smoothedx = tracked_df.smoothed_x.values
-        smoothedy = tracked_df.smoothed_y.values
-        
-        f, a, a_colorbar = plotPathColor(filestem, xcoords, ycoords, smoothedx, smoothedy, times[-1])
-        
-        # # ==> add labels from experiment and show plot:
-        a.set_xlabel(getDataLabel(median_length, distance, clip_duration, angle_space, discrete_turns, num_stops ))
-        a.set_xticks([])
-        a.set_yticks([])
-        a.set_title(filestem)
-        plt.show()
-    
-    elif plot_style == 'speed': # plot time vs. other parameters
-    
-        print('Here is a plot the speed and distance and turns of the critter - close the plot window to proceed')
-        
-        f = plt.figure(1, figsize=(8,6))
-
-        # plot time (x) vs. speed (left y axis)
-        speedax = f.add_axes([0.1, 0.1, 0.63, 0.6])      
-        speedax, distax = speedDistancePlot(speedax, tracked_df)
-        speed_xlim = speedax.get_xlim()
-                
-        # plot bearing changes on a separate axis above (a3)
-        bearingax = f.add_axes([0.1, 0.8, 0.63, 0.1])
-        bearingax = bearingChangePlot(bearingax, tracked_df)
-        bearingax.set_xlim(speed_xlim)
-        
-        # tiny axis to show time
-        timeribbonax = f.add_axes([0.1, 0.74, 0.63, 0.02])
-        timeribbonax = timeRibbonPlot(timeribbonax, tracked_df)
-        timeribbonax.set_xlim(speed_xlim)
-        timeribbonax.axis('off')
-        
-        # add 'cruising' percentage plot
-        cruisingax = f.add_axes([0.9, 0.1, 0.05, 0.8])
-        cruisingProportionPlot(cruisingax, tracked_df)
-        
-        # adjust parameters and show plot
-        plt.show()
-    
-    elif plot_style == 'steps': # show all steps, with speed and turns and gait styles (need frameStepper)
-        
-        print('Here is a plot of all kinds of information about the path of the critter - close the plot window to proceed')
-    
-        f = plt.figure(1, figsize=(12,8))
-        
-        # plot time (x) vs. speed (left y axis)
-        speedax = f.add_axes([0.1, 0.55, 0.65, 0.3]) 
-        speedax, distax = speedDistancePlot(speedax, tracked_df)
-        speed_xlim = speedax.get_xlim()
-        speedax.set_xlabel('')
-        
-        # plot bearing changes on a separate axis above (a3)
-        bearingax = f.add_axes([0.1, 0.9, 0.65, 0.05])
-        bearingax = bearingChangePlot(bearingax, tracked_df)
-        bearingax.set_xlim(speed_xlim)
-        
-        # 'cruising' percentage plot
-        cruisingax = f.add_axes([0.88, 0.55, 0.02, 0.4])
-        cruisingProportionPlot(cruisingax, tracked_df)
-
-        # time ribbon plot
-        timeribbonax = f.add_axes([0.1, 0.865, 0.65, 0.02])
-        timeribbonax = timeRibbonPlot(timeribbonax, tracked_df)
-        timeribbonax.set_xlim(speed_xlim)
-        timeribbonax.axis('off')
-    
-        # plot the steps for the lateral legs
-        steps = f.add_axes([0.1, 0.1, 0.65, 0.15])
-        lateral_legs = gaitFunctions.get_leg_combos()[0]['legs_lateral']
-        steps = gaitFunctions.plotLegSet(steps, movie_file, lateral_legs)
-        steps.set_xlim(speed_xlim)
-        
-        # plot the gait styles for lateral legs
-        gaits_ax = f.add_axes([0.1, 0.26, 0.65, 0.04])
-        gaits_ax = gaitFunctions.plotGaits(gaits_ax, movie_file, 'lateral')
-        gaits_ax.set_xlim(speed_xlim)
-        
-        # proportions and legend for gait styles: lateral
-        lateral_gait_proportions_ax = f.add_axes([0.83, 0.1, 0.02, 0.18])
-        lateral_gait_proportions_ax = gaitFunctions.gaitStyleProportionsPlot(lateral_gait_proportions_ax, 
-                                                                              [movie_file],
-                                                                              'lateral')
-        
-        # plot the gait styles for rear legs
-        reargaits_ax = f.add_axes([0.1, 0.44, 0.65, 0.04])
-        reargaits_ax = gaitFunctions.plotGaits(reargaits_ax, movie_file, 'rear')
-        reargaits_ax.set_xlim(speed_xlim)
-        
-        # plot the steps for the rear legs
-        rear_steps = f.add_axes([0.1, 0.36, 0.65, 0.055])
-        rear_legs = gaitFunctions.get_leg_combos()[0]['legs_4']
-        rear_steps = gaitFunctions.plotLegSet(rear_steps, movie_file, rear_legs)
-        rear_steps.set_xlim(speed_xlim)
-        rear_steps.set_xlabel('')
-        # rear_steps.set_xticks([])
-        
-        # proportions and legend for gait styles: rear
-        rear_gait_proportions_ax = f.add_axes([0.83, 0.33, 0.02, 0.18])
-        rear_gait_proportions_ax = gaitFunctions.gaitStyleProportionsPlot(rear_gait_proportions_ax, 
-                                                                              [movie_file],
-                                                                              'rear')
-
-        plt.show()
-        
-        
-    elif plot_style == 'legs': # show steps for a particular set of legs (need frameStepper) 
-        
-        # choose legs to plot
-        leg_combos, combo_order = gaitFunctions.get_leg_combos()
-        print('Which legs should we show?')
-        leg_choice = gaitFunctions.selectOneFromList(combo_order)
-        legs = leg_combos[leg_choice]
+            print('Here is a plot of the path taken by the critter - close the plot window to proceed')
             
-        print('Here is a plot of the steps of the selected legs - close the plot window to proceed')
+            xcoords = tracked_df.xcoords.values
+            ycoords = tracked_df.ycoords.values
+            smoothedx = tracked_df.smoothed_x.values
+            smoothedy = tracked_df.smoothed_y.values
+            
+            f, a, a_colorbar = plotPathColor(filestem, xcoords, ycoords, smoothedx, smoothedy, times[-1])
+            
+            # # ==> add labels from experiment and show plot:
+            a.set_xlabel(getDataLabel(median_length, distance, clip_duration, angle_space, discrete_turns, num_stops ))
+            a.set_xticks([])
+            a.set_yticks([])
+            a.set_title(filestem)
+            plt.show()
+            
+            plot_style = keepPlotting(style_specified)
         
-        # set up an axis for the steps
-        fig_height = len(legs)
-        f = plt.figure(1, figsize=(12,fig_height))
-        ax = f.add_axes([0.1, 0.1, 0.85, 0.85])
-        ax = gaitFunctions.plotLegSet(ax, movie_file, legs)
-        plt.show()
+        elif plot_style == 'speed': # plot time vs. other parameters
+        
+            print('Here is a plot the speed and distance and turns of the critter - close the plot window to proceed')
+            
+            f = plt.figure(1, figsize=(8,6))
+    
+            # plot time (x) vs. speed (left y axis)
+            speedax = f.add_axes([0.1, 0.1, 0.63, 0.6])      
+            speedax, distax = speedDistancePlot(speedax, tracked_df)
+            speed_xlim = speedax.get_xlim()
+                    
+            # plot bearing changes on a separate axis above (a3)
+            bearingax = f.add_axes([0.1, 0.8, 0.63, 0.1])
+            bearingax = bearingChangePlot(bearingax, tracked_df)
+            bearingax.set_xlim(speed_xlim)
+            
+            # tiny axis to show time
+            timeribbonax = f.add_axes([0.1, 0.74, 0.63, 0.02])
+            timeribbonax = timeRibbonPlot(timeribbonax, tracked_df)
+            timeribbonax.set_xlim(speed_xlim)
+            timeribbonax.axis('off')
+            
+            # add 'cruising' percentage plot
+            cruisingax = f.add_axes([0.9, 0.1, 0.05, 0.8])
+            cruisingProportionPlot(cruisingax, tracked_df)
+            
+            # adjust parameters and show plot
+            plt.show()
+            
+            plot_style = keepPlotting(style_specified)
+        
+        elif plot_style == 'steps': # show all steps, with speed and turns and gait styles (need frameStepper)
+            
+            print('Here is a plot of all kinds of information about the path of the critter - close the plot window to proceed')
+        
+            f = plt.figure(1, figsize=(12,8))
+            
+            # plot time (x) vs. speed (left y axis)
+            speedax = f.add_axes([0.1, 0.55, 0.65, 0.3]) 
+            speedax, distax = speedDistancePlot(speedax, tracked_df)
+            speed_xlim = speedax.get_xlim()
+            speedax.set_xlabel('')
+            
+            # plot bearing changes on a separate axis above (a3)
+            bearingax = f.add_axes([0.1, 0.9, 0.65, 0.05])
+            bearingax = bearingChangePlot(bearingax, tracked_df)
+            bearingax.set_xlim(speed_xlim)
+            
+            # 'cruising' percentage plot
+            cruisingax = f.add_axes([0.88, 0.55, 0.02, 0.4])
+            cruisingProportionPlot(cruisingax, tracked_df)
+    
+            # time ribbon plot
+            timeribbonax = f.add_axes([0.1, 0.865, 0.65, 0.02])
+            timeribbonax = timeRibbonPlot(timeribbonax, tracked_df)
+            timeribbonax.set_xlim(speed_xlim)
+            timeribbonax.axis('off')
+        
+            # plot the steps for the lateral legs
+            steps = f.add_axes([0.1, 0.1, 0.65, 0.15])
+            lateral_legs = gaitFunctions.get_leg_combos()[0]['legs_lateral']
+            steps = gaitFunctions.plotLegSet(steps, movie_file, lateral_legs)
+            steps.set_xlim(speed_xlim)
+            
+            # plot the gait styles for lateral legs
+            gaits_ax = f.add_axes([0.1, 0.26, 0.65, 0.04])
+            gaits_ax = gaitFunctions.plotGaits(gaits_ax, movie_file, 'lateral')
+            gaits_ax.set_xlim(speed_xlim)
+            
+            # proportions and legend for gait styles: lateral
+            lateral_gait_proportions_ax = f.add_axes([0.83, 0.1, 0.02, 0.18])
+            lateral_gait_proportions_ax = gaitFunctions.gaitStyleProportionsPlot(lateral_gait_proportions_ax, 
+                                                                                  [movie_file],
+                                                                                  'lateral')
+            
+            # plot the gait styles for rear legs
+            reargaits_ax = f.add_axes([0.1, 0.44, 0.65, 0.04])
+            reargaits_ax = gaitFunctions.plotGaits(reargaits_ax, movie_file, 'rear')
+            reargaits_ax.set_xlim(speed_xlim)
+            
+            # plot the steps for the rear legs
+            rear_steps = f.add_axes([0.1, 0.36, 0.65, 0.055])
+            rear_legs = gaitFunctions.get_leg_combos()[0]['legs_4']
+            rear_steps = gaitFunctions.plotLegSet(rear_steps, movie_file, rear_legs)
+            rear_steps.set_xlim(speed_xlim)
+            rear_steps.set_xlabel('')
+            # rear_steps.set_xticks([])
+            
+            # proportions and legend for gait styles: rear
+            rear_gait_proportions_ax = f.add_axes([0.83, 0.33, 0.02, 0.18])
+            rear_gait_proportions_ax = gaitFunctions.gaitStyleProportionsPlot(rear_gait_proportions_ax, 
+                                                                                  [movie_file],
+                                                                                  'rear')
+    
+            plt.show()
+            
+            plot_style = keepPlotting(style_specified)
+            
+        elif plot_style == 'legs': # show steps for a particular set of legs (need frameStepper) 
+            
+            # choose legs to plot
+            leg_combos, combo_order = gaitFunctions.get_leg_combos()
+            print('Which legs should we show?')
+            leg_choice = gaitFunctions.selectOneFromList(combo_order)
+            legs = leg_combos[leg_choice]
+                
+            print('Here is a plot of the steps of the selected legs - close the plot window to proceed')
+            
+            # set up an axis for the steps
+            fig_height = len(legs)
+            f = plt.figure(1, figsize=(12,fig_height))
+            ax = f.add_axes([0.1, 0.1, 0.85, 0.85])
+            ax = gaitFunctions.plotLegSet(ax, movie_file, legs)
+            plt.show()
+            
+            plot_style = keepPlotting(style_specified)
+            
+        elif plot_style == 'finished':
+            plotting = False
+            break
+            
+        elif plotting == False:
+            print('done plotting!')
+            break
+        
+        else:
+            plot_style = selectPlotStyle()
+            
 
+def keepPlotting(style_specified):
+    if style_specified:
+        plot_style = 'finished'
+    else:
+        plot_style = selectPlotStyle()
+    return plot_style
 
 def cruisingProportionPlot(ax, tracked_df):
     
@@ -329,23 +360,35 @@ def superImposedFirstLast(filestem):
     return combined_frame
 
 def selectPlotStyle():
+    
+    plotStyles = ['track',
+                  'speed',
+                  'steps',
+                  'legs']
+    
+    plotDescriptions = ['show critter path on background', # track
+                        'show speed, distance, and turns', # speed
+                        'show all steps, with speed and turns (need frameStepper)', # steps
+                        'show steps for a particular set of legs (need frameStepper)' # legs
+                        ]
     print('\nPlot options: \n')
-    print('   1. track = show critter path on image')
-    print('   2. speed = show speed, distance, and turns')
-    print('   3. steps = show all steps, with speed and turns (need frameStepper)')
-    print('   4. legs  = show steps for a particular set of legs (need frameStepper)')
+    for i, style in enumerate(plotStyles):
+        print('  ' + str(i+1) + '. ' + style + ' = ' + plotDescriptions[i])
+    
+    print('  ' + str(len(plotStyles)+1) + '. finished = quit plotting')
     selection = input('\nChoose one: ')
-    if selection == '1':
-        plot_style = 'track'
-    elif selection == '2':
-        plot_style = 'speed'
-    elif selection == '3':
-        plot_style = 'steps'
-    elif selection == '4':
-        plot_style = 'legs'
-    else:
+    
+    try:
+        ind = int(selection) - 1
+        if ind >= len(plotStyles):
+            plot_style = 'finished'
+            print('... Finished Plotting!\n')
+        else:
+            plot_style = plotStyles[ind]
+    except:
         print('\ninvalid selection, choosing "track"')
         plot_style = 'track'
+        
     return plot_style
 
 if __name__== "__main__":

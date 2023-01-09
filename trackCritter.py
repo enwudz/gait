@@ -405,8 +405,8 @@ def backgroundFromRandomFrames(movie_file, num_background_frames):
             #print('Looking at frame ' + str(frame_counter) + ' of ' + str(frames_in_video))
             if frame_counter in background_frames:
                 
-                if (image_index + 1) % 10 == 0:
-                    print('getting frame ' + str(image_index+1) + ' of ' + str(num_background_frames) )
+                if (image_index + 1) % 50 == 0:
+                    print('     getting frame ' + str(image_index+1) + ' of ' + str(num_background_frames) )
                 gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                 video_stack[:,:,image_index] = gray_frame
                 image_index += 1
@@ -456,7 +456,7 @@ def getFrameCount(movie_file):
         info = dict(zip(info_df['Parameter'].values, info_df['Value'].values))
     else:
         import initializeClip
-        info = initializeClip.main(movie_file)
+        info = initializeClip.main(movie_file, False) # False is whether or not to print
     
     return info['#frames']
 

@@ -15,9 +15,13 @@ import sys
 """
 WISH LIST
 
-what if there is no stepdata or gaitdata or trackdata?
+some clips don't have 'tracking confidence' columm ... this is bugging me
+    would need to rerun trackCritter on all ... and keep track of which clips are better at 25
 
-WORKING ON THIS!!
+what if there is no stepdata or gaitdata or trackdata available for a clip? or a group?
+    maybe keep the dataframe empty ... if no data, do not offer the plot option
+
+WORKING ON THIS!! (search for working here)
 save group data ... and when loading data, check to see if it exists already.
 
 """
@@ -36,9 +40,8 @@ def main(group_file = ''):
     # printGroups(groups)
 
     ## ===> load and combine data by group
+    # this will either load existing group data or make (and save) new group data
     tracking_dfs, stepdata_dfs, gaitdata_dfs = loadData(groups)
-
-    print(tracking_dfs[1].head(10))
 
     ## ===> offer options to plot
     
@@ -50,23 +53,46 @@ def main(group_file = ''):
     plotting = True
     while plotting:
 
+        print('Plot options: ')
+
+        if len(groups) == 1:
+            tracking_df = tracking_dfs[0]
+            print(len(tracking_df))
+                  
+            stepdata_df = stepdata_dfs[0]
+            print(len(stepdata_df))
+            
+            gaitdata_df = gaitdata_dfs[0]
+            print(len(gaitdata_df))
+        
+        else:
+            pass
+            
+
         plotting = False
         if plotting == False:
             break
 
-def getSavedData(groupname):
+def getSavedGroupdata(groupname):
     
-    saved_datafile = groupname + '_data.xlsx'
+    saved_datafile = groupname + '_groupdata'
     
     tracked_df = pd.DataFrame()
     stepdata_df = pd.DataFrame()
     gaitdata_df = pd.DataFrame()
     
-    if len(glob.glob(saved_datafile)) == 0:
+    print(" ... looking for saved data for group '" + groupname + "' in " + saved_datafile)
+    if len(glob.glob(saved_datafile)) > 0:
+        
+        # extract the dataframes out of the existing file
+        print("   ... grabbing saved data for group '" + groupname + "' in " + saved_datafile)
+        tracked_df = pd.read_excel(saved_datafile, sheet_name='tracked_df', index_col=(None))
+        stepdata_df = pd.read_excel(saved_datafile, sheet_name='stepdata_df', index_col=(None))
+        gaitdata_df = pd.read_excel(saved_datafile, sheet_name='gaitdata_df', index_col=(None))
+           
         return tracked_df, stepdata_df, gaitdata_df
     
-
-    
+    # no saved data available ... return the (empty) dataframes
     return tracked_df, stepdata_df, gaitdata_df
 
 def loadData(groups):
@@ -80,18 +106,18 @@ def loadData(groups):
 
     for group in groups.keys():
         
-        print(' ... loading data for ' + group + ' ... ')
+        print(" ... loading data for group '" + group + "' ... ")
         
         # check to see if there is data already saved for this group
-        tracked_df, stepdata_df, gaitdata_df = getSavedData(group)
+        tracked_df, stepdata_df, gaitdata_df = getSavedGroupdata(group)
         
+        # if there is no data yet, we need to get it!
         if len(tracked_df) == 0:
 
             # go through each clip in this group
             clips = groups[group]
             for i, clip in enumerate(clips):
-                
-                
+                    
                 # if loading first clip, that becomes the dataframe to store all clips
                 # this means that the first clip MUST have all the data! hmmm....
                 if i == 0:
@@ -141,12 +167,16 @@ def loadData(groups):
                     stepdata_df = pd.concat([stepdata_df, sdf])
                     gaitdata_df = pd.concat([gaitdata_df, gdf])               
                 
-        # done collecting data for this group!
-        
-        # save data for this group
-        saved_datafile = group + '_data.xlsx'
-        print(saved_datafile)
-        
+            # finished collecting data for all the clips in this group!
+            
+            # save data for this group
+            saved_datafile = group + '_groupdata'
+            print(' ... saving data for ' + group + ' in ' + saved_datafile)
+            with pd.ExcelWriter(saved_datafile, engine='openpyxl') as writer: 
+                tracked_df.to_excel(writer, index=False, sheet_name='tracked_df')
+                stepdata_df.to_excel(writer, index=False, sheet_name='stepdata_df')
+                gaitdata_df.to_excel(writer, index=False, sheet_name='gaitdata_df')
+            
         # add data for this group to the list of dataframes
         tracking_dfs.append(tracked_df)
         stepdata_dfs.append(stepdata_df)      
@@ -181,7 +211,7 @@ def saveGroups(groups):
     
     print('\nBriefly (~8-15 characters?) describe these groups (no spaces or periods)')
     comparison_name = input('   (this description will be used as a saved file name):  ')
-    group_file = comparison_name + '_compare.txt'
+    group_file = comparison_name + '_groupcompare.txt'
     print(' ... Saving ' + group_file + ' ...\n')
     o = open(group_file, 'w')
     for group in sorted(groups.keys()):
@@ -209,7 +239,7 @@ def selectFromList(li, category = ''):
     i = 1
     
     if len(category) > 0:
-        print('\nWhich ' + category + ' should we choose?')
+        print('\nWhich ' + category + '(s) should we choose?')
         
     for thing in li:
         print('   ' + str(i) + ': ' + thing)
@@ -355,7 +385,7 @@ def makeClipDict():
 
 def checkForSavedGroups():
     
-    group_list = glob.glob('*compare.txt')
+    group_list = glob.glob('*groupcompare.txt')
     if len(group_list) > 0:
         
         print('\nChoose from this list : ')
