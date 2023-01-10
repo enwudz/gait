@@ -12,6 +12,75 @@ import cv2
 from scipy.stats import sem
 import re
 
+def getOffsets(step_df):
+    '''
+    Get offsets (3 to 2 swing start, 2 to 1 swing start) 
+    Get metachronal lag (3 --> 1 swing starts with requirement that 2 swings in middle)
+    So ... this is geared only for six legs
+    
+    Offsets are only recorded for legs while animal is 'cruising'
+
+    Parameters
+    ----------
+    step_df : pandas dataframe
+        loaded from 'step_timing' sheet of an excel file associated with a clip 
+        (or group of clips from same individual)
+        step_df is made from analyzeSteps.py, and requires data from frameStepper.py
+
+    Returns
+    -------
+    offsets: dictionary
+        keys = 'L' or 'R'
+        values = numpy array of offset times
+    normalized_offsets: dictionary
+        keys = 'L' or 'R'
+        values = numpy array of offset times / average gait cycle
+    metachronal_lag = dictionary
+        keys = 'L' or 'R'
+        values = numpy array of metachronal lag times
+    normalized_metachronal_lag = dictionary
+        keys = 'L' or 'R'
+        values = numpy array of metachronal lag times / average gait cycle
+    
+    '''
+    # make empty dictionaries
+    offsets = {}
+    normalized_offsets = {}
+    metachronal_lag = {}
+    normalized_metachronal_lag = {}
+
+    # get cruising step data
+    cruising = step_df[step_df['cruising_during_step']==True]    
+    print(len(cruising))
+    print(len(step_df))
+
+    sides = ['L','R']
+    # for each side
+    for side in sides:
+        # empty arrays for dictionaries
+        offsets[side] = np.array([])
+        normalized_offsets[side] = np.array([])
+        metachronal_lag[side] = np.array([])
+        normalized_metachronal_lag[side] = np.array([])
+    
+        # get cruising steps for 1, 2, 3
+        # get average gait cycle for these cruising steps
+        # get all steps for 1, 2
+    
+    # for each 3 (cruising) swing ... find next 2 (all) swing
+    # append these to offsets for side
+    # for each of these next 2 (all) swings ... find next 1 (all) swings
+    # add timing to each of the 2 swings ... append these to metachronal lag for side
+    
+    # for each 2 (cruising) swing ... find next 1 (all) swing
+    # append these to offsets for side
+    
+    # done with side ... make normalized data by dividing by (cruising) gait cycle duration for side
+    
+    # done with both sides ... return data
+    return offsets, normalized_offsets, metachronal_lag, normalized_metachronal_lag
+    
+
 def getStepParameters():
     parameters = ['stance', 'swing', 'duty', 'gait', 'distance_during_step']
     labels = ['stance duration (sec)', 'swing duration (sec)',
@@ -46,11 +115,9 @@ def speedStepParameterPlot(f, step_df):
 def stepParameterLeftRightPlot(f, step_df):
     
     parameters, ylabs = getStepParameters()
-    left_legs = get_leg_combos()[0]['legs_left']
-    right_legs = get_leg_combos()[0]['legs_right']
     
-    left_legs, left_leg_parameter_data = getStepParameterValues(step_df, left_legs)
-    right_legs, right_leg_parameter_data = getStepParameterValues(step_df, right_legs)
+    left_legs, left_leg_parameter_data = getStepParameterValues(step_df, 'legs_left')
+    right_legs, right_leg_parameter_data = getStepParameterValues(step_df, 'legs_right')
     
     for i, parameter in enumerate(parameters):
         
@@ -80,23 +147,24 @@ def stepParameterPlot(f, step_df):
     
     return f
 
-def getStepParameterValues(step_df, legs = ''):
+def getStepParameterValues(step_df, legset = ''):
 
     parameters, ylabs = getStepParameters()
-    if len(legs) == 0:
+    if len(legset) == 0:
         legs = get_leg_combos()[0]['legs_all']
+    else:
+        legs = get_leg_combos()[0][legset]
     leg_parameter_data = {}
+    
+    # get cruising data from step_data
+    cruising_steps = step_df[step_df['cruising_during_step'] == True]
     
     for i, parameter in enumerate(parameters):
         leg_parameter_data[parameter] = []
         
         for leg in legs:
-            
-            # get cruising data from step_data
-            cruising_steps = step_df[step_df['cruising_during_step'] == True]
-            
             # get data for each leg
-            data_for_leg = cruising_steps[cruising_steps['legID']==leg][parameter].values      
+            data_for_leg = cruising_steps[cruising_steps['legID']==leg][parameter].values  
             leg_parameter_data[parameter].append(data_for_leg)
             
     return legs, leg_parameter_data

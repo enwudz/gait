@@ -205,7 +205,7 @@ def main(movie_file, plot_style = ''): # track or speed or steps
             
             plot_style = keepPlotting(style_specified) 
         
-        elif plot_style == 'LR steps': # step parameters for lateral legs on left and right
+        elif plot_style == 'steps: left vs. right': # step parameters for lateral legs on left and right
             
             # get step_data
             stepdata_df = gaitFunctions.loadStepData(movie_file)
@@ -222,7 +222,7 @@ def main(movie_file, plot_style = ''): # track or speed or steps
             
             plot_style = keepPlotting(style_specified) 
             
-        elif plot_style == 'Speed & Steps': # scatter plot of speed vs. step parameters
+        elif plot_style == 'speed vs. steps': # scatter plot of speed vs. step parameters
         
             # get step_data
             stepdata_df = gaitFunctions.loadStepData(movie_file)
@@ -238,6 +238,25 @@ def main(movie_file, plot_style = ''): # track or speed or steps
                 
             plot_style = keepPlotting(style_specified) 
             
+        elif plot_style == 'offsets':
+            
+            # get step_data
+            stepdata_df = gaitFunctions.loadStepData(movie_file)
+            
+            if stepdata_df is None:
+                print(' ... no step data available yet - run frameStepper.py')
+            else:     
+                print('Here is a plot of swing-swing offsets for lateral legs')
+                print(' ... close the plot window to proceed')
+                offsets, normalized_offsets, metachronal_lag, normalized_metachronal_lag = gaitFunctions.getOffsets(stepdata_df)
+                # f, axes = plt.subplots(1,2, figsize = (5,3), constrained_layout=True)
+                
+                # plt.show()  
+            
+            
+            
+            plot_style = keepPlotting(style_specified) 
+        
         elif plot_style == 'finished':
             plotting = False
             break
@@ -348,43 +367,6 @@ def speedDistancePlot(a1, tracked_df, scale):
     return a1, a2
     
 
-def plotPathColor(filestem, xcoords, ycoords, smoothedx, smoothedy, vid_length):
-
-    combined_frame = superImposedFirstLast(filestem)
-
-    f = plt.figure(1, figsize=(8,6))
-    a = f.add_axes([0.1, 0.1, 0.75, 0.8])
-    a_colorbar = f.add_axes([0.9,0.2,0.02,0.6])
-    a.imshow(combined_frame) # combined_frame or last_frame
-    
-    # plot path of raw coordinates (i.e. not smoothed)
-    # a.plot(xcoords,ycoords, linewidth=8, color = 'gray') # raw coordinates
-    
-    cmap_name = 'plasma'
-    cmap = mpl.cm.get_cmap(cmap_name)
-    cols = cmap(np.linspace(0,1,len(xcoords)))
-    a.scatter(xcoords,ycoords, s=50, c = 'k', alpha = 0.2) # raw coordinates
-    a.scatter(smoothedx, smoothedy, c = cols, s=5) # smothed data
-    
-    a.set_xticks([])
-    a.set_yticks([])
-    # add legend for time
-    norm = mpl.colors.Normalize(vmin=0, vmax=vid_length)
-    plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), label = 'Time (sec)', cax = a_colorbar)
-
-    return f, a, a_colorbar
-
-def plotSmoothedPath(filestem, xcoords, ycoords, smoothedx, smoothedy):
-
-    combined_frame = superImposedFirstLast(filestem)
-
-    f, a = plt.subplots(1, figsize=(14,6))
-    a.imshow(combined_frame) # combined_frame or last_frame
-    plt.plot(xcoords,ycoords, linewidth=8, color = 'forestgreen', label = 'raw') # raw coordinates
-    plt.plot(smoothedx,smoothedy, linewidth=2, color = 'lightgreen', label = 'smoothed') # smoothed
-    plt.legend()
-    return f, a
-
 def getDataLabel(length, distance, vid_length, angle_space = 0, discrete_turns = 0, num_stops = 0):
     # convert from pixels?
     speed = np.around(distance/vid_length, decimals = 2)
@@ -409,16 +391,18 @@ def selectPlotStyle():
                   'steps',
                   'legs',
                   'step parameters',
-                  'LR steps',
-                  'Speed & Steps']
+                  'steps: left vs. right',
+                  'speed vs. steps',
+                  'offsets']
     
     plotDescriptions = ['show critter path on background', # track
                         'show speed, distance, and turns', # speed
                         'show all steps, with speed and turns', # steps
                         'show steps for a particular set of legs', # legs
                         'show step parameters (stance, swing, duty factor, cycle, distance)', # step parameters
-                        'show step parameters comparing left vs. right lateral legs', # LR steps
-                        'show scatter plot of speed vs step parameters (for lateral legs)' # Speed & Steps
+                        'show step parameters comparing left vs. right lateral legs', # steps: left vs. right
+                        'show scatter plot of speed vs step parameters (for lateral legs)', # speed vs. steps
+                        'show swing-swing timing offsets for lateral legs' # offsets
                         ]
     print('\nPlot options: \n')
     print('  0. finished = quit plotting')
@@ -434,6 +418,7 @@ def selectPlotStyle():
             print('... Finished Plotting!\n')
         else:
             plot_style = plotStyles[ind]
+            print('You chose ' + plot_style)
     except:
         print('\ninvalid selection, choosing "track"')
         plot_style = 'track'
