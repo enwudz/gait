@@ -55,12 +55,16 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
     smoothedx = smoothFiltfilt(xcoords,3,0.05)
     smoothedy = smoothFiltfilt(ycoords,3,0.05)
 
-    # get vectors for  distance, speed, cumulative_distance, bearings, bearing_changes
-    distance, speed, cumulative_distance, bearings, bearing_changes = distanceSpeedBearings(frametimes, smoothedx, smoothedy, scale)
+    # get vectors for distance, speed, cumulative_distance, bearings, bearing_changes
+    distance, speed, cumulative_distance, bearings, bearing_changes = distanceSpeedBearings(frametimes, smoothedx, smoothedy)
     
     # get vectors for stops and turns
     time_increment = 0.3 # in seconds ... over what time duration should we look for stops and turns
-    stops, turns = stopsTurns(frametimes, speed, bearing_changes, bearings, time_increment, median_length)
+    stops, turns = stopsTurns(frametimes, speed, bearing_changes, bearings, time_increment, np.median(lengths))
+    
+    # get % cruising
+    non_cruising_proportion = np.count_nonzero(stops + turns) / len(stops)
+    cruising_proportion = np.round( ( 1 - non_cruising_proportion ) * 100, 2)
     
     # add all tracking vectors to the excel file, 'pathtracking' tab
     d = {'times':frametimes, 'xcoords':xcoords, 'ycoords':ycoords, 'areas':areas, 'lengths':lengths,
@@ -74,7 +78,7 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
     # add path tracking summary values to 'path_stats' tab
     # area, distance, average speed, num turns, num stops, bearings, time_increment for turns & stops
     parameters = ['area','length','clip duration','total distance','average speed',
-                  '# turns','# stops','cumulative bearings','bin duration',
+                  '# turns','# stops', '% cruising', 'cumulative bearings','bin duration',
                   'pixel threshold','tracking confidence']
     
     clip_duration = frametimes[-1]
@@ -85,7 +89,7 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
     cumulative_bearings = np.sum(bearing_changes)
     tracking_confidence = gaitFunctions.getTrackingConfidence(uncertainties, pixel_threshold)
     vals = [median_area, median_length, clip_duration, total_distance, 
-            average_speed, num_turns, num_stops, cumulative_bearings, 
+            average_speed, num_turns, num_stops, cruising_proportion, cumulative_bearings, 
             time_increment, pixel_threshold, tracking_confidence]
     
     path_stats = zip(parameters, vals)
@@ -181,7 +185,7 @@ def stopsTurns(times, speed, bearing_changes, bearings, increment, length):
         # look at AVERAGE SPEED of this bin
         # if below a threshold for speed? = a STOP
         # in STOPS, set all frames of this bin to 1
-        # print(mean_speed_in_bin, stop_threshold)
+        # print(mean_speed_in_bin, stop_threshold) # to test!
         if mean_speed_in_bin <= stop_threshold:       
             stops[start_bin:end_bin] = 1
                          
@@ -195,7 +199,7 @@ def stopsTurns(times, speed, bearing_changes, bearings, increment, length):
   
     return stops, turns
 
-def distanceSpeedBearings(times, xcoords, ycoords, scale):
+def distanceSpeedBearings(times, xcoords, ycoords):
     '''
     for all video frames: 
     make vectors of speed, distance, cumulative distance, bearing
@@ -208,16 +212,14 @@ def distanceSpeedBearings(times, xcoords, ycoords, scale):
         x coordinates (usually smoothed)
     ycoords : numpy array
         y coordinates (usually smoothed)
-    scale : float
-        number of pixels for 1 mm real distance
 
     Returns
     -------
 
     vectors of same length as times:
-    distance = distance traveled per video frame
-    speed = speed of travel during video frame
-    cumulative_distance = distance traveled from beginning through video frame
+    distance = distance traveled per video frame (in PIXELS)
+    speed = speed of travel during video frame (in PIXELS / second)
+    cumulative_distance = distance traveled from beginning through video frame (in PIXELS)
     bearing = change in bearing during video frame (this will be ZERO if stopped)
     
     stops = binary vector (1 = stopped, 0 = moving)
@@ -244,7 +246,7 @@ def distanceSpeedBearings(times, xcoords, ycoords, scale):
         
         time_interval = times[i+1] - times[i]
         
-        distance_in_frame = np.linalg.norm(start_coord - end_coord) / scale
+        distance_in_frame = np.linalg.norm(start_coord - end_coord)
         
         distance[i] = distance_in_frame
         speed[i] = distance_in_frame / time_interval

@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+import matplotlib as mpl
 import pandas as pd
 import numpy as np
 import os
@@ -11,6 +12,133 @@ import cv2
 from scipy.stats import sem
 import re
 
+def getStepParameters():
+    parameters = ['stance', 'swing', 'duty', 'gait', 'distance_during_step']
+    labels = ['stance duration (sec)', 'swing duration (sec)',
+             'duty factor', 'gait cycle (sec)', 'distance traveled (pixels)']
+    return parameters, labels
+
+def speedStepParameterPlot(f, step_df):
+    parameters, ylabs = getStepParameters()
+    legs = get_leg_combos()[0]['lateral']    
+    
+    cruising = step_df[step_df['cruising_during_step'] == True]
+    cruising = cruising[cruising['legID'].isin(legs)]
+    speed_cruising = cruising['speed_during_step'].values
+    
+    noncruising = step_df[step_df['cruising_during_step'] == False]
+    noncruising = noncruising[noncruising['legID'].isin(legs)]   
+    speed_noncruising = noncruising['speed_during_step'].values
+
+    for i, parameter in enumerate(parameters):
+        parameter_cruising = cruising[parameter].values
+        parameter_noncruising = noncruising[parameter].values
+        
+        f.axes[i].scatter(speed_cruising, parameter_cruising, s=10, c='k', alpha=0.8)
+        f.axes[i].scatter(speed_noncruising, parameter_noncruising, s=10, c='tab:red', alpha=0.8)
+        
+        # add axes labels
+        f.axes[i].set_ylabel(ylabs[i])
+        f.axes[i].set_xlabel('Speed (pix / sec)')
+                       
+    return f
+
+def stepParameterLeftRightPlot(f, step_df):
+    
+    parameters, ylabs = getStepParameters()
+    left_legs = get_leg_combos()[0]['legs_left']
+    right_legs = get_leg_combos()[0]['legs_right']
+    
+    left_legs, left_leg_parameter_data = getStepParameterValues(step_df, left_legs)
+    right_legs, right_leg_parameter_data = getStepParameterValues(step_df, right_legs)
+    
+    for i, parameter in enumerate(parameters):
+        
+        # get data for this parameter
+        left_parameter = np.concatenate(np.array(left_leg_parameter_data[parameter], dtype=object))
+        right_parameter = np.concatenate(np.array(right_leg_parameter_data[parameter], dtype=object))
+            
+        bp = f.axes[i].boxplot([left_parameter, right_parameter], patch_artist=True)
+        bp = formatBoxPlots(bp, ['tab:blue'], ['white'], ['lightsteelblue'])
+        
+        # add axes labels
+        f.axes[i].set_ylabel(ylabs[i])
+        f.axes[i].set_xticks([1,2],['left','right'])
+        
+    return f # also return the sides and leg parameters?
+    
+def stepParameterPlot(f, step_df):
+    
+    parameters, ylabs = getStepParameters()
+    legs, leg_parameter_data = getStepParameterValues(step_df, 'all')
+    
+    for i, parameter in enumerate(parameters):
+        bp = f.axes[i].boxplot(leg_parameter_data[parameter], patch_artist=True)
+        bp = formatBoxPlots(bp, ['tab:blue'], ['white'], ['lightsteelblue'])
+        f.axes[i].set_ylabel(ylabs[i])
+        f.axes[i].set_xticks(range(1,len(legs)+1), labels=legs)
+    
+    return f
+
+def getStepParameterValues(step_df, legs = ''):
+
+    parameters, ylabs = getStepParameters()
+    if len(legs) == 0:
+        legs = get_leg_combos()[0]['legs_all']
+    leg_parameter_data = {}
+    
+    for i, parameter in enumerate(parameters):
+        leg_parameter_data[parameter] = []
+        
+        for leg in legs:
+            
+            # get cruising data from step_data
+            cruising_steps = step_df[step_df['cruising_during_step'] == True]
+            
+            # get data for each leg
+            data_for_leg = cruising_steps[cruising_steps['legID']==leg][parameter].values      
+            leg_parameter_data[parameter].append(data_for_leg)
+            
+    return legs, leg_parameter_data
+    
+def superImposedFirstLast(filestem):
+    # superimpose first and last frames
+    first_frame, last_frame = getFirstLastFrames(filestem)
+    combined_frame = cv2.addWeighted(first_frame, 0.3, last_frame, 0.7, 0)
+    return combined_frame
+
+def plotTrack(ax, ax_colorbar, movie_file, tracked_df):
+    
+    filestem = movie_file.split('.')[0]
+    
+    times = tracked_df.times.values
+    xcoords = tracked_df.xcoords.values
+    ycoords = tracked_df.ycoords.values
+    smoothedx = tracked_df.smoothed_x.values
+    smoothedy = tracked_df.smoothed_y.values
+    
+    combined_frame = superImposedFirstLast(filestem)
+
+    ax.imshow(combined_frame) # combined_frame or last_frame
+    
+    # plot path of raw coordinates (i.e. not smoothed)
+    # a.plot(xcoords,ycoords, linewidth=8, color = 'gray') # raw coordinates
+    
+    cmap_name = 'plasma'
+    cmap = mpl.cm.get_cmap(cmap_name)
+    cols = cmap(np.linspace(0,1,len(xcoords)))
+    ax.scatter(xcoords,ycoords, s=50, c = 'k', alpha = 0.2) # raw coordinates
+    ax.scatter(smoothedx, smoothedy, c = cols, s=5) # smothed data
+    
+    ax.set_xticks([])
+    ax.set_yticks([])
+    
+    # add legend for time
+    norm = mpl.colors.Normalize(vmin=0, vmax=times[-1])
+    plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), label = 'Time (sec)', cax = ax_colorbar)
+
+    return ax, ax_colorbar
+    
 
 def getTrackingConfidence(problem_frames, difference_threshold, printme = False):
     tracking_confidence = round( 100 - (sum(problem_frames) / len(problem_frames)) * 100 , 2)
@@ -224,8 +352,11 @@ def get_leg_combos():
     leg_combos['legs_all'] = leg_combos['all legs']
     leg_combos['all'] = leg_combos['all legs']
     leg_combos['legs_lateral'] = leg_combos['lateral legs']
+    leg_combos['lateral'] = leg_combos['lateral legs']
     leg_combos['rear'] = leg_combos['pair 4']
     leg_combos['legs_4'] = leg_combos['pair 4']
+    leg_combos['legs_left'] = leg_combos['left lateral legs']
+    leg_combos['legs_right'] = leg_combos['right lateral legs']
 
     return leg_combos, combo_order
 
@@ -752,6 +883,9 @@ def gaitStyleProportionsPlot(ax, movie_files, leg_set = 'lateral'):
         exp_name = movie_file.split('.')[0]
         exp_names.append(exp_name)
         times, gait_style_vector = getGaitStyleVec(movie_file, leg_set)
+        if gait_style_vector is None:
+            print(' ... no gait styles yet - run frameStepper and analyzeSteps!')
+            return ax
         gait_style_vectors.append(gait_style_vector)
 
     # set up colors
@@ -1224,22 +1358,28 @@ def frameSwings(movie_file):
     
     gait_df = loadGaitData(movie_file, excel_file)
     
-    frametimes = gait_df['frametimes'].values
-    swinging_lateral = gait_df['swinging_lateral'].values
-    swinging_rear = gait_df['swinging_rear'].values
+    if gait_df is not None:
     
-    for i, frame in enumerate(frametimes):
-        try:
-            lateral_swings = swinging_lateral[i].split('_')
-        except:
-            lateral_swings = []
-        try:
-            rear_swings = swinging_rear[i].split('_')
-        except:
-            rear_swings = []
-        frames_swinging[frame] = lateral_swings + rear_swings
+        frametimes = gait_df['frametimes'].values
+        swinging_lateral = gait_df['swinging_lateral'].values
+        swinging_rear = gait_df['swinging_rear'].values
         
-    return frames_swinging
+        for i, frame in enumerate(frametimes):
+            try:
+                lateral_swings = swinging_lateral[i].split('_')
+            except:
+                lateral_swings = []
+            try:
+                rear_swings = swinging_rear[i].split('_')
+            except:
+                rear_swings = []
+            frames_swinging[frame] = lateral_swings + rear_swings
+            
+        return frames_swinging
+    
+    else:
+        
+        return None
 
 
 def plotLegSet(ax, movie_file, legs_to_plot = 'all'):  
@@ -1263,6 +1403,9 @@ def plotLegSet(ax, movie_file, legs_to_plot = 'all'):
     '''
     
     frames_swinging = frameSwings(movie_file)
+    if frames_swinging is None: # nothing here
+        print(' ... need data from frameStepper.py!')
+        return ax
     
     # plot selected legs in same order as in leg_combos['legs_all']
     all_legs = get_leg_combos()[0]['legs_all']
@@ -1340,6 +1483,9 @@ def plotGaits(gaits_ax, movie_file, leg_set='lateral'):
 
     # get the gait styles info from the movie_file
     times, gait_styles = getGaitStyleVec(movie_file, leg_set)
+    if gait_styles is None:
+        print(' ... no gait style data - need analyzeSteps.py ...')
+        return gaits_ax
     
     # get the plot colors for each gait style
     all_combos, combo_colors = get_gait_combo_colors(leg_set)
@@ -2093,21 +2239,26 @@ def formatBoxPlots(bp, boxColors=[], medianColors=[], flierColors=[]):
         flierColors = flierColors * len(bp['boxes'])
         
     baseWidth = 2
+    
+    # boxes
     for n,box in enumerate(bp['boxes']):
         box.set( color=boxColors[n], linewidth=baseWidth)
 
+    # medians
     for n,med in enumerate(bp['medians']):
-        med.set( color=medianColors[n], linewidth=baseWidth)
+        med.set( color=medianColors[n], linewidth=baseWidth/2)
 
     bdupes=[]
     for i in boxColors:
         bdupes.extend([i,i])
 
     boxColors = bdupes
+    # whiskers
     for n,whisk in enumerate(bp['whiskers']):
         #whisk.set( color=(0.1,0.1,0.1), linewidth=2, alpha = 0.5)
         whisk.set( color=boxColors[n], linewidth=baseWidth, alpha = 0.5)
 
+    # caps
     for n,cap in enumerate(bp['caps']):
         cap.set( color=boxColors[n], linewidth=baseWidth, alpha = 0.5)
         

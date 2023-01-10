@@ -7,10 +7,10 @@ Created on Mon Dec 19 17:01:09 2022
 """
 
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 from matplotlib.patches import Rectangle
+import matplotlib as mpl
 import numpy as np
-import cv2
+# import cv2
 import sys
 import gaitFunctions
 import pandas as pd
@@ -18,22 +18,22 @@ import pandas as pd
 
 def main(movie_file, plot_style = ''): # track or speed or steps
 
-    # load excel file for this clip
+    # load excel file for this clip and get tracked_df
     excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file)
     if excel_file_exists:
         tracked_df = pd.read_excel(excel_filename, sheet_name='pathtracking', index_col=None)
         if len(tracked_df.columns) <= 4:
-            exit(' \n ==> need to run analyzePath.py first! \n')
+            exit(' \n ==> need to run analyzeTrack.py first! \n')
         path_stats_df = pd.read_excel(excel_filename, sheet_name='path_stats', index_col=None)
         path_stats = dict(zip(path_stats_df['path parameter'].values, path_stats_df['value'].values))
+        
+        info_df = pd.read_excel(excel_filename, sheet_name='identity', index_col=None)
+        info = dict(zip(info_df['Parameter'].values, info_df['Value'].values))
+        scale = float(info['scale'])
     else:
         import initializeClip
         initializeClip.main(movie_file)
-        exit('\n ==> need to run trackCritter.py and analyzePath.py first! \n')
-
-    # get stuff out of the dataframes
-    filestem = movie_file.split('.')[0]
-    times = tracked_df.times.values
+        exit('\n ==> need to run trackCritter.py and analyzeTrack.py first! \n')
      
     # collect data for path_stats
     # median_area = round(path_stats['area'],4)
@@ -44,12 +44,14 @@ def main(movie_file, plot_style = ''): # track or speed or steps
     discrete_turns = path_stats['# turns']
     num_stops = path_stats['# stops']
     
+    # select plot style if none provided
     if len(plot_style) == 0: # plot style not provided, choose a type of plot
         plot_style = selectPlotStyle()
         style_specified = False
     else:
         style_specified = True
     
+    # start plotting - continue to offer options until finished
     plotting = True
     while plotting:
     
@@ -57,20 +59,16 @@ def main(movie_file, plot_style = ''): # track or speed or steps
         
             print('Here is a plot of the path taken by the critter - close the plot window to proceed')
             
-            xcoords = tracked_df.xcoords.values
-            ycoords = tracked_df.ycoords.values
-            smoothedx = tracked_df.smoothed_x.values
-            smoothedy = tracked_df.smoothed_y.values
+            f = plt.figure(1, figsize=(8,6))
+            ax = f.add_axes([0.1, 0.1, 0.75, 0.8])
+            ax_colorbar = f.add_axes([0.9,0.2,0.02,0.6])     
+            ax, ax_colorbar = gaitFunctions.plotTrack(ax, ax_colorbar, movie_file, tracked_df)
             
-            f, a, a_colorbar = plotPathColor(filestem, xcoords, ycoords, smoothedx, smoothedy, times[-1])
-            
-            # # ==> add labels from experiment and show plot:
-            a.set_xlabel(getDataLabel(median_length, distance, clip_duration, angle_space, discrete_turns, num_stops ))
-            a.set_xticks([])
-            a.set_yticks([])
-            a.set_title(filestem)
+            # ==> add labels from experiment and show plot:
+            ax.set_xlabel(getDataLabel(median_length, distance, clip_duration, angle_space, discrete_turns, num_stops ))
             plt.show()
             
+            # prompted to keep plotting
             plot_style = keepPlotting(style_specified)
         
         elif plot_style == 'speed': # plot time vs. other parameters
@@ -81,7 +79,7 @@ def main(movie_file, plot_style = ''): # track or speed or steps
     
             # plot time (x) vs. speed (left y axis)
             speedax = f.add_axes([0.1, 0.1, 0.63, 0.6])      
-            speedax, distax = speedDistancePlot(speedax, tracked_df)
+            speedax, distax = speedDistancePlot(speedax, tracked_df, scale)
             speed_xlim = speedax.get_xlim()
                     
             # plot bearing changes on a separate axis above (a3)
@@ -112,7 +110,7 @@ def main(movie_file, plot_style = ''): # track or speed or steps
             
             # plot time (x) vs. speed (left y axis)
             speedax = f.add_axes([0.1, 0.55, 0.65, 0.3]) 
-            speedax, distax = speedDistancePlot(speedax, tracked_df)
+            speedax, distax = speedDistancePlot(speedax, tracked_df, scale)
             speed_xlim = speedax.get_xlim()
             speedax.set_xlabel('')
             
@@ -188,7 +186,57 @@ def main(movie_file, plot_style = ''): # track or speed or steps
             ax = gaitFunctions.plotLegSet(ax, movie_file, legs)
             plt.show()
             
-            plot_style = keepPlotting(style_specified)
+            plot_style = keepPlotting(style_specified)         
+        
+        elif plot_style == 'step parameters': # show step parameters from step_timing sheet
+        
+            print('Here is a plot of step parameters - close the plot window to proceed')
+            
+            # get step_data
+            stepdata_df = gaitFunctions.loadStepData(movie_file)
+            
+            if stepdata_df is None:
+                print(' ... no step data available yet - run frameStepper.py')
+            else:     
+                # set up an axis for the step parameters
+                f, axes = plt.subplots(1,5, figsize=(14,3), constrained_layout=True)
+                f = gaitFunctions.stepParameterPlot(f, stepdata_df)
+                plt.show()
+            
+            plot_style = keepPlotting(style_specified) 
+        
+        elif plot_style == 'LR steps': # step parameters for lateral legs on left and right
+            
+            # get step_data
+            stepdata_df = gaitFunctions.loadStepData(movie_file)
+            
+            if stepdata_df is None:
+                print(' ... no step data available yet - run frameStepper.py')
+            else:     
+                print('Here is a plot of step parameters - comparing left lateral legs with right lateral legs')
+                print(' ... close the plot window to proceed')
+                # set up an axis for the step parameters
+                f, axes = plt.subplots(1,5, figsize = (14,3), constrained_layout=True)
+                f = gaitFunctions.stepParameterLeftRightPlot(f, stepdata_df)
+                plt.show()
+            
+            plot_style = keepPlotting(style_specified) 
+            
+        elif plot_style == 'Speed & Steps': # scatter plot of speed vs. step parameters
+        
+            # get step_data
+            stepdata_df = gaitFunctions.loadStepData(movie_file)
+            
+            if stepdata_df is None:
+                print(' ... no step data available yet - run frameStepper.py')
+            else:     
+                print('Here is a plot of speed vs. step parameters, for lateral legs')
+                print(' ... close the plot window to proceed')
+                f, axes = plt.subplots(1,5, figsize = (14,3), constrained_layout=True)
+                f = gaitFunctions.speedStepParameterPlot(f, stepdata_df)
+                plt.show()      
+                
+            plot_style = keepPlotting(style_specified) 
             
         elif plot_style == 'finished':
             plotting = False
@@ -264,10 +312,10 @@ def bearingChangePlot(a3, tracked_df):
                          facecolor = 'lightgray', edgecolor=None))
     return a3
 
-def speedDistancePlot(a1, tracked_df):
+def speedDistancePlot(a1, tracked_df, scale):
     
     times = tracked_df.times.values
-    speed = tracked_df.speed.values
+    speed = tracked_df.speed.values / scale
     line1 = a1.plot(times[:-1],speed[:-1],color='tab:blue',label='speed')
     a1.set_xlabel('Time (s)')
     a1.set_ylabel('Speed (mm/s)', color = 'tab:blue')
@@ -275,7 +323,7 @@ def speedDistancePlot(a1, tracked_df):
     
     # plot time vs. cumulative distance (right y axis)
     a2 = a1.twinx()
-    cumulative_distance = tracked_df.cumulative_distance.values
+    cumulative_distance = tracked_df.cumulative_distance.values / scale
     line2 = a2.plot(times[:-1],cumulative_distance[:-1],color='tab:red',label='distance')
     a2.set_ylabel('Cumulative distance (mm)', color = 'tab:red')
     
@@ -353,34 +401,35 @@ def getDataLabel(length, distance, vid_length, angle_space = 0, discrete_turns =
 
     return data_label
 
-def superImposedFirstLast(filestem):
-    # superimpose first and last frames
-    first_frame, last_frame = gaitFunctions.getFirstLastFrames(filestem)
-    combined_frame = cv2.addWeighted(first_frame, 0.3, last_frame, 0.7, 0)
-    return combined_frame
 
 def selectPlotStyle():
     
     plotStyles = ['track',
                   'speed',
                   'steps',
-                  'legs']
+                  'legs',
+                  'step parameters',
+                  'LR steps',
+                  'Speed & Steps']
     
     plotDescriptions = ['show critter path on background', # track
                         'show speed, distance, and turns', # speed
-                        'show all steps, with speed and turns (need frameStepper)', # steps
-                        'show steps for a particular set of legs (need frameStepper)' # legs
+                        'show all steps, with speed and turns', # steps
+                        'show steps for a particular set of legs', # legs
+                        'show step parameters (stance, swing, duty factor, cycle, distance)', # step parameters
+                        'show step parameters comparing left vs. right lateral legs', # LR steps
+                        'show scatter plot of speed vs step parameters (for lateral legs)' # Speed & Steps
                         ]
     print('\nPlot options: \n')
+    print('  0. finished = quit plotting')
     for i, style in enumerate(plotStyles):
         print('  ' + str(i+1) + '. ' + style + ' = ' + plotDescriptions[i])
     
-    print('  ' + str(len(plotStyles)+1) + '. finished = quit plotting')
     selection = input('\nChoose one: ')
     
     try:
         ind = int(selection) - 1
-        if ind >= len(plotStyles):
+        if ind == -1:
             plot_style = 'finished'
             print('... Finished Plotting!\n')
         else:

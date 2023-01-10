@@ -9,7 +9,7 @@ Created on Sun Oct  2 13:32:38 2022
 import glob
 import initializeClip
 import trackCritter
-import analyzePath
+import analyzeTrack
 import plotClip
 import gaitFunctions
 import frameStepper
@@ -23,10 +23,10 @@ def main(movie_file):
     initializeClip.main(movie_file)
     # ## ==>  try (movie_file, 12 OR 25) if tracking wonky; True is show tracking
     trackCritter.main(movie_file, 12, True) 
-    analyzePath.main(movie_file)
-    plotClip.main(movie_file)
-    # plotClip.main(movie_file,'track')
-    # plotClip.main(movie_file,'speed')
+    analyzeTrack.main(movie_file)
+    # plotClip.main(movie_file)
+    plotClip.main(movie_file,'track')
+    plotClip.main(movie_file,'speed')
     # frameStepper.main(movie_file)
     # analyzeSteps.main(movie_file)
     # plotClip.main(movie_file,'steps')
