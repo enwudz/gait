@@ -82,8 +82,8 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
                   'pixel threshold','tracking confidence']
     
     clip_duration = frametimes[-1]
-    total_distance = np.sum(distance)
-    average_speed = np.mean(speed[:-1])
+    total_distance = np.sum(distance) / scale
+    average_speed = np.mean(speed[:-1]) / scale
     num_turns = len(gaitFunctions.one_runs(turns))
     num_stops = len(gaitFunctions.one_runs(stops))
     cumulative_bearings = np.sum(bearing_changes)

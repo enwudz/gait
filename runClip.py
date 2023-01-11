@@ -20,22 +20,26 @@ import sys
 def main(movie_file): 
     # can 'comment' individual steps on or off
     # <=== put a # before a line to comment it off
-    initializeClip.main(movie_file)
-    # ## ==>  try (movie_file, 12 OR 25) if tracking wonky; True is show tracking
-    trackCritter.main(movie_file, 12, True) 
-    analyzeTrack.main(movie_file)
+    
+    ## make an excel file for a clip
+    # initializeClip.main(movie_file)
+    
+    ## automated path tracking, including speed, turns, stops
+    ## if tracking wonky at 12, try 25, eg: (movie_file, 25, True) 
+    # trackCritter.main(movie_file, 12, True) # True is show tracking
+    # analyzeTrack.main(movie_file)
     # plotClip.main(movie_file)
-    plotClip.main(movie_file,'track')
-    plotClip.main(movie_file,'speed')
+    
+    ## step-by-step timing
     # frameStepper.main(movie_file)
-    # analyzeSteps.main(movie_file)
-    # plotClip.main(movie_file,'steps')
-    # plotClip.main(movie_file,'legs')
+    analyzeSteps.main(movie_file)
+    # plotClip.main(movie_file)
+
 
 if __name__== "__main__":
 
     if len(sys.argv) > 1:
-        selection =sys.argv[1]
+        selection = sys.argv[1]
         
         # can designate ONE movie in command
         if 'mov' in selection:
@@ -46,6 +50,7 @@ if __name__== "__main__":
             movie_files = sorted(glob.glob('*.mov'))
             for movie_file in movie_files:
                 main(movie_file)
+                sys.exit('Finished processing all clips')
         
         # if nothing given in command, list movie files and ask which one to do
         else:

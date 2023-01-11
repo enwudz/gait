@@ -207,15 +207,22 @@ def main(movie_file):
         pathtracking_df = pd.read_excel(excel_filename, sheet_name='pathtracking', index_col=None)
         if 'speed' in pathtracking_df.columns:
             step_data_df = getSpeedForStep(step_data_df, pathtracking_df)
+            
+        # swing offsets and metachronal lag for lateral legs
+        anterior_offsets, contralateral_offsets, metachronal_lag = getOffsets(step_data_df)
+        # add these to the step_data dataframe
+        step_data_df['anterior_offsets'] = anterior_offsets
+        step_data_df['contralateral_offsets'] = contralateral_offsets
+        step_data_df['metachronal_lag'] = metachronal_lag
         
         ## Save the dataframe to the excel file, in the step_timing sheet
         with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
             step_data_df.to_excel(writer, index=False, sheet_name='step_timing')
             
-        ## Calculate average step parameters for each leg, and write to excel file
+        ## Calculate average step parameters for each leg, and write to the step_stats sheet of the excel file
         saveStepStats(step_data_df, excel_filename)
 
-        # get and save gait styles for every frame
+        # get and save gait styles for every frame (to the gait_styles sheet)
         gaitFunctions.saveGaits(movie_file)
         
         # clean up!
@@ -224,12 +231,106 @@ def main(movie_file):
         
         return step_data_df
 
+
+def getOffsets(step_df):
+    '''
+    Get offsets (3 to 2 swing start, 2 to 1 swing start) 
+    Get metachronal lag (3 --> 1 swing starts with requirement that 2 swings in middle)
+    So ... this is geared only for six legs
     
-def saveGaitStyles(up_down_times, excel_filename):
+    Offsets are only recorded for legs while animal is 'cruising'
+
+    Parameters
+    ----------
+    step_df : pandas dataframe
+        loaded from 'step_timing' sheet of an excel file associated with a clip 
+        (or group of clips from same individual)
+        step_df is made from analyzeSteps.py, and requires data from frameStepper.py
+
+    Returns
+    -------
+    anterior_offsets : numpy array
+        times (in seconds) between swing starts of anterior legs for leg pairs 2 and 3
+        NaN for leg pairs 1 and 4
+        
+    contralateral_offsets : numpy array
+        times (in seconds) between swing starts of anterior legs
+        
+    metachronal_lag : numpy array
+        times (in seconds) between swing start of 3rd leg and 1st leg (with 2nd leg swinging in middle)
+        NaN for all legs other than 3rd pair
     
-    # put stuff from TEMP here
+    '''
     
-    return
+    steps = step_df['legID'].values
+    swing_start_array = step_df['UpTime'].values
+    
+    # Make swing_starts = a dictionary of swing starts (in numpy array), keyed by leg
+    swing_starts = {}
+    for i, step in enumerate(steps):
+        if step not in swing_starts.keys():
+            swing_starts[step] = np.array([float(swing_start_array[i])])
+        else:
+            swing_starts[step] = np.append(swing_starts[step], float(swing_start_array[i]))
+    # print(swing_starts) # testing
+    
+    # get dictionaries of anterior and opposite legs
+    opposite_dict, anterior_dict = gaitFunctions.getOppAndAntLeg()
+    
+    # make arrays of NaN
+    anterior_offsets = np.zeros(len(steps))
+    anterior_offsets[:] = np.nan
+    
+    contralateral_offsets = np.zeros(len(steps))
+    contralateral_offsets[:] = np.nan
+    
+    metachronal_lag = np.zeros(len(steps))
+    metachronal_lag[:] = np.nan
+    
+    # populate the arrays of swing offsets
+    for i, leg in enumerate(steps):
+        
+        swing_time = float(swing_start_array[i])
+        
+        # for all legs, enter time of next swing of opposite leg (if available)
+        opposite_leg = opposite_dict[leg]
+        opposite_swings = swing_starts[opposite_leg]
+        next_opposite_swing = get_next_event(swing_time, opposite_swings)
+        if next_opposite_swing > 0:
+            contralateral_offsets[i] = next_opposite_swing - swing_time
+            
+        # for 2nd pair and 3rd pair, enter time of next swing of adjacent anterior leg 
+        if '2' in leg or '3' in leg:
+            anterior_leg = anterior_dict[leg]
+            anterior_swings = swing_starts[anterior_leg]
+            next_anterior_swing = get_next_event(swing_time, anterior_swings)
+            if next_anterior_swing > 0:
+                anterior_offsets[i] = next_anterior_swing - swing_time
+                
+        # for 3rd pair, get next time of 2nd leg on same side ... 
+        # THEN get next time of 1st leg on same side
+        if '3' in leg:
+            second_leg = anterior_dict[leg]
+            second_leg_swings = swing_starts[second_leg]
+            next_second_leg_swing = get_next_event(swing_time, second_leg_swings)
+            if next_second_leg_swing > 0:
+                first_leg = anterior_dict[second_leg]
+                first_leg_swings = swing_starts[first_leg]
+                next_first_leg_swing = get_next_event(next_second_leg_swing, first_leg_swings)
+                if next_first_leg_swing > 0:
+                    # print(leg, swing_time, next_second_leg_swing, next_first_leg_swing) # testing
+                    lag = next_first_leg_swing - swing_time
+                    metachronal_lag[i] = lag
+    
+    return anterior_offsets, contralateral_offsets, metachronal_lag
+    
+def get_next_event(event_time, event_times):
+    
+    next_event_time = 0
+    next_event_ind = np.where(event_times >= event_time)[0]
+    if len(next_event_ind) > 0:
+        next_event_time = event_times[next_event_ind[0]]
+    return next_event_time
     
 def saveStepStats(step_data_df, excel_filename):
     

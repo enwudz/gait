@@ -44,9 +44,16 @@ def main(movie_file, plot_style = ''): # track or speed or steps
     discrete_turns = path_stats['# turns']
     num_stops = path_stats['# stops']
     
+    # get step data if available
+    stepdata_df = gaitFunctions.loadStepData(movie_file)
+    have_steps = True
+    if stepdata_df is None:
+        print(' ... no step data available yet - run frameStepper.py')
+        have_steps = False
+    
     # select plot style if none provided
     if len(plot_style) == 0: # plot style not provided, choose a type of plot
-        plot_style = selectPlotStyle()
+        plot_style = selectPlotStyle(have_steps)
         style_specified = False
     else:
         style_specified = True
@@ -65,15 +72,15 @@ def main(movie_file, plot_style = ''): # track or speed or steps
             ax, ax_colorbar = gaitFunctions.plotTrack(ax, ax_colorbar, movie_file, tracked_df)
             
             # ==> add labels from experiment and show plot:
-            ax.set_xlabel(getDataLabel(median_length, distance, clip_duration, angle_space, discrete_turns, num_stops ))
+            ax.set_xlabel(getDataLabel(median_length, round(distance/scale,2), clip_duration, angle_space, discrete_turns, num_stops ))
             plt.show()
             
             # prompted to keep plotting
-            plot_style = keepPlotting(style_specified)
+            plot_style = keepPlotting(style_specified, have_steps)
         
         elif plot_style == 'speed': # plot time vs. other parameters
         
-            print('Here is a plot the speed and distance and turns of the critter - close the plot window to proceed')
+            print('Here is a plot of speed and distance and turns - close the plot window to proceed')
             
             f = plt.figure(1, figsize=(8,6))
     
@@ -100,7 +107,7 @@ def main(movie_file, plot_style = ''): # track or speed or steps
             # adjust parameters and show plot
             plt.show()
             
-            plot_style = keepPlotting(style_specified)
+            plot_style = keepPlotting(style_specified, have_steps)
         
         elif plot_style == 'steps': # show all steps, with speed and turns and gait styles (need frameStepper)
             
@@ -167,7 +174,7 @@ def main(movie_file, plot_style = ''): # track or speed or steps
     
             plt.show()
             
-            plot_style = keepPlotting(style_specified)
+            plot_style = keepPlotting(style_specified, have_steps)
             
         elif plot_style == 'legs': # show steps for a particular set of legs (need frameStepper) 
             
@@ -186,76 +193,49 @@ def main(movie_file, plot_style = ''): # track or speed or steps
             ax = gaitFunctions.plotLegSet(ax, movie_file, legs)
             plt.show()
             
-            plot_style = keepPlotting(style_specified)         
+            plot_style = keepPlotting(style_specified, have_steps)         
         
         elif plot_style == 'step parameters': # show step parameters from step_timing sheet
         
             print('Here is a plot of step parameters - close the plot window to proceed')
             
-            # get step_data
-            stepdata_df = gaitFunctions.loadStepData(movie_file)
+            f, axes = plt.subplots(1,5, figsize=(14,3), constrained_layout=True)
+            f = gaitFunctions.stepParameterPlot(f, stepdata_df)
+            plt.show()
             
-            if stepdata_df is None:
-                print(' ... no step data available yet - run frameStepper.py')
-            else:     
-                # set up an axis for the step parameters
-                f, axes = plt.subplots(1,5, figsize=(14,3), constrained_layout=True)
-                f = gaitFunctions.stepParameterPlot(f, stepdata_df)
-                plt.show()
-            
-            plot_style = keepPlotting(style_specified) 
+            plot_style = keepPlotting(style_specified, have_steps) 
         
         elif plot_style == 'steps: left vs. right': # step parameters for lateral legs on left and right
+              
+            print('Here is a plot of step parameters - comparing left lateral legs with right lateral legs')
+            print(' ... close the plot window to proceed')
+            # set up an axis for the step parameters
+            f, axes = plt.subplots(1,5, figsize = (14,3), constrained_layout=True)
+            f = gaitFunctions.stepParameterLeftRightPlot(f, stepdata_df)
+            plt.show()
             
-            # get step_data
-            stepdata_df = gaitFunctions.loadStepData(movie_file)
-            
-            if stepdata_df is None:
-                print(' ... no step data available yet - run frameStepper.py')
-            else:     
-                print('Here is a plot of step parameters - comparing left lateral legs with right lateral legs')
-                print(' ... close the plot window to proceed')
-                # set up an axis for the step parameters
-                f, axes = plt.subplots(1,5, figsize = (14,3), constrained_layout=True)
-                f = gaitFunctions.stepParameterLeftRightPlot(f, stepdata_df)
-                plt.show()
-            
-            plot_style = keepPlotting(style_specified) 
+            plot_style = keepPlotting(style_specified, have_steps) 
             
         elif plot_style == 'speed vs. steps': # scatter plot of speed vs. step parameters
-        
-            # get step_data
-            stepdata_df = gaitFunctions.loadStepData(movie_file)
-            
-            if stepdata_df is None:
-                print(' ... no step data available yet - run frameStepper.py')
-            else:     
-                print('Here is a plot of speed vs. step parameters, for lateral legs')
-                print(' ... close the plot window to proceed')
-                f, axes = plt.subplots(1,5, figsize = (14,3), constrained_layout=True)
-                f = gaitFunctions.speedStepParameterPlot(f, stepdata_df)
-                plt.show()      
+           
+            print('Here is a plot of speed vs. step parameters, for lateral legs')
+            print(' ... close the plot window to proceed')
+            f, axes = plt.subplots(1,5, figsize = (14,3), constrained_layout=True)
+            f = gaitFunctions.speedStepParameterPlot(f, stepdata_df)
+            plt.show()      
                 
-            plot_style = keepPlotting(style_specified) 
+            plot_style = keepPlotting(style_specified, have_steps) 
             
         elif plot_style == 'offsets':
+              
+            print('Here is a plot of swing-swing offsets for lateral legs')
+            print(' ... close the plot window to proceed')
+            offsets, normalized_offsets, metachronal_lag, normalized_metachronal_lag = gaitFunctions.getOffsets(stepdata_df)
+            # f, axes = plt.subplots(1,2, figsize = (5,3), constrained_layout=True)
             
-            # get step_data
-            stepdata_df = gaitFunctions.loadStepData(movie_file)
+            # plt.show()  
             
-            if stepdata_df is None:
-                print(' ... no step data available yet - run frameStepper.py')
-            else:     
-                print('Here is a plot of swing-swing offsets for lateral legs')
-                print(' ... close the plot window to proceed')
-                offsets, normalized_offsets, metachronal_lag, normalized_metachronal_lag = gaitFunctions.getOffsets(stepdata_df)
-                # f, axes = plt.subplots(1,2, figsize = (5,3), constrained_layout=True)
-                
-                # plt.show()  
-            
-            
-            
-            plot_style = keepPlotting(style_specified) 
+            plot_style = keepPlotting(style_specified, have_steps) 
         
         elif plot_style == 'finished':
             plotting = False
@@ -266,14 +246,13 @@ def main(movie_file, plot_style = ''): # track or speed or steps
             break
         
         else:
-            plot_style = selectPlotStyle()
+            plot_style = selectPlotStyle(have_steps)
             
-
-def keepPlotting(style_specified):
+def keepPlotting(style_specified, have_steps=False):
     if style_specified:
         plot_style = 'finished'
     else:
-        plot_style = selectPlotStyle()
+        plot_style = selectPlotStyle(have_steps)
     return plot_style
 
 def cruisingProportionPlot(ax, tracked_df):
@@ -384,7 +363,7 @@ def getDataLabel(length, distance, vid_length, angle_space = 0, discrete_turns =
     return data_label
 
 
-def selectPlotStyle():
+def selectPlotStyle(have_steps=False):
     
     plotStyles = ['track',
                   'speed',
@@ -406,8 +385,14 @@ def selectPlotStyle():
                         ]
     print('\nPlot options: \n')
     print('  0. finished = quit plotting')
-    for i, style in enumerate(plotStyles):
-        print('  ' + str(i+1) + '. ' + style + ' = ' + plotDescriptions[i])
+    
+    if have_steps:
+        last_ind = len(plotStyles)
+    else:
+        last_ind = 2 # how many plot choices do not require step timing data?
+    
+    for i in np.arange(last_ind):
+        print('  ' + str(i+1) + '. ' + plotStyles[i] + ' = ' + plotDescriptions[i])
     
     selection = input('\nChoose one: ')
     
