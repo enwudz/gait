@@ -1,6 +1,6 @@
 #!/usr/bin/python
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
+# from matplotlib.patches import Rectangle
 import matplotlib as mpl
 import pandas as pd
 import numpy as np
@@ -12,11 +12,138 @@ import cv2
 from scipy.stats import sem
 import re
 
+def boxScatterParams():
+    alpha = 0.5 # scatter alpha
+    scatter_color = 'slategray' # scatter color
+    scatter_size = 20 # scatter size
+    jitter = 0.02
+    return alpha, scatter_color, scatter_size, jitter
+
+def omitNan(arr):
+    arr = arr[np.logical_not(np.isnan(arr))]
+    return arr
+
+def swingOffsetPlot(f, step_df):
+    
+    anterior_offsets, opposite_offsets_lateral, opposite_offsets_rear, mean_gait_cycle_lateral, mean_gait_cycle_rear  = getSwingOffsets(step_df)
+
+    # normalize offsets to gait cycle length
+    n_anterior_offsets = anterior_offsets / mean_gait_cycle_lateral
+    n_opposite_offsets_lateral = opposite_offsets_lateral / mean_gait_cycle_lateral
+    n_opposite_offsets_rear = opposite_offsets_rear / mean_gait_cycle_rear
+    
+    toPlot = [anterior_offsets, opposite_offsets_lateral, opposite_offsets_rear,
+              n_anterior_offsets, n_opposite_offsets_lateral, n_opposite_offsets_rear]
+
+    ylabs = ['Swing Offset:\nAnterior leg (sec)',
+             'Swing Offset:\nOpposite lateral leg (sec)',
+             'Swing Offset:\nOpposite rear leg (sec)',
+             'Anterior swing offset / \n gait cycle',
+             'Opposite lateral swing offset / \n lateral gait cycle',
+             'Opposite rear swing offset / \n rear gait cycle']
+
+    a, sc, sz, ji = boxScatterParams()
+    for i, d in enumerate(toPlot):
+        
+        stuff_to_plot = toPlot[i]
+        bp = f.axes[i].boxplot(stuff_to_plot, patch_artist=True, showfliers=False)
+        bp = formatBoxPlots(bp, ['tab:blue'], ['white'], ['lightsteelblue'])
+        
+        # add scatter over the boxplot?
+        xScatter = np.random.normal(1, ji, size=len(stuff_to_plot))
+        f.axes[i].scatter(xScatter, stuff_to_plot, s=sz, c=sc, alpha = a)
+        
+        # add axes labels
+        f.axes[i].set_ylabel(ylabs[i])
+        f.axes[i].set_xticks([])
+
+    return f
+
+def getSwingOffsets(step_df):
+    
+    cruising = step_df[step_df['cruising_during_step'] == True]
+    lateral_legs = get_leg_combos()[0]['legs_lateral']
+    rear_legs = get_leg_combos()[0]['rear']
+    three_two_legs = ['R3','L3','R2','L2']
+    
+    # get gait cycles of lateral legs
+    gait_cycle_lateral = cruising[cruising['legID'].isin(lateral_legs)]['gait'].values
+    mean_gait_cycle_lateral = np.mean(gait_cycle_lateral)
+    
+    # get gait cycles of rear legs
+    gait_cycle_rear = cruising[cruising['legID'].isin(rear_legs)]['gait'].values
+    mean_gait_cycle_rear = np.mean(gait_cycle_rear)
+    
+    # get swing offsets for lateral legs (anterior leg)
+    anterior_offsets = cruising[cruising['legID'].isin(three_two_legs)]['anterior_offsets'].values
+    anterior_offsets = omitNan(anterior_offsets)
+    
+    # get swing offsets for lateral legs (opposite leg)
+    opposite_offsets_lateral = cruising[cruising['legID'].isin(lateral_legs)]['contralateral_offsets'].values
+    opposite_offsets_lateral = omitNan(opposite_offsets_lateral)
+    
+    # get swing offsets for rear legs (opposite leg)
+    opposite_offsets_rear = cruising[cruising['legID'].isin(rear_legs)]['contralateral_offsets'].values
+    opposite_offsets_rear = omitNan(opposite_offsets_rear)
+                                                            
+    return anterior_offsets, opposite_offsets_lateral, opposite_offsets_rear, mean_gait_cycle_lateral, mean_gait_cycle_rear
+
+def getMetachronalLag(step_df):
+    
+    cruising = step_df[step_df['cruising_during_step'] == True]
+    lateral_legs = get_leg_combos()[0]['legs_lateral']
+    gait_cycle = cruising[cruising['legID'].isin(lateral_legs)]['gait'].values
+    mean_gait_cycle = np.mean(gait_cycle)
+    
+    L3_data = cruising[cruising['legID']=='L3']
+    R3_data = cruising[cruising['legID']=='R3']
+    
+    left_metachronal_lag = L3_data['metachronal_lag'].values
+    right_metachronal_lag = R3_data['metachronal_lag'].values
+    
+    # omit nan
+    left_metachronal_lag = omitNan(left_metachronal_lag)
+    right_metachronal_lag = omitNan(right_metachronal_lag)
+    
+    return left_metachronal_lag, right_metachronal_lag, mean_gait_cycle
+        
+def metachronalLagLRPlot(f, step_df):
+    
+    left_metachronal_lag, right_metachronal_lag, mean_gait_cycle = getMetachronalLag(step_df)
+    norm_left_metachronal_lag = left_metachronal_lag / mean_gait_cycle
+    norm_right_metachronal_lag = right_metachronal_lag / mean_gait_cycle
+
+    toPlot = [[left_metachronal_lag, right_metachronal_lag],
+              [norm_left_metachronal_lag, norm_right_metachronal_lag]]
+    ylabs = ['Metachronal lag (sec)', 'Metachronal lag / \n gait cycle']
+    
+    a, sc, sz, ji = boxScatterParams()
+
+    for i, d in enumerate(toPlot):
+        
+        [left_parameter, right_parameter] = toPlot[i]
+        
+        bp = f.axes[i].boxplot([left_parameter, right_parameter], patch_artist=True, showfliers=False)
+        bp = formatBoxPlots(bp, ['tab:blue'], ['white'], ['lightsteelblue'])
+        
+        # add scatter over the boxplot?
+        xleft = np.random.normal(1, ji, size=len(left_parameter))
+        xright = np.random.normal(2, ji, size=len(right_parameter))
+        f.axes[i].scatter(xleft, left_parameter, s=sz, c=sc, alpha = a)
+        f.axes[i].scatter(xright, right_parameter, s=sz, c=sc, alpha = a)
+        
+        # add axes labels
+        f.axes[i].set_ylabel(ylabs[i])
+        f.axes[i].set_xticks([1,2],['left','right'])
+    
+    return f
 
 def getStepParameters():
-    parameters = ['stance', 'swing', 'duty', 'gait', 'distance_during_step']
+    parameters = ['stance', 'swing', 'duty', 
+                  'gait', 'distance_during_step']
     labels = ['stance duration (sec)', 'swing duration (sec)',
-             'duty factor', 'gait cycle (sec)', 'distance traveled (pixels)']
+             'duty factor', 'gait cycle (sec)', 
+             'distance traveled (pixels)']
     return parameters, labels
 
 def speedStepParameterPlot(f, step_df):
@@ -51,20 +178,27 @@ def stepParameterLeftRightPlot(f, step_df):
     left_legs, left_leg_parameter_data = getStepParameterValues(step_df, 'legs_left')
     right_legs, right_leg_parameter_data = getStepParameterValues(step_df, 'legs_right')
     
+    a, sc, sz, ji = boxScatterParams()
     for i, parameter in enumerate(parameters):
-        
+
         # get data for this parameter
         left_parameter = np.concatenate(np.array(left_leg_parameter_data[parameter], dtype=object))
         right_parameter = np.concatenate(np.array(right_leg_parameter_data[parameter], dtype=object))
             
-        bp = f.axes[i].boxplot([left_parameter, right_parameter], patch_artist=True)
+        bp = f.axes[i].boxplot([left_parameter, right_parameter], patch_artist=True, showfliers=False)
         bp = formatBoxPlots(bp, ['tab:blue'], ['white'], ['lightsteelblue'])
+        
+        # add scatter over the boxplot?
+        xleft = np.random.normal(1, ji, size=len(left_parameter))
+        xright = np.random.normal(2, ji, size=len(right_parameter))
+        f.axes[i].scatter(xleft, left_parameter, s=sz, c=sc, alpha = a)
+        f.axes[i].scatter(xright, right_parameter, s=sz, c=sc, alpha = a)
         
         # add axes labels
         f.axes[i].set_ylabel(ylabs[i])
         f.axes[i].set_xticks([1,2],['left','right'])
-        
-    return f # also return the sides and leg parameters?
+    
+    return f 
     
 def stepParameterPlot(f, step_df):
     
@@ -72,8 +206,14 @@ def stepParameterPlot(f, step_df):
     legs, leg_parameter_data = getStepParameterValues(step_df, 'all')
     
     for i, parameter in enumerate(parameters):
-        bp = f.axes[i].boxplot(leg_parameter_data[parameter], patch_artist=True)
+        bp = f.axes[i].boxplot(leg_parameter_data[parameter], patch_artist=True, showfliers=False)
         bp = formatBoxPlots(bp, ['tab:blue'], ['white'], ['lightsteelblue'])
+        
+        # add scatter over the boxplot?
+        for j, val in enumerate(leg_parameter_data[parameter]):
+            scatterx = np.random.normal(j+1, 0.03, size=len(val))
+            f.axes[i].scatter(scatterx, val, s=20, c='slategray', alpha=0.5)
+        
         f.axes[i].set_ylabel(ylabs[i])
         f.axes[i].set_xticks(range(1,len(legs)+1), labels=legs)
     
@@ -98,7 +238,7 @@ def getStepParameterValues(step_df, legset = ''):
             # get data for each leg
             data_for_leg = cruising_steps[cruising_steps['legID']==leg][parameter].values  
             leg_parameter_data[parameter].append(data_for_leg)
-            
+
     return legs, leg_parameter_data
     
 def superImposedFirstLast(filestem):
@@ -934,6 +1074,15 @@ def gaitStyleProportionsPlot(ax, movie_files, leg_set = 'lateral'):
 def need_tracking():
     print('\n ==> Need to run trackCritter.py before analyzing the path!\n')
 
+def loadPathStats(movie_file):
+    excel_file = movie_file.split('.')[0] + '.xlsx'
+    try:
+        pdf = pd.read_excel(excel_file, sheet_name='path_stats', index_col=None)
+        path_stats_dict = dict(zip(pdf['path parameter'].values, pdf['value'].values))
+    except:
+        path_stats_dict = {}
+    return path_stats_dict
+
 def loadMovData(movie_file):
     '''
     get step up and down times for a movie
@@ -1001,9 +1150,9 @@ def loadGaitData(movie_file, excel_filename = ''):
             # if yes, load it as step_data_df
             gaitdata_df = pd.read_excel(excel_filename, sheet_name='gait_styles', index_col=None)
         except:
-            # if no, quit and report
-            print(' ... no gait_styles available in ' + excel_filename + '\n'
-                     ' ... be sure to run frameStepper.py and analyzePath.py ... ')
+            # if no, report
+            # print(' ... no gait_styles available in ' + excel_filename + '\n'
+            #          ' ... be sure to run frameStepper.py and analyzePath.py ... ')
             return None
 
     return gaitdata_df
@@ -1033,7 +1182,7 @@ def loadStepData(movie_file, excel_filename = ''):
             stepdata_df = pd.read_excel(excel_filename, sheet_name='step_timing', index_col=None)
         except:
             # if no, prompt to run analyzeSteps.py, and return None
-            print('... no step timing data yet, need to run analyzeSteps.py ... ')
+            # print('... no step timing data yet, need to run analyzeSteps.py ... ')
             return None
     
     return stepdata_df
@@ -1062,13 +1211,13 @@ def loadTrackedPath(movie_file):
     
         # load the tracked data from trackCritter
         tracked_df = pd.read_excel(excel_filename, sheet_name = 'pathtracking')
-        if len(tracked_df) == 0:
+        if 'xcoords' not in tracked_df.columns:
             need_tracking()
             return None, None 
         
     return tracked_df, excel_filename
 
-def loadIdentityInfo(movie_file):
+def loadIdentityInfo(movie_file, excel_file = ''):
     '''
     get information about the clip from the identity tab of the excel spreadsheet associated with the clip
 
@@ -1086,17 +1235,16 @@ def loadIdentityInfo(movie_file):
 
     '''
     
-    excel_file_exists, excel_filename = check_for_excel(movie_file)
-    if excel_file_exists:
+    if len(excel_file) == 0:
+        excel_file_exists, excel_file = check_for_excel(movie_file)
+    else:
         # check if data in the identity sheet
         try:
-            identity_df = pd.read_excel(excel_filename, sheet_name='identity', index_col=None)
+            identity_df = pd.read_excel(excel_file, sheet_name='identity', index_col=None)
+            identity_info = dict(zip(identity_df['Parameter'].values, identity_df['Value'].values))
         except:
-            exit('No data in identity sheet for ' + excel_filename)
-    
-        identity_info = dict(zip(identity_df['Parameter'].values, identity_df['Value'].values))
-    else:
-        exit('No excel file for this clip - run initializeClip!')
+            print('No data in identity sheet for ' + excel_file)
+            identity_info = None
         
     return identity_info
 
@@ -2239,14 +2387,15 @@ def formatBoxPlots(bp, boxColors=[], medianColors=[], flierColors=[]):
         flierColors = flierColors * len(bp['boxes'])
         
     baseWidth = 2
+    a = 0.5 # alpha
     
     # boxes
     for n,box in enumerate(bp['boxes']):
-        box.set( color=boxColors[n], linewidth=baseWidth)
+        box.set( color=boxColors[n], linewidth=baseWidth, alpha=a)
 
     # medians
     for n,med in enumerate(bp['medians']):
-        med.set( color=medianColors[n], linewidth=baseWidth/2)
+        med.set( color=medianColors[n], linewidth=baseWidth, alpha=a)
 
     bdupes=[]
     for i in boxColors:
@@ -2256,15 +2405,15 @@ def formatBoxPlots(bp, boxColors=[], medianColors=[], flierColors=[]):
     # whiskers
     for n,whisk in enumerate(bp['whiskers']):
         #whisk.set( color=(0.1,0.1,0.1), linewidth=2, alpha = 0.5)
-        whisk.set( color=boxColors[n], linewidth=baseWidth, alpha = 0.5)
+        whisk.set( color=boxColors[n], linewidth=baseWidth, alpha = a)
 
     # caps
     for n,cap in enumerate(bp['caps']):
-        cap.set( color=boxColors[n], linewidth=baseWidth, alpha = 0.5)
+        cap.set( color=boxColors[n], linewidth=baseWidth, alpha = a)
         
     # fliers
     for n, flier in enumerate(bp['fliers']): 
-        flier.set(marker ='.', color = flierColors[n], alpha = 0.5) 
+        flier.set(marker ='.', color = flierColors[n], alpha = a) 
 
     return bp
 

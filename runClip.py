@@ -14,7 +14,6 @@ import plotClip
 import gaitFunctions
 import frameStepper
 import analyzeSteps
-import plotSteps
 import sys
 
 def main(movie_file): 
@@ -26,15 +25,14 @@ def main(movie_file):
     
     ## automated path tracking, including speed, turns, stops
     ## if tracking wonky at 12, try 25, eg: (movie_file, 25, True) 
-    # trackCritter.main(movie_file, 12, True) # True is show tracking
-    # analyzeTrack.main(movie_file)
-    # plotClip.main(movie_file)
+    # trackCritter.main(movie_file, 25, True) # True is show tracking
+    # analyzeTrack.main(movie_file) # when finished with trackCritter
+    plotClip.main(movie_file)
     
     ## step-by-step timing
     # frameStepper.main(movie_file)
-    analyzeSteps.main(movie_file)
+    # analyzeSteps.main(movie_file) # when finished with frameStepper
     # plotClip.main(movie_file)
-
 
 if __name__== "__main__":
 
@@ -50,7 +48,7 @@ if __name__== "__main__":
             movie_files = sorted(glob.glob('*.mov'))
             for movie_file in movie_files:
                 main(movie_file)
-                sys.exit('Finished processing all clips')
+            sys.exit('Finished processing all clips')
         
         # if nothing given in command, list movie files and ask which one to do
         else:

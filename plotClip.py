@@ -72,7 +72,7 @@ def main(movie_file, plot_style = ''): # track or speed or steps
             ax, ax_colorbar = gaitFunctions.plotTrack(ax, ax_colorbar, movie_file, tracked_df)
             
             # ==> add labels from experiment and show plot:
-            ax.set_xlabel(getDataLabel(median_length, round(distance/scale,2), clip_duration, angle_space, discrete_turns, num_stops ))
+            ax.set_xlabel(getDataLabel(median_length, distance, clip_duration, angle_space, discrete_turns, num_stops ))
             plt.show()
             
             # prompted to keep plotting
@@ -205,8 +205,8 @@ def main(movie_file, plot_style = ''): # track or speed or steps
             
             plot_style = keepPlotting(style_specified, have_steps) 
         
-        elif plot_style == 'steps: left vs. right': # step parameters for lateral legs on left and right
-              
+        elif plot_style == 'left vs. right': # step parameters for lateral legs on left and right
+             
             print('Here is a plot of step parameters - comparing left lateral legs with right lateral legs')
             print(' ... close the plot window to proceed')
             # set up an axis for the step parameters
@@ -226,16 +226,31 @@ def main(movie_file, plot_style = ''): # track or speed or steps
                 
             plot_style = keepPlotting(style_specified, have_steps) 
             
-        elif plot_style == 'offsets':
+        elif plot_style == 'swing offsets':
               
             print('Here is a plot of swing-swing offsets for lateral legs')
             print(' ... close the plot window to proceed')
-            offsets, normalized_offsets, metachronal_lag, normalized_metachronal_lag = gaitFunctions.getOffsets(stepdata_df)
-            # f, axes = plt.subplots(1,2, figsize = (5,3), constrained_layout=True)
             
-            # plt.show()  
+            # anterior-swing offsets, opposite-swing offsets (lateral), opposite-swing offsets(rear)
+            # and normalized to gait cycle
+            
+            f, axes = plt.subplots(2,3, figsize = (10,6), constrained_layout=True)
+            f = gaitFunctions.swingOffsetPlot(f, stepdata_df)
+            plt.show()  
             
             plot_style = keepPlotting(style_specified, have_steps) 
+        
+        elif plot_style == 'metachronal lag':
+            print('Here is a plot of the metachronal lag')
+            print('This is the amount of time elapsed between the swing of the third leg')
+            print('and the swing of the first leg')
+            print(' ... close the plot window to proceed')
+
+            f, axes = plt.subplots(1,2, figsize = (8,3), constrained_layout=True)
+            f = gaitFunctions.metachronalLagLRPlot(f, stepdata_df)
+            plt.show()
+            
+            plot_style = keepPlotting(style_specified, have_steps)
         
         elif plot_style == 'finished':
             plotting = False
@@ -348,7 +363,7 @@ def speedDistancePlot(a1, tracked_df, scale):
 
 def getDataLabel(length, distance, vid_length, angle_space = 0, discrete_turns = 0, num_stops = 0):
     # convert from pixels?
-    speed = np.around(distance/vid_length, decimals = 2)
+    speed = np.around(distance/vid_length, decimals = 3)
     data_label = 'Length : ' + str(length)
     data_label += ', Distance : ' + str(distance)
     data_label += ', Time: ' + str(vid_length)
@@ -370,18 +385,20 @@ def selectPlotStyle(have_steps=False):
                   'steps',
                   'legs',
                   'step parameters',
-                  'steps: left vs. right',
+                  'left vs. right',
                   'speed vs. steps',
-                  'offsets']
+                  'swing offsets',
+                  'metachronal lag']
     
     plotDescriptions = ['show critter path on background', # track
                         'show speed, distance, and turns', # speed
                         'show all steps, with speed and turns', # steps
                         'show steps for a particular set of legs', # legs
                         'show step parameters (stance, swing, duty factor, cycle, distance)', # step parameters
-                        'show step parameters comparing left vs. right lateral legs', # steps: left vs. right
+                        'show step parameters comparing left vs. right lateral legs', # left vs. right
                         'show scatter plot of speed vs step parameters (for lateral legs)', # speed vs. steps
-                        'show swing-swing timing offsets for lateral legs' # offsets
+                        'show swing-swing timing offsets', # offsets
+                        'show elapsed time between 3rd leg swing and 1st leg swing'
                         ]
     print('\nPlot options: \n')
     print('  0. finished = quit plotting')

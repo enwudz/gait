@@ -32,6 +32,9 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
         
     # load the tracked data
     tracked_data, excel_filename = gaitFunctions.loadTrackedPath(movie_file)
+    if tracked_data is None:
+        print('No path tracking data yet - run trackCritter.py')
+        return
     
     cols = tracked_data.columns.values
     for c in cols:
@@ -77,7 +80,7 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
     
     # add path tracking summary values to 'path_stats' tab
     # area, distance, average speed, num turns, num stops, bearings, time_increment for turns & stops
-    parameters = ['area','length','clip duration','total distance','average speed',
+    parameters = ['scale','area','length','clip duration','total distance','average speed',
                   '# turns','# stops', '% cruising', 'cumulative bearings','bin duration',
                   'pixel threshold','tracking confidence']
     
@@ -88,7 +91,7 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
     num_stops = len(gaitFunctions.one_runs(stops))
     cumulative_bearings = np.sum(bearing_changes)
     tracking_confidence = gaitFunctions.getTrackingConfidence(uncertainties, pixel_threshold)
-    vals = [median_area, median_length, clip_duration, total_distance, 
+    vals = [scale, median_area, median_length, clip_duration, total_distance, 
             average_speed, num_turns, num_stops, cruising_proportion, cumulative_bearings, 
             time_increment, pixel_threshold, tracking_confidence]
     
@@ -292,18 +295,18 @@ def getScale(info):
                 print('no micrometer image ... ')
                 scale = 1
         
-        # update the excel file
-        print('... adding scale to excel file for this clip ... ')
-        excel_filename = info['file_stem'] + '.xlsx'
-        parameters = gaitFunctions.identity_print_order()
-        vals = [info[x] for x in parameters]
-        parameters.append('scale')
-        vals.append(scale)
+        # # update the excel file
+        # print('... adding scale to excel file for this clip ... ')
+        # excel_filename = info['file_stem'] + '.xlsx'
+        # parameters = gaitFunctions.identity_print_order()
+        # vals = [info[x] for x in parameters]
+        # parameters.append('scale')
+        # vals.append(scale)
         
-        d = {'Parameter':parameters,'Value':vals}
-        df = pd.DataFrame(d)
-        with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
-            df.to_excel(writer, index=False, sheet_name='identity')
+        # d = {'Parameter':parameters,'Value':vals}
+        # df = pd.DataFrame(d)
+        # with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
+        #     df.to_excel(writer, index=False, sheet_name='identity')
         
     #print('Scale is ' + str(scale))
     return scale
