@@ -114,8 +114,8 @@ def main():
         identity_info = gaitFunctions.loadIdentityInfo(movie_file, excel_file)
         treatment = identity_info['treatment']
         individual = identity_info['individualID']
-        uniq_id = treatment + '_' + individual
         date = identity_info['date']
+        uniq_id = '_'.join([treatment, individual, date])
         
         #### ===> load path_stats from this clip
         path_stats_dict = gaitFunctions.loadPathStats(movie_file)
@@ -156,32 +156,34 @@ def main():
         
         #### ===> load tracked data from this clip
         tdf, excel_file = gaitFunctions.loadTrackedPath(movie_file)
+        if tdf is not None:
         
-        # collect areas for this individual in this clip
-        if uniq_id in clip_areas.keys():
-            clip_areas[uniq_id] = np.append(clip_areas[uniq_id], tdf['areas'].values)
-        else:
-            clip_areas[uniq_id] = tdf['areas'].values
-        
-        # collect lengths for this individual in this clip
-        if uniq_id in clip_lengths.keys():
-            clip_lengths[uniq_id] = np.append(clip_lengths[uniq_id], tdf['lengths'].values)
-        else:
-            clip_lengths[uniq_id] = tdf['lengths'].values
-        
-        # collect cruising frames for this individual in this clip
-        stop_frames = tdf['stops'].values
-        turn_frames = tdf['turns'].values
-        noncruise_frames = stop_frames + turn_frames
-        cruise_frames = np.zeros(len(stop_frames))
-        cruise_frames[np.where(noncruise_frames==0)] = 1
-        if uniq_id in clip_cruising.keys():
-            clip_cruising[uniq_id] = np.append(clip_cruising[uniq_id], cruise_frames)
-        else:
-            clip_cruising[uniq_id] = cruise_frames
+            # collect areas for this individual in this clip
+            if uniq_id in clip_areas.keys():
+                clip_areas[uniq_id] = np.append(clip_areas[uniq_id], tdf['areas'].values)
+            else:
+                clip_areas[uniq_id] = tdf['areas'].values
+            
+            # collect lengths for this individual in this clip
+            if uniq_id in clip_lengths.keys():
+                clip_lengths[uniq_id] = np.append(clip_lengths[uniq_id], tdf['lengths'].values)
+            else:
+                clip_lengths[uniq_id] = tdf['lengths'].values
+            
+            # collect cruising frames for this individual in this clip
+            stop_frames = tdf['stops'].values
+            turn_frames = tdf['turns'].values
+            noncruise_frames = stop_frames + turn_frames
+            cruise_frames = np.zeros(len(stop_frames))
+            cruise_frames[np.where(noncruise_frames==0)] = 1
+            if uniq_id in clip_cruising.keys():
+                clip_cruising[uniq_id] = np.append(clip_cruising[uniq_id], cruise_frames)
+            else:
+                clip_cruising[uniq_id] = cruise_frames
         
         #### ===> load step_timing data from this clip
         sdf = gaitFunctions.loadStepData(movie_file, excel_file)
+        
         # add step_timing data and identifying info to combined file
         if sdf is not None:
             sdf = addColtoDF(sdf, 'clip', clip) # add clip name
@@ -189,6 +191,39 @@ def main():
             sdf = addColtoDF(sdf, 'individual', individual) # add individual name
             sdf = addColtoDF(sdf, 'date', date) # add date
             step_timing_combined_df = pd.concat([step_timing_combined_df, sdf])
+            
+        #### ===> make new summary sheet for step parameters = step_summaries
+        
+        ## WORKING HERE ... should be able to use gaitFunctions stuff . . .
+            lateral_legs = gaitFunctions.get_leg_combos()[0]['lateral']
+            rear_legs = gaitFunctions.get_leg_combos()[0]['rear']
+        # clip_stance_lateral = {}
+        # clip_swing_lateral = {}
+        # clip_gait_lateral = {}
+        # clip_duty_lateral = {}
+        
+        # clip_stance_rear = {}
+        # clip_swing_rear = {}
+        # clip_gait_rear = {}
+        # clip_duty_rear = {}
+        
+        # clip_distance_per_step_lateral = {}
+        # clip_bodylength_per_step_lateral = {}
+        # clip_distance_per_step_rear = {}
+        # clip_bodylength_per_step_rear = {}
+        
+        # clip_anterior_offset = {}
+        # clip_opposite_offset_lateral = {}
+        # clip_opposite_offset_rear = {}
+        
+        # clip_anterior_offset_normalized = {}
+        # clip_opposite_offset_lateral_normalized = {}
+        # clip_opposite_offset_rear_normalized = {}
+        
+        # clip_metachronal_lag = {}
+        # clip_metachronal_lag_normalized = {}
+        
+        
         
         #### ===> load gait_styles data from this clip
         gdf = gaitFunctions.loadGaitData(movie_file, excel_file)
@@ -205,24 +240,71 @@ def main():
             else:
                 clip_total_frames[uniq_id] = frames_in_clip
             
-            # get #frames were lateral legs are all down = 'stand'
+            # get #frames where lateral legs are all down = 'stand'
             if uniq_id in clip_stand_lateral.keys():
                 clip_stand_lateral[uniq_id] = np.append(clip_stand_lateral[uniq_id], np.count_nonzero(lateral_gaits=='stand'))
             else:
                 clip_stand_lateral[uniq_id] = np.count_nonzero(lateral_gaits=='stand')
-        
-        # pentapod
-        ## WORKING HERE
-        # tetrapod_canonical
-        # tetrapod_gallop
-        # tetrapod_other
-        # tripod_canonical
-        # tripod_other
-        # other_lateral
-        
-        # stand_rear
-        # hop
-        # step
+            
+            # get #frames where one lateral leg is up = 'pentapod'
+            if uniq_id in clip_pentapod.keys():
+                clip_pentapod[uniq_id] = np.append(clip_pentapod[uniq_id], np.count_nonzero(lateral_gaits=='pentapod'))
+            else:
+                clip_pentapod[uniq_id] = np.count_nonzero(lateral_gaits=='pentapod')
+                
+            # get #frames where two lateral legs are up in adjacent segments on opposite sides = 'tetrapod_canonical'
+            if uniq_id in clip_tetrapod_canonical.keys():
+                clip_tetrapod_canonical[uniq_id] = np.append(clip_tetrapod_canonical[uniq_id], np.count_nonzero(lateral_gaits=='tetrapod_canonical'))
+            else:
+                clip_tetrapod_canonical[uniq_id] = np.count_nonzero(lateral_gaits=='tetrapod_canonical')
+                 
+            # get #frames where two lateral legs are up in same segment on opposite sides = 'tetrapod_gallop'
+            if uniq_id in clip_tetrapod_gallop.keys():
+                clip_tetrapod_gallop[uniq_id] = np.append(clip_tetrapod_gallop[uniq_id], np.count_nonzero(lateral_gaits=='tetrapod_gallop'))
+            else:
+                clip_tetrapod_gallop[uniq_id] = np.count_nonzero(lateral_gaits=='tetrapod_gallop')
+                
+            # get #frames where two lateral legs are up in a pattern not described above = 'tetrapod_other'
+            if uniq_id in clip_tetrapod_other.keys():
+                clip_tetrapod_other[uniq_id] = np.append(clip_tetrapod_other[uniq_id], np.count_nonzero(lateral_gaits=='tetrapod_other'))
+            else:
+                clip_tetrapod_other[uniq_id] = np.count_nonzero(lateral_gaits=='tetrapod_other')
+                
+            # get #frames where three lateral legs are up in adjacent segments on opposite sides = 'tripod_canonical'
+            if uniq_id in clip_tripod_canonical.keys():
+                clip_tripod_canonical[uniq_id] = np.append(clip_tripod_canonical[uniq_id], np.count_nonzero(lateral_gaits=='tripod_canonical'))
+            else:
+                clip_tripod_canonical[uniq_id] = np.count_nonzero(lateral_gaits=='tripod_canonical')
+                
+            # get #frames where three lateral legs are up in a pattern that is not 'canonical' = 'tripod_other'
+            if uniq_id in clip_tripod_other.keys():
+                clip_tripod_other[uniq_id] = np.append(clip_tripod_other[uniq_id], np.count_nonzero(lateral_gaits=='tripod_other'))
+            else:
+                clip_tripod_other[uniq_id] = np.count_nonzero(lateral_gaits=='tripod_other')
+                
+            # get #frames where more than three lateral legs are up = 'other'
+            if uniq_id in clip_other_lateral.keys():
+                clip_other_lateral[uniq_id] = np.append(clip_other_lateral[uniq_id], np.count_nonzero(lateral_gaits=='other'))
+            else:
+                clip_other_lateral[uniq_id] = np.count_nonzero(lateral_gaits=='other')
+                
+            # get #frames where both rear legs are down= 'stand'
+            if uniq_id in clip_stand_rear.keys():
+                clip_stand_rear[uniq_id] = np.append(clip_stand_rear[uniq_id], np.count_nonzero(rear_gaits=='stand'))
+            else:
+                clip_stand_rear[uniq_id] = np.count_nonzero(rear_gaits=='stand')
+                
+            # get #frames where both rear legs are up= 'hop'
+            if uniq_id in clip_hop.keys():
+                clip_hop[uniq_id] = np.append(clip_hop[uniq_id], np.count_nonzero(rear_gaits=='hop'))
+            else:
+                clip_hop[uniq_id] = np.count_nonzero(rear_gaits=='hop')
+                
+            # get #frames where one rear leg is up= 'step'
+            if uniq_id in clip_step.keys():
+                clip_step[uniq_id] = np.append(clip_step[uniq_id], np.count_nonzero(rear_gaits=='step'))
+            else:
+                clip_step[uniq_id] = np.count_nonzero(rear_gaits=='step')
         
         
     #### ===> finished collecting data. Build up dataframes to save
@@ -231,6 +313,7 @@ def main():
     ids = sorted(clip_duration.keys())
     treatments = [x.split('_')[0] for x in ids]
     individuals = [x.split('_')[1] for x in ids]
+    dates = [x.split('_')[2] for x in ids]
     scales = [clip_scales[x] for x in ids]
     areas = [np.median(clip_areas[x]) / clip_scales[x]**2 for x in ids]
     lengths = [np.median(clip_lengths[x]) / clip_scales[x] for x in ids]
@@ -249,6 +332,7 @@ def main():
     path_summaries_dict = {'Identifier':ids,
                            'Treatment':treatments,
                            'Individual':individuals,
+                           'Date':dates,
                            'Scale (pixels in 1mm)':scales,
                            'Size (mm^2)':areas,
                            'Length (mm)':lengths,
@@ -270,14 +354,36 @@ def main():
     ids = sorted(clip_total_frames.keys())
     treatments = [x.split('_')[0] for x in ids]
     individuals = [x.split('_')[1] for x in ids]
+    dates = [x.split('_')[2] for x in ids]
     num_frames = [np.sum(clip_total_frames[x]) for x in ids]
     frames_standing_lateral = [np.sum(clip_stand_lateral[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
-    ## WORKING HERE
+    frames_pentapod = [np.sum(clip_pentapod[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
+    frames_tetrapod_canonical = [np.sum(clip_tetrapod_canonical[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
+    frames_tetrapod_gallop = [np.sum(clip_tetrapod_gallop[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
+    frames_tetrapod_other = [np.sum(clip_tetrapod_other[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
+    frames_tripod_canonical = [np.sum(clip_tripod_canonical[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
+    frames_tripod_other = [np.sum(clip_tripod_other[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
+    frames_other = [np.sum(clip_other_lateral[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
+    frames_stand_rear = [np.sum(clip_stand_rear[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
+    frames_hop = [np.sum(clip_hop[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
+    frames_step = [np.sum(clip_step[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
+    
     gait_summaries_dict = {'Identifier':ids,
                            'Treatment':treatments,
                            'Individual':individuals,
+                           'Date':dates,
                            'Number of frames':num_frames,
-                           '% standing (lateral legs)':frames_standing_lateral
+                           '% standing (lateral legs)':frames_standing_lateral,
+                           '% pentapod (lateral legs)':frames_pentapod,
+                           '% tetrapod canonical (lateral legs)':frames_tetrapod_canonical,
+                           '% tetrapod gallop (lateral legs)':frames_tetrapod_gallop,
+                           '% tetrapod other (lateral legs)':frames_tetrapod_other,
+                           '% tripod canonical (lateral legs)':frames_tripod_canonical,
+                           '% tripod other (lateral legs)':frames_tripod_other,
+                           '% other(lateral legs)':frames_other,
+                           '% stand (rear legs)':frames_stand_rear,
+                           '% hop (rear legs)':frames_hop,
+                           '% step (rear legs)':frames_step
                            }
     
     gait_summaries_df = pd.DataFrame(gait_summaries_dict)
