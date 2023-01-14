@@ -25,6 +25,11 @@ gait_summaries = summary data from gait_styles
     each row is an individual
     each column is a gait style, and the values are the % time in that 
         gait style for that individual
+        
+Can use the resulting excel file to:
+    compare treatments = average values for each individual in a group
+    within an individual, see complete picture of gait style and step parameters
+    
 """
 
 import pandas as pd
@@ -72,10 +77,8 @@ def main():
     clip_gait_rear = {}
     clip_duty_rear = {}
     
-    clip_distance_per_step_lateral = {}
-    clip_bodylength_per_step_lateral = {}
-    clip_distance_per_step_rear = {}
-    clip_bodylength_per_step_rear = {}
+    clip_pixels_per_step_lateral = {}
+    clip_pixels_per_step_rear = {}
     
     clip_anterior_offset = {}
     clip_opposite_offset_lateral = {}
@@ -193,37 +196,115 @@ def main():
             step_timing_combined_df = pd.concat([step_timing_combined_df, sdf])
             
         #### ===> make new summary sheet for step parameters = step_summaries
-        
-        ## WORKING HERE ... should be able to use gaitFunctions stuff . . .
+
             lateral_legs = gaitFunctions.get_leg_combos()[0]['lateral']
             rear_legs = gaitFunctions.get_leg_combos()[0]['rear']
-        # clip_stance_lateral = {}
-        # clip_swing_lateral = {}
-        # clip_gait_lateral = {}
-        # clip_duty_lateral = {}
+            
+            # get steps while critter is 'cruising' 
+            # (not turning, not stopping ... as determined by analyzePath.py)
+            cruising = sdf[sdf['cruising_during_step'] == True]
+            cruising_lateral = cruising[cruising['legID'].isin(lateral_legs)]
+            cruising_rear = cruising[cruising['legID'].isin(rear_legs)]
+            
+            ## LATERAL step parameters
+            # get stance duration for lateral legs for this individual for this clip
+            if uniq_id in clip_stance_lateral.keys():
+                clip_stance_lateral[uniq_id] = np.append(clip_stance_lateral[uniq_id], cruising_lateral['stance'].values)
+            else:
+                clip_stance_lateral[uniq_id] = cruising_lateral['stance'].values
+                
+            # get swing duration for lateral legs for this individual for this clip
+            if uniq_id in clip_swing_lateral.keys():
+                clip_swing_lateral[uniq_id] = np.append(clip_swing_lateral[uniq_id], cruising_lateral['swing'].values)
+            else:
+                clip_swing_lateral[uniq_id] = cruising_lateral['swing'].values
+                
+            # get gait cycle for lateral legs for this individual for this clip
+            if uniq_id in clip_gait_lateral.keys():
+                clip_gait_lateral[uniq_id] = np.append(clip_gait_lateral[uniq_id], cruising_lateral['gait'].values)
+            else:
+                clip_gait_lateral[uniq_id] = cruising_lateral['gait'].values
+                
+            # get duty factor for lateral legs for this individual for this clip
+            if uniq_id in clip_duty_lateral.keys():
+                clip_duty_lateral[uniq_id] = np.append(clip_duty_lateral[uniq_id], cruising_lateral['duty'].values)
+            else:
+                clip_duty_lateral[uniq_id] = cruising_lateral['duty'].values
         
-        # clip_stance_rear = {}
-        # clip_swing_rear = {}
-        # clip_gait_rear = {}
-        # clip_duty_rear = {}
+            # get distance in pixels per lateral leg step (will convert later)
+            if uniq_id in clip_pixels_per_step_lateral.keys():
+                clip_pixels_per_step_lateral[uniq_id] = np.append(clip_pixels_per_step_lateral[uniq_id], cruising_lateral['distance_during_step'].values)
+            else:
+                clip_pixels_per_step_lateral[uniq_id] = cruising_lateral['distance_during_step'].values
+
+            ## REAR step parameters
+            # get stance duration for REAR legs for this individual for this clip
+            if uniq_id in clip_stance_rear.keys():
+                clip_stance_rear[uniq_id] = np.append(clip_stance_rear[uniq_id], cruising_rear['stance'].values)
+            else:
+                clip_stance_rear[uniq_id] = cruising_rear['stance'].values
+                
+            # get swing duration for rear legs for this individual for this clip
+            if uniq_id in clip_swing_rear.keys():
+                clip_swing_rear[uniq_id] = np.append(clip_swing_rear[uniq_id], cruising_rear['swing'].values)
+            else:
+                clip_swing_rear[uniq_id] = cruising_rear['swing'].values
+                
+            # get gait cycle for rear legs for this individual for this clip
+            if uniq_id in clip_gait_rear.keys():
+                clip_gait_rear[uniq_id] = np.append(clip_gait_rear[uniq_id], cruising_rear['gait'].values)
+            else:
+                clip_gait_rear[uniq_id] = cruising_rear['gait'].values
+                
+            # get duty factor for rear legs for this individual for this clip
+            if uniq_id in clip_duty_rear.keys():
+                clip_duty_rear[uniq_id] = np.append(clip_duty_rear[uniq_id], cruising_rear['duty'].values)
+            else:
+                clip_duty_rear[uniq_id] = cruising_rear['duty'].values
         
-        # clip_distance_per_step_lateral = {}
-        # clip_bodylength_per_step_lateral = {}
-        # clip_distance_per_step_rear = {}
-        # clip_bodylength_per_step_rear = {}
+            # get distance in pixels per lateral leg step (will convert later)
+            if uniq_id in clip_pixels_per_step_rear.keys():
+                clip_pixels_per_step_rear[uniq_id] = np.append(clip_pixels_per_step_rear[uniq_id], cruising_rear['distance_during_step'].values)
+            else:
+                clip_pixels_per_step_rear[uniq_id] = cruising_rear['distance_during_step'].values    
         
-        # clip_anterior_offset = {}
-        # clip_opposite_offset_lateral = {}
-        # clip_opposite_offset_rear = {}
-        
-        # clip_anterior_offset_normalized = {}
-        # clip_opposite_offset_lateral_normalized = {}
-        # clip_opposite_offset_rear_normalized = {}
-        
-        # clip_metachronal_lag = {}
-        # clip_metachronal_lag_normalized = {}
-        
-        
+            ## OFFSETS AND METACHRONAL LAG 
+            anterior_offsets, opposite_offsets_lateral, opposite_offsets_rear, mean_gait_cycle_lateral, mean_gait_cycle_rear = gaitFunctions.getSwingOffsets(sdf)
+            # print(uniq_id, anterior_offsets) # just testing
+            
+            # get anterior swing offsets for lateral legs
+            if uniq_id in clip_anterior_offset.keys():
+                clip_anterior_offset[uniq_id] = np.append(clip_anterior_offset[uniq_id], anterior_offsets)
+            else:
+                clip_anterior_offset[uniq_id] = anterior_offsets
+                
+            # get anterior swing offsets normalized to gait cycle for lateral legs
+            if uniq_id in clip_anterior_offset_normalized.keys():
+                clip_anterior_offset_normalized[uniq_id] = np.append(clip_anterior_offset_normalized[uniq_id], anterior_offsets / mean_gait_cycle_lateral)
+            else:
+                clip_anterior_offset_normalized[uniq_id] = anterior_offsets / mean_gait_cycle_lateral
+            
+            # get opposite swing offsets for lateral legs
+            if uniq_id in clip_opposite_offset_lateral.keys():
+                clip_opposite_offset_lateral[uniq_id] = np.append(clip_opposite_offset_lateral[uniq_id], opposite_offsets_lateral)
+            else:
+                clip_opposite_offset_lateral[uniq_id] = opposite_offsets_lateral
+            
+            # get opposite swing offsets normalized to gait cycle for lateral legs
+            if uniq_id in clip_opposite_offset_lateral_normalized.keys():
+                clip_opposite_offset_lateral_normalized[uniq_id] = np.append(clip_opposite_offset_lateral_normalized[uniq_id], opposite_offsets_lateral / mean_gait_cycle_lateral)
+            else:
+                clip_opposite_offset_lateral_normalized[uniq_id] = opposite_offsets_lateral / mean_gait_cycle_lateral
+                
+            
+            ## WORKING HERE
+            # clip_metachronal_lag = {}
+            # clip_metachronal_lag_normalized = {}
+
+            # clip_opposite_offset_rear = {}
+            # clip_opposite_offset_rear_normalized = {}
+            
+            # left/right balance??
         
         #### ===> load gait_styles data from this clip
         gdf = gaitFunctions.loadGaitData(movie_file, excel_file)
@@ -349,6 +430,54 @@ def main():
                            'Turns / sec':turns_per_sec}
     
     path_summaries_df = pd.DataFrame(path_summaries_dict)
+    
+    #### ==> step_summaries dataframe ... info for each unique individual
+    
+    ids = sorted(clip_stance_lateral.keys())
+    treatments = [x.split('_')[0] for x in ids]
+    individuals = [x.split('_')[1] for x in ids]
+    dates = [x.split('_')[2] for x in ids]
+    stance_duration_lateral = [np.mean(clip_stance_lateral[x]) for x in ids]
+    swing_duration_lateral = [np.mean(clip_swing_lateral[x]) for x in ids]
+    gait_cycle_lateral = [np.mean(clip_gait_lateral[x]) for x in ids]
+    duty_factor_lateral = [np.mean(clip_duty_lateral[x]) for x in ids]
+    distance_per_step_lateral = [np.mean(clip_pixels_per_step_lateral[x]) / clip_scales[x] for x in ids]
+    bodylength_per_step_lateral = [np.mean(clip_pixels_per_step_lateral[x]) / np.median(clip_lengths[x]) for x in ids]
+    stance_duration_rear = [np.mean(clip_stance_rear[x]) for x in ids]
+    swing_duration_rear = [np.mean(clip_swing_rear[x]) for x in ids]
+    gait_cycle_rear = [np.mean(clip_gait_rear[x]) for x in ids]
+    duty_factor_rear = [np.mean(clip_duty_rear[x]) for x in ids]
+    distance_per_step_rear = [np.mean(clip_pixels_per_step_rear[x]) / clip_scales[x] for x in ids]
+    bodylength_per_step_rear = [np.mean(clip_pixels_per_step_rear[x]) / np.median(clip_lengths[x]) for x in ids]
+    anterior_offsets = [np.mean(clip_anterior_offset[x]) for x in ids]
+    normalized_anterior_offsets = [np.mean(clip_anterior_offset_normalized[x]) for x in ids]
+    opposite_offsets_lateral = [np.mean(clip_opposite_offset_lateral[x]) for x in ids]
+    opposite_offsets_lateral_normalized = [np.mean(clip_opposite_offset_lateral_normalized[x]) for x in ids]
+    
+    step_summaries_dict = {'Identifier':ids,
+                           'Treatment':treatments,
+                           'Individual':individuals,
+                           'Stance duration (lateral legs)':stance_duration_lateral,
+                           'Swing duration (lateral legs)':swing_duration_lateral,
+                           'Gait cycle (lateral legs)':gait_cycle_lateral,
+                           'Duty factor (lateral legs)':duty_factor_lateral,
+                           'mm per step (lateral legs)':distance_per_step_lateral,
+                           'bodylength per step (lateral legs)':bodylength_per_step_lateral,
+                           'Stance duration (rear legs)':stance_duration_rear,
+                           'Swing duration (rear legs)':swing_duration_rear,
+                           'Gait cycle (rear legs)':gait_cycle_rear,
+                           'Duty factor (rear legs)':duty_factor_rear,
+                           'mm per step (rear legs)':distance_per_step_rear,
+                           'bodylength per step (rear legs)':bodylength_per_step_rear,
+                           'Anterior swing offsets (lateral legs)':anterior_offsets,
+                           'Anterior swing offsets (normalized, lateral legs)':normalized_anterior_offsets,
+                           'Opposite swing offsets (lateral legs)':opposite_offsets_lateral,
+                           'Opposite swing offsets (normalized, lateral legs)':opposite_offsets_lateral_normalized
+                           }
+    
+    step_summaries_df = pd.DataFrame(step_summaries_dict)
+    
+    # WORKING HERE
     
     #### ==> gait_summaries dataframe ... info for each unique individual
     ids = sorted(clip_total_frames.keys())
