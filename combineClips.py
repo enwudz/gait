@@ -193,6 +193,7 @@ def main():
             sdf = addColtoDF(sdf, 'treatment', treatment) # add treatment type
             sdf = addColtoDF(sdf, 'individual', individual) # add individual name
             sdf = addColtoDF(sdf, 'date', date) # add date
+            sdf = addColtoDF(sdf, 'uniq_id', treatment + '_' + individual + '_' + date)
             step_timing_combined_df = pd.concat([step_timing_combined_df, sdf])
             
         #### ===> make new summary sheet for step parameters = step_summaries
@@ -268,7 +269,22 @@ def main():
             else:
                 clip_pixels_per_step_rear[uniq_id] = cruising_rear['distance_during_step'].values    
         
-            ## OFFSETS AND METACHRONAL LAG 
+            ## OFFSETS AND METACHRONAL LAG
+            # get metachronal lag (lateral legs)
+            left_metachronal_lag, right_metachronal_lag, mean_gait_cycle = gaitFunctions.getMetachronalLag(sdf)
+            metachronal_lag = np.concatenate([left_metachronal_lag, right_metachronal_lag])
+            # print(uniq_id, metachronal_lag) # just testing
+            if uniq_id in clip_metachronal_lag.keys():
+                clip_metachronal_lag[uniq_id] = np.append(clip_metachronal_lag[uniq_id], metachronal_lag)
+            else:
+                clip_metachronal_lag[uniq_id] = metachronal_lag / mean_gait_cycle
+                
+            # get metachronal lag normalized to gait cycle (lateral legs)
+            if uniq_id in clip_metachronal_lag_normalized.keys():
+                clip_metachronal_lag_normalized[uniq_id] = np.append(clip_metachronal_lag_normalized[uniq_id], metachronal_lag)
+            else:
+                clip_metachronal_lag_normalized[uniq_id] = metachronal_lag / mean_gait_cycle
+            
             anterior_offsets, opposite_offsets_lateral, opposite_offsets_rear, mean_gait_cycle_lateral, mean_gait_cycle_rear = gaitFunctions.getSwingOffsets(sdf)
             # print(uniq_id, anterior_offsets) # just testing
             
@@ -295,14 +311,18 @@ def main():
                 clip_opposite_offset_lateral_normalized[uniq_id] = np.append(clip_opposite_offset_lateral_normalized[uniq_id], opposite_offsets_lateral / mean_gait_cycle_lateral)
             else:
                 clip_opposite_offset_lateral_normalized[uniq_id] = opposite_offsets_lateral / mean_gait_cycle_lateral
-                
             
-            ## WORKING HERE
-            # clip_metachronal_lag = {}
-            # clip_metachronal_lag_normalized = {}
-
-            # clip_opposite_offset_rear = {}
-            # clip_opposite_offset_rear_normalized = {}
+            # get opposite swing offsets for rear legs
+            if uniq_id in clip_opposite_offset_rear.keys():
+                clip_opposite_offset_rear[uniq_id] = np.append(clip_opposite_offset_rear[uniq_id], opposite_offsets_rear)
+            else:
+                clip_opposite_offset_rear[uniq_id] = opposite_offsets_rear
+                
+            # get opposite swing offsets for rear legs
+            if uniq_id in clip_opposite_offset_rear_normalized.keys():
+                clip_opposite_offset_rear_normalized[uniq_id] = np.append(clip_opposite_offset_rear_normalized[uniq_id], opposite_offsets_rear / mean_gait_cycle_rear)
+            else:
+                clip_opposite_offset_rear_normalized[uniq_id] = opposite_offsets_rear / mean_gait_cycle_rear
             
             # left/right balance??
         
@@ -411,9 +431,9 @@ def main():
     turns_per_sec = [turns[i] / duration for i, duration in enumerate(durations) ]
     
     path_summaries_dict = {'Identifier':ids,
-                           'Treatment':treatments,
-                           'Individual':individuals,
-                           'Date':dates,
+                           'treatment':treatments,
+                           'individual':individuals,
+                           'date':dates,
                            'Scale (pixels in 1mm)':scales,
                            'Size (mm^2)':areas,
                            'Length (mm)':lengths,
@@ -453,10 +473,15 @@ def main():
     normalized_anterior_offsets = [np.mean(clip_anterior_offset_normalized[x]) for x in ids]
     opposite_offsets_lateral = [np.mean(clip_opposite_offset_lateral[x]) for x in ids]
     opposite_offsets_lateral_normalized = [np.mean(clip_opposite_offset_lateral_normalized[x]) for x in ids]
-    
+    metachronal_lag = [np.mean(clip_metachronal_lag[x]) for x in ids]     
+    metachronal_lag_normalized = [np.mean(clip_metachronal_lag_normalized[x]) for x in ids] 
+    opposite_offsets_rear = [np.mean(clip_opposite_offset_rear[x]) for x in ids] 
+    opposite_offsets_rear_normalized = [np.mean(clip_opposite_offset_rear_normalized[x]) for x in ids] 
+        
+    # WORKING HERE
     step_summaries_dict = {'Identifier':ids,
-                           'Treatment':treatments,
-                           'Individual':individuals,
+                           'treatment':treatments,
+                           'individual':individuals,
                            'Stance duration (lateral legs)':stance_duration_lateral,
                            'Swing duration (lateral legs)':swing_duration_lateral,
                            'Gait cycle (lateral legs)':gait_cycle_lateral,
@@ -469,16 +494,18 @@ def main():
                            'Duty factor (rear legs)':duty_factor_rear,
                            'mm per step (rear legs)':distance_per_step_rear,
                            'bodylength per step (rear legs)':bodylength_per_step_rear,
+                           'Metachronal lag (lateral legs)':metachronal_lag,
+                           'Metachronal lag (normalized, lateral legs)':metachronal_lag_normalized,
                            'Anterior swing offsets (lateral legs)':anterior_offsets,
                            'Anterior swing offsets (normalized, lateral legs)':normalized_anterior_offsets,
                            'Opposite swing offsets (lateral legs)':opposite_offsets_lateral,
-                           'Opposite swing offsets (normalized, lateral legs)':opposite_offsets_lateral_normalized
+                           'Opposite swing offsets (normalized, lateral legs)':opposite_offsets_lateral_normalized,
+                           'Opposite swing offsets (rear legs)':opposite_offsets_rear,
+                           'Opposite swing offsets (rear, lateral legs)':opposite_offsets_rear_normalized
                            }
     
     step_summaries_df = pd.DataFrame(step_summaries_dict)
-    
-    # WORKING HERE
-    
+   
     #### ==> gait_summaries dataframe ... info for each unique individual
     ids = sorted(clip_total_frames.keys())
     treatments = [x.split('_')[0] for x in ids]
@@ -498,9 +525,9 @@ def main():
     frames_step = [np.sum(clip_step[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
     
     gait_summaries_dict = {'Identifier':ids,
-                           'Treatment':treatments,
-                           'Individual':individuals,
-                           'Date':dates,
+                           'treatment':treatments,
+                           'individual':individuals,
+                           'date':dates,
                            'Number of frames':num_frames,
                            '% standing (lateral legs)':frames_standing_lateral,
                            '% pentapod (lateral legs)':frames_pentapod,

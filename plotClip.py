@@ -291,7 +291,6 @@ def cruisingProportionPlot(ax, tracked_df):
     
     return ax
     
-
 def timeRibbonPlot(a4, tracked_df):
     cmap_name = 'plasma'
     times = tracked_df.times.values
