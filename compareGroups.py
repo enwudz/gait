@@ -37,7 +37,9 @@ def main(datafile):
 
     # open the combined data excel file (from combineClips.py) and check what kind of data is available
     data_dfs, data_descriptions = getSheets(datafile)
-    if len(data_dfs.keys()) > 0:   
+    if len(data_dfs.keys()) == 1:
+        selected_dataset = list(data_dfs.keys())[0]
+    elif len(data_dfs.keys()) > 1:   
         datatype_options = [datatype + ': ' + data_descriptions[datatype] for i, datatype in enumerate(data_dfs.keys())]
         selection = gaitFunctions.selectOneFromList(datatype_options)
         selected_dataset = selection.split(':')[0] # klugey
