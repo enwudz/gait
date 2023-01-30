@@ -51,20 +51,30 @@ def main(movie_file):
         # get timing and step characteristics for all gait cycles for this leg
         downs = up_down_times[ref_leg]['d']
         ups = up_down_times[ref_leg]['u']
+        
         downs, ups, stance_times, swing_times, gait_cycles, duty_factors, mid_swings = gaitFunctions.getStepSummary(downs,ups)
+        
+        # if leg down the whole time, then downs = [0] and ups = [length_of_clip] 
+        if len(downs) == 1 and len(ups) == 1:
+            i=0
+            data_for_steps.append(','.join(str(x) for x in [ref_leg,downs[0],ups[i],stance_times[i],swing_times[i],
+                                                   gait_cycles[i],duty_factors[i],mid_swings[i]]))
+        
+        # if many steps, want to go through each down step (aside from the last one)
+        else: 
 
-        # go through each down step for this leg
-        for i,step in enumerate(downs[:-1]): 
-            
-            # there needs to be one more down than up because we want the timing of COMPLETE gait cycles
-            # in other words ... #downs = #ups + 1
-            # and the order needs to be corect
-            # e.g. down-up down-up down-up down
-
-            # get and print information for this step
-            step_stats = ','.join(str(x) for x in [ref_leg,step,ups[i],stance_times[i],swing_times[i],
-                                                gait_cycles[i],duty_factors[i],mid_swings[i]])
-            data_for_steps.append(step_stats)
+            # go through each down step for this leg
+            for i,step in enumerate(downs[:-1]): 
+                
+                # there needs to be one more down than up because we want the timing of COMPLETE gait cycles
+                # in other words ... #downs = #ups + 1
+                # and the order needs to be corect
+                # e.g. down-up down-up down-up down
+    
+                # get and print information for this step
+                step_stats = ','.join(str(x) for x in [ref_leg,step,ups[i],stance_times[i],swing_times[i],
+                                                    gait_cycles[i],duty_factors[i],mid_swings[i]])
+                data_for_steps.append(step_stats)
 
     if add_swing is True: # do we want the mid-swing information for all other legs?
         print('Saving mid-swing times to step_timing sheet ... ')
@@ -263,6 +273,7 @@ def getOffsets(step_df):
     '''
     
     steps = step_df['legID'].values
+    
     swing_start_array = step_df['UpTime'].values
     
     # Make swing_starts = a dictionary of swing starts (in numpy array), keyed by leg
@@ -415,7 +426,10 @@ def getSpeedForStep(step_data_df, pathtracking_df):
         step_end = step_start + float(gait_durations[i])
         
         # find the index in time that is equal to or greater than the end of this step
-        end_time_index = np.where(frametimes>=round(step_end,3))[0][0]
+        try:
+            end_time_index = np.where(frametimes>=round(step_end,3))[0][0]
+        except:
+            end_time_index = len(frametimes)
         
         # use these indices to get the speeds in all frames between the beginning and end of these steps
         speeds_during_step = speeds[start_time_index:end_time_index]

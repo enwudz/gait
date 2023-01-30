@@ -1237,14 +1237,14 @@ def loadIdentityInfo(movie_file, excel_file = ''):
     
     if len(excel_file) == 0:
         excel_file_exists, excel_file = check_for_excel(movie_file)
-    else:
-        # check if data in the identity sheet
-        try:
-            identity_df = pd.read_excel(excel_file, sheet_name='identity', index_col=None)
-            identity_info = dict(zip(identity_df['Parameter'].values, identity_df['Value'].values))
-        except:
-            print('No data in identity sheet for ' + excel_file)
-            identity_info = None
+
+    # check if data in the identity sheet
+    try:
+        identity_df = pd.read_excel(excel_file, sheet_name='identity', index_col=None)
+        identity_info = dict(zip(identity_df['Parameter'].values, identity_df['Value'].values))
+    except:
+        print('No data in identity sheet for ' + excel_file)
+        identity_info = None
         
     return identity_info
 

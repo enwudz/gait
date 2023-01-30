@@ -16,7 +16,6 @@ import gaitFunctions
 '''
 WISH LIST
 
-
 '''
 
 def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
@@ -165,7 +164,7 @@ def stopsTurns(times, speed, bearing_changes, bearings, increment, length):
     
     # define speed threshold for stop
     # if mean speed in a time window is below this threshold, it is a STOP!
-    threshold_distance = 0.3 * length # expressed as fraction of length of critter
+    threshold_distance = 0.15 * length # expressed as fraction of length of critter
     stop_threshold = threshold_distance * increment # STOP is below this speed
     
     # define turn threshold

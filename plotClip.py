@@ -27,9 +27,8 @@ def main(movie_file, plot_style = ''): # track or speed or steps
         path_stats_df = pd.read_excel(excel_filename, sheet_name='path_stats', index_col=None)
         path_stats = dict(zip(path_stats_df['path parameter'].values, path_stats_df['value'].values))
         
-        info_df = pd.read_excel(excel_filename, sheet_name='identity', index_col=None)
-        info = dict(zip(info_df['Parameter'].values, info_df['Value'].values))
-        scale = float(info['scale'])
+        # info_df = pd.read_excel(excel_filename, sheet_name='identity', index_col=None)
+        # info = dict(zip(info_df['Parameter'].values, info_df['Value'].values))
     else:
         import initializeClip
         initializeClip.main(movie_file)
@@ -37,6 +36,7 @@ def main(movie_file, plot_style = ''): # track or speed or steps
      
     # collect data for path_stats
     # median_area = round(path_stats['area'],4)
+    scale = float(path_stats['scale'])
     median_length = round(path_stats['length'],4)
     clip_duration = round(path_stats['clip duration'],2)
     distance = round(path_stats['total distance'],3)

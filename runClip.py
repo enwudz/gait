@@ -24,13 +24,13 @@ def main(movie_file):
     # initializeClip.main(movie_file)
     
     ## automated path tracking, including speed, turns, stops
-    ## if tracking wonky at 12, try 25, eg: (movie_file, 25, True) 
-    # trackCritter.main(movie_file, 25, True) # True is show tracking
+    # if tracking wonky at 12, try 25, eg: (movie_file, 25, True) 
+    # trackCritter.main(movie_file, 12, True) # True is show tracking
     # analyzeTrack.main(movie_file) # when finished with trackCritter
-    plotClip.main(movie_file)
+    # plotClip.main(movie_file)
     
     ## step-by-step timing
-    # frameStepper.main(movie_file)
+    frameStepper.main(movie_file)
     # analyzeSteps.main(movie_file) # when finished with frameStepper
     # plotClip.main(movie_file)
 

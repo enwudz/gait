@@ -63,6 +63,13 @@ def main(movie_file, resize=100):
         print('... record data for ' + foot + '\n')
         data = stepThroughFrames(frame_folder, foot, resize) 
     
+        # if no steps, data will be empty. 
+        # for data, we expect a list of two lists: down_times, up_times
+        if len(data[0]) == 0 and len(data[1]) == 0:
+            data[0] = [0]
+            lastframe = gaitFunctions.getFrameTimes(movie_file)[-1]
+            data[1] = [lastframe]# length of clip
+    
         # print out foot down and foot up data for this foot
         foot_step_times = showFootDownUp(foot, data)
         print(foot_step_times)
@@ -110,19 +117,20 @@ def print_foot_data(foot_data, foot):
 
 def select_a_foot(foot_list):
 
-    i = 1
+    i = 0
+    print('  ' + str(i) + ': None - finished (for now)!')
+    i += 1
     for foot in foot_list:
         print('  ' + str(i) + ': ' + foot)
         i += 1
-    print('  ' + str(i) + ': None - finished (for now)!')
-    
     entry = input('\nWhich foot would you like to track? ')
+    
     try:
         choice = int(entry)
     except:
         choice = int(i)
 
-    if choice > len(foot_list):
+    if choice > len(foot_list) or choice == 0:
         selection = 'none'
     else:
         selection = foot_list[choice-1]
@@ -160,10 +168,13 @@ def get_foot_data(movie_file):
         
         # load foot_data dictionary
         foot_data = dict(zip(foot_data_df['leg_state'].values,foot_data_df['times'].values))
+        
         # convert foot_data from string to list, to match data collection below
         for leg_state in foot_data.keys():
-            if len(foot_data[leg_state]) > 0:
+            if type(foot_data[leg_state]) is list:
                 foot_data[leg_state] = foot_data[leg_state].split(' ')
+            else:
+                foot_data[leg_state] = [ foot_data[leg_state] ]
     
     return foot_data, foot_data_df, excel_filename
 
@@ -428,7 +439,7 @@ def saveFrames(frame_folder, movie_file):
 
             # save frame to file, with frameTime
             if frameTime > 0: # cv2 sometimes(?) assigns the last frame of the movie to time 0            
-                file_name = base_name + '_' + str(int(frameTime*1000)).zfill(5) + '.png'
+                file_name = base_name + '_' + str(int(frameTime*1000)).zfill(6) + '.png'
                 cv2.imwrite(os.path.join(frame_folder, file_name), frame)
             
         else: # no frame here
