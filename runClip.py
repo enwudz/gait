@@ -21,7 +21,7 @@ def main(movie_file):
     # <=== put a # before a line to comment it off
     
     ## make an excel file for a clip
-    # initializeClip.main(movie_file)
+    initializeClip.main(movie_file)
     
     ## automated path tracking, including speed, turns, stops
     # if tracking wonky at 12, try 25, eg: (movie_file, 25, True) 
@@ -30,7 +30,7 @@ def main(movie_file):
     # plotClip.main(movie_file)
     
     ## step-by-step timing
-    frameStepper.main(movie_file)
+    # frameStepper.main(movie_file)
     # analyzeSteps.main(movie_file) # when finished with frameStepper
     # plotClip.main(movie_file)
 
@@ -45,7 +45,7 @@ if __name__== "__main__":
             
         # can also designate 'all' movies
         elif selection in ['all','a']:
-            movie_files = sorted(glob.glob('*.mov'))
+            movie_files = gaitFunctions.getMovieFiles(['mov','mp4'])
             for movie_file in movie_files:
                 main(movie_file)
             sys.exit('Finished processing all clips')

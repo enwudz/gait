@@ -88,6 +88,7 @@ def getSwingOffsets(step_df):
                                                             
     return anterior_offsets, opposite_offsets_lateral, opposite_offsets_rear, mean_gait_cycle_lateral, mean_gait_cycle_rear
 
+
 def getMetachronalLag(step_df):
     
     cruising = step_df[step_df['cruising_during_step'] == True]
@@ -648,13 +649,21 @@ def listDirectories():
     dirs = sorted([d for d in dirs if d.startswith('_') == False and d.startswith('.') == False])
     return dirs
 
+def getMovieFiles(filetypes = ['mov','mp4']):
+    movie_files = []
+    for filetype in filetypes:
+        searchterm = '*.' + filetype
+        movie_files.extend(glob.glob(searchterm))
+    return sorted(movie_files)
+
 def select_movie_file():
-    movie_files = sorted(glob.glob('*.mov'))
+    movie_files = getMovieFiles(['mov','mp4'])
+    print(movie_files)
     if len(movie_files) > 0:
         movie_file = selectOneFromList(movie_files)
     else:
         movie_file = ''
-        print('Cannot find a movie (.mov) file - do you have one here?')
+        print('Cannot find a movie (.mov or .mp4) file - do you have one here?')
     return movie_file
 
 def identity_print_order():
@@ -1259,7 +1268,7 @@ def getFirstLastFrames(movie_file):
         first_frame = cv2.imread(first_frame_file)
     else:
         print('... getting first frame ...')
-        vidcap = cv2.VideoCapture(filestem + '.mov')
+        vidcap = cv2.VideoCapture(movie_file)
         success, image = vidcap.read()
         if success:
             first_frame = image
@@ -1271,7 +1280,7 @@ def getFirstLastFrames(movie_file):
         last_frame = cv2.imread(last_frame_file)
     else:
         print('... getting last frame ...')
-        vidcap = cv2.VideoCapture(filestem + '.mov')
+        vidcap = cv2.VideoCapture(movie_file)
         frame_num = 1
         good_frame = None
         while vidcap.isOpened():

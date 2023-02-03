@@ -164,8 +164,13 @@ if __name__== "__main__":
         movie_file = sys.argv[1]
     else:
         movie_file = gaitFunctions.select_movie_file()
-        
-    if '.mov' in movie_file:
+     
+    print(movie_file)    
+    
+    if '.mov' in movie_file or '.mp4' in movie_file:
         main(movie_file)
     else:
-        exit('No .mov file found')
+        exit('No movie file found')
+        
+        
+        
