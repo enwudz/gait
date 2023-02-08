@@ -21,11 +21,11 @@ def main(movie_file):
     # <=== put a # before a line to comment it off
     
     ## make an excel file for a clip
-    initializeClip.main(movie_file)
+    # initializeClip.main(movie_file)
     
     ## automated path tracking, including speed, turns, stops
     # if tracking wonky at 12, try 25, eg: (movie_file, 25, True) 
-    # trackCritter.main(movie_file, 12, True) # True is show tracking
+    trackCritter.main(movie_file, 12, True) # True is show tracking
     # analyzeTrack.main(movie_file) # when finished with trackCritter
     # plotClip.main(movie_file)
     

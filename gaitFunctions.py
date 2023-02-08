@@ -658,7 +658,7 @@ def getMovieFiles(filetypes = ['mov','mp4']):
 
 def select_movie_file():
     movie_files = getMovieFiles(['mov','mp4'])
-    print(movie_files)
+    # print(movie_files)
     if len(movie_files) > 0:
         movie_file = selectOneFromList(movie_files)
     else:
