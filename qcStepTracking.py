@@ -88,6 +88,8 @@ def plotLegParameterComps(excel_filename):
                 
             if p == 0:
                 current_ax.set_ylabel(leg_set,fontsize=fs)
+
+            current_ax.set_xticks([1,2], labels = ['round1', 'round2'])
     
     plt.tight_layout()
     plt.show()

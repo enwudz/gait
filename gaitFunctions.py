@@ -49,7 +49,7 @@ def swingOffsetPlot(f, step_df):
         bp = f.axes[i].boxplot(stuff_to_plot, patch_artist=True, showfliers=False)
         bp = formatBoxPlots(bp, ['tab:blue'], ['white'], ['lightsteelblue'])
         
-        # add scatter over the boxplot?
+        # add scatter over the boxplot
         xScatter = np.random.normal(1, ji, size=len(stuff_to_plot))
         f.axes[i].scatter(xScatter, stuff_to_plot, s=sz, c=sc, alpha = a)
         
