@@ -1092,7 +1092,7 @@ def loadPathStats(movie_file):
         path_stats_dict = {}
     return path_stats_dict
 
-def loadMovData(movie_file):
+def loadMovData(movie_file, sheet = 'steptracking'):
     '''
     get step up and down times for a movie
     
@@ -1115,7 +1115,7 @@ def loadMovData(movie_file):
     if excel_file_exists:
         
         try:
-            df = pd.read_excel(excel_filename, sheet_name='steptracking', index_col=None)
+            df = pd.read_excel(excel_filename, sheet_name=sheet, index_col=None)
         except:
             needFrameStepper()
         

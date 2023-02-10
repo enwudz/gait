@@ -417,7 +417,7 @@ def backgroundFromRandomFrames(movie_file, num_background_frames):
         
         # get mode of image stack for each pixel
         print("... calculating mode for background image (takes awhile) ...")
-        background_image = stats.mode(video_stack, axis=2, keepdims = True)[0][:,:] # this is SLOW!
+        background_image = stats.mode(video_stack, axis=2)[0][:,:] # this is SLOW!
         
         # consider blurring the background image a bit?
 
