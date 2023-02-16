@@ -163,7 +163,7 @@ if __name__== "__main__":
     if len(sys.argv) > 1:
         movie_file = sys.argv[1]
     else:
-        movie_file = gaitFunctions.select_movie_file()
+        movie_file = gaitFunctions.selectFile(['mp4','mov'])
      
     print(movie_file)    
     

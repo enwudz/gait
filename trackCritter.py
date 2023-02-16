@@ -132,8 +132,9 @@ def findCritter(video_file, background, pixThreshold, showTracking):
             print('frame ' + str(frame_number) + ' has ' + str(len(contours)) + ' detected objects!')
             problem_frame = True
             if len(areas) == 0:
-                target_area = 7000 # just a guess
-                current_loc = (400,400)
+                target_area = 14000 # just a guess
+                midwidth,midheight = np.round(np.shape(frame)[:2])
+                current_loc = (midwidth,midheight)
             else:
                 target_area = np.mean(areas)
                 current_x = centroid_coordinates[-1][1]
@@ -495,7 +496,7 @@ if __name__== "__main__":
     if len(sys.argv) > 1:
         movie_file = sys.argv[1]
     else:
-       movie_file = gaitFunctions.select_movie_file()
+        movie_file = gaitFunctions.selectFile(['mp4','mov'])
        
     print('Movie is ' + movie_file)
 

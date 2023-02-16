@@ -144,18 +144,18 @@ def main(movie_file, plot_style = ''): # track or speed or steps
             
             # plot the gait styles for lateral legs
             gaits_ax = f.add_axes([0.1, 0.26, 0.65, 0.04])
-            gaits_ax = gaitFunctions.plotGaits(gaits_ax, movie_file, 'lateral')
+            gaits_ax = gaitFunctions.plotGaits(gaits_ax, excel_filename, 'lateral')
             gaits_ax.set_xlim(speed_xlim)
             
             # proportions and legend for gait styles: lateral
             lateral_gait_proportions_ax = f.add_axes([0.83, 0.1, 0.02, 0.18])
             lateral_gait_proportions_ax = gaitFunctions.gaitStyleProportionsPlot(lateral_gait_proportions_ax, 
-                                                                                  [movie_file],
+                                                                                  [excel_filename],
                                                                                   'lateral')
             
             # plot the gait styles for rear legs
             reargaits_ax = f.add_axes([0.1, 0.44, 0.65, 0.04])
-            reargaits_ax = gaitFunctions.plotGaits(reargaits_ax, movie_file, 'rear')
+            reargaits_ax = gaitFunctions.plotGaits(reargaits_ax, excel_filename, 'rear')
             reargaits_ax.set_xlim(speed_xlim)
             
             # plot the steps for the rear legs
@@ -169,7 +169,7 @@ def main(movie_file, plot_style = ''): # track or speed or steps
             # proportions and legend for gait styles: rear
             rear_gait_proportions_ax = f.add_axes([0.83, 0.33, 0.02, 0.18])
             rear_gait_proportions_ax = gaitFunctions.gaitStyleProportionsPlot(rear_gait_proportions_ax, 
-                                                                                  [movie_file],
+                                                                                  [excel_filename],
                                                                                   'rear')
     
             plt.show()
@@ -436,7 +436,7 @@ if __name__== "__main__":
         except:
             plot_style = ''
     else:
-        movie_file = gaitFunctions.select_movie_file()
+        movie_file = gaitFunctions.selectFile(['mp4','mov'])
         plot_style = ''
 
     print('Plot style is ' + plot_style)

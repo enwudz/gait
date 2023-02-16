@@ -30,24 +30,87 @@ import gaitFunctions
 import sys
 import pandas as pd
 
-def main(movie_file):
+def main():
     
-    # scatter plot of down and up times for all legs
-    mov_data_1, excel_filename = gaitFunctions.loadMovData(movie_file)
-    mov_data_2, excel_filename = gaitFunctions.loadMovData(movie_file, 'steptracking_1')
-    # scatterLegTimes(mov_data_1, mov_data_2)
+    # find excel files
+    excel_files = gaitFunctions.getFileList(['xlsx'])
+    
+    # select two movie files to compare ... need to have frame stepper done
+    print('\nSelect TWO excel files to compare . . .')
+    selected_files = gaitFunctions.selectMultipleFromList(excel_files)
+
+    if len(selected_files) == 2:
+        excel_file_1, excel_file_2 = selected_files
+    else:
+        sys.exit('Please select TWO files only')
+    
+    # # scatter plot of down and up times for all legs
+    mov_data_1, excel_filename = gaitFunctions.loadUpDownData(excel_file_1)
+    mov_data_2, excel_filename = gaitFunctions.loadUpDownData(excel_file_2)
+    scatterLegTimes(mov_data_1, mov_data_2)
 
     # compare step parameters between runs
     # lateral legs, rear legs ... so 4x2 plot of pairs
-    plotLegParameterComps(excel_filename)
+    plotLegParameterComps(excel_file_1, excel_file_2)
        
     # compare gait styles between different runs
     # lateral legs, rear legs ... so 2x1 plot of pairs
-
-def plotLegParameterComps(excel_filename):
+    plotGaitstyleComps(excel_file_1, excel_file_2)
     
-    step_timing_1 = pd.read_excel(excel_filename, sheet_name = 'step_timing', index_col=None)
-    step_timing_2 = pd.read_excel(excel_filename, sheet_name = 'step_timing_1', index_col=None)
+    
+def gaitDifferenceScore(excel_file_1, excel_file_2):
+    times, lateral_gait_style_vector_1 = gaitFunctions.getGaitStyleVec(excel_file_1, 'lateral')
+    times, lateral_gait_style_vector_2 = gaitFunctions.getGaitStyleVec(excel_file_2, 'lateral')
+    times, rear_gait_style_vector_1 = gaitFunctions.getGaitStyleVec(excel_file_1, 'rear')
+    times, rear_gait_style_vector_2 = gaitFunctions.getGaitStyleVec(excel_file_2, 'rear')
+    
+    lateral_combos, combo_colors = gaitFunctions.get_gait_combo_colors('lateral')
+    rear_combos, combo_colors = gaitFunctions.get_gait_combo_colors('rear')
+    
+    # for each combo, get # in each list, get absolute value of difference
+    # calculate: number of differences / 2 * length of times vector
+    num_differences = 0
+    for combo in lateral_combos:
+        count_1 = np.count_nonzero(lateral_gait_style_vector_1 == combo)
+        count_2 = np.count_nonzero(lateral_gait_style_vector_2 == combo)
+        diff = np.abs(count_1-count_2)
+        num_differences += diff
+
+    for combo in rear_combos:
+        count_1 = np.count_nonzero(rear_gait_style_vector_1 == combo)
+        count_2 = np.count_nonzero(rear_gait_style_vector_2 == combo)
+        diff = np.abs(count_1-count_2)
+        num_differences += diff
+    
+    difference_score = np.round(num_differences / (2 * len(times)) , 2)
+    return difference_score
+
+def plotGaitstyleComps(excel_file_1, excel_file_2):
+    
+    excel_files = [excel_file_1,excel_file_2]
+    
+    # set up figure: on left = lateral comparison; on right = rear comparison
+    f, (ax1,ax2) = plt.subplots(nrows=1, ncols=2, sharey=True, figsize=(8,4))
+    
+    ax1 = gaitFunctions.gaitStyleProportionsPlot(ax1, excel_files, 'lateral')
+    ax2 = gaitFunctions.gaitStyleProportionsPlot(ax2, excel_files, 'rear')
+    
+    xlims = [-0.5, 1.5]
+    ax1.set_xlim(xlims)
+    ax2.set_xlim(xlims)
+    
+    difference_score = gaitDifferenceScore(excel_file_1, excel_file_2)
+    report = '\n Gait style difference score = ' + str(difference_score) + '\n'
+    print(report)
+    plt.suptitle(report)
+    plt.tight_layout()
+    plt.show()
+    
+
+def plotLegParameterComps(excel_file_1, excel_file_2):
+    
+    step_timing_1 = pd.read_excel(excel_file_1, sheet_name = 'step_timing', index_col=None)
+    step_timing_2 = pd.read_excel(excel_file_2, sheet_name = 'step_timing', index_col=None)
     
     # lateral_legs = gaitFunctions.get_leg_combos()[0]['lateral']
     # rear_legs = gaitFunctions.get_leg_combos()[0]['rear']
@@ -93,9 +156,6 @@ def plotLegParameterComps(excel_filename):
     
     plt.tight_layout()
     plt.show()
-            
-        
-
 
 def scatterLegTimes(data1, data2):
     
@@ -205,11 +265,4 @@ def minDiffVectors(vec1, vec2):
     
 if __name__== "__main__":
 
-    if len(sys.argv) > 1:
-        movie_file = sys.argv[1]
-    else:
-       movie_file = gaitFunctions.select_movie_file()
-       
-    print('Movie is ' + movie_file)
-
-    main(movie_file)
+    main()

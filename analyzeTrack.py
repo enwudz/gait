@@ -414,7 +414,7 @@ if __name__== "__main__":
         except:
             plot_style = 'none'
     else:
-        movie_file = gaitFunctions.select_movie_file()
+        movie_file = gaitFunctions.selectFile(['mp4','mov'])
         plot_style = 'none'
        
     print('Movie is ' + movie_file)

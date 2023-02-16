@@ -469,7 +469,7 @@ if __name__== "__main__":
         except:
             resize = 100
     else:
-        movie_file = gaitFunctions.select_movie_file()
+        movie_file = gaitFunctions.selectFile(['mp4','mov'])
         resize = 100
 
     print('Resizing to ' + str(resize) + '%')

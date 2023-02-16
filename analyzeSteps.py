@@ -21,7 +21,8 @@ def main(movie_file):
     add_swing = True # do we want to collect mid-swing times for all other legs for each step?
 
     # load mov_data = a dictionary of UP and DOWN times for each leg ... or complain that this data is not available
-    mov_data, excel_filename = gaitFunctions.loadMovData(movie_file)
+    excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file.split('.')[0]) 
+    mov_data, excel_filename = gaitFunctions.loadUpDownData(excel_filename)
 
     # collect step data from mov_data
     up_down_times, last_event = gaitFunctions.getUpDownTimes(mov_data)
@@ -466,7 +467,7 @@ if __name__== "__main__":
     if len(sys.argv) > 1:
         movie_file = sys.argv[1]
     else:
-       movie_file = gaitFunctions.select_movie_file()
+        movie_file = gaitFunctions.selectFile(['mp4','mov'])
        
     print('Movie is ' + movie_file)
 

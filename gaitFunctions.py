@@ -242,15 +242,13 @@ def getStepParameterValues(step_df, legset = ''):
 
     return legs, leg_parameter_data
     
-def superImposedFirstLast(filestem):
+def superImposedFirstLast(movie_file):
     # superimpose first and last frames
-    first_frame, last_frame = getFirstLastFrames(filestem)
+    first_frame, last_frame = getFirstLastFrames(movie_file)
     combined_frame = cv2.addWeighted(first_frame, 0.3, last_frame, 0.7, 0)
     return combined_frame
 
 def plotTrack(ax, ax_colorbar, movie_file, tracked_df):
-    
-    filestem = movie_file.split('.')[0]
     
     times = tracked_df.times.values
     xcoords = tracked_df.xcoords.values
@@ -258,7 +256,7 @@ def plotTrack(ax, ax_colorbar, movie_file, tracked_df):
     smoothedx = tracked_df.smoothed_x.values
     smoothedy = tracked_df.smoothed_y.values
     
-    combined_frame = superImposedFirstLast(filestem)
+    combined_frame = superImposedFirstLast(movie_file)
 
     ax.imshow(combined_frame) # combined_frame or last_frame
     
@@ -624,8 +622,8 @@ def qcDownsUps(downs, ups):
     return problem
 
 # check for excel file for a movie clip
-def check_for_excel(mov_file):
-    file_stem = mov_file.split('.')[0]
+def check_for_excel(movie_file):
+    file_stem = movie_file.split('.')[0]
     excel_filename = file_stem + '.xlsx'
     glob_list = glob.glob(excel_filename)
     if len(glob_list) > 0:
@@ -649,22 +647,22 @@ def listDirectories():
     dirs = sorted([d for d in dirs if d.startswith('_') == False and d.startswith('.') == False])
     return dirs
 
-def getMovieFiles(filetypes = ['mov','mp4']):
-    movie_files = []
+def getFileList(filetypes = ['mov','mp4']):
+    file_list = []
     for filetype in filetypes:
         searchterm = '*.' + filetype
-        movie_files.extend(glob.glob(searchterm))
-    return sorted(movie_files)
+        file_list.extend(glob.glob(searchterm))
+    return sorted(file_list)
 
-def select_movie_file():
-    movie_files = getMovieFiles(['mov','mp4'])
+def selectFile(filetypes = ['mov','mp4']):
+    file_list = getFileList(filetypes)
     # print(movie_files)
-    if len(movie_files) > 0:
-        movie_file = selectOneFromList(movie_files)
+    if len(file_list) > 0:
+        selected_file = selectOneFromList(file_list)
     else:
-        movie_file = ''
-        print('Cannot find a movie (.mov or .mp4) file - do you have one here?')
-    return movie_file
+        selected_file = ''
+        print('Cannot find a file that matches ' + ' or '.join(filetypes) + ' - do you have one here?')
+    return selected_file
 
 def identity_print_order():
     return ['file_stem','date','treatment','individualID','time_range',
@@ -1002,15 +1000,15 @@ def get_gait_combo_colors(leg_set = 'lateral'):
         combo_colors = dict(zip(all_combos, plot_colors))
     return all_combos, combo_colors
 
-def gaitStyleProportionsPlot(ax, movie_files, leg_set = 'lateral'):
+def gaitStyleProportionsPlot(ax, excel_files, leg_set = 'lateral'):
     '''
  
     Parameters
     ----------
     ax : matplotlib axis object
         empty axis object.
-    gait_style_vectors : list of vectors of gait_styles
-        From gait_styles sheet in the experiment excel file.
+    excel_files : list of excel files for clips
+        From gait_styles sheet in each experiment excel file.
         Can do more than one on a single plot
     leg_set : string, optional
         Which leg set to use. The default is 'lateral', but 'rear' is an option
@@ -1022,16 +1020,16 @@ def gaitStyleProportionsPlot(ax, movie_files, leg_set = 'lateral'):
 
     '''
     
-    barWidth = 0.1
+    barWidth = 0.5
 
     # get the gait vectors for the selected movie fiels
     gait_style_vectors = []
     exp_names = []
     
-    for movie_file in movie_files:
-        exp_name = movie_file.split('.')[0]
+    for excel_file in excel_files:
+        exp_name = excel_file.split('.')[0]
         exp_names.append(exp_name)
-        times, gait_style_vector = getGaitStyleVec(movie_file, leg_set)
+        times, gait_style_vector = getGaitStyleVec(excel_file, leg_set)
         if gait_style_vector is None:
             print(' ... no gait styles yet - run frameStepper and analyzeSteps!')
             return ax
@@ -1092,14 +1090,14 @@ def loadPathStats(movie_file):
         path_stats_dict = {}
     return path_stats_dict
 
-def loadMovData(movie_file, sheet = 'steptracking'):
+def loadUpDownData(excel_file, sheet = 'steptracking'):
     '''
     get step up and down times for a movie
     
     Parameters
     ----------
-    movie_file : string
-        file name of a movie (.mov).
+    excel_file : string
+        file name for an excel file (.xlsx) associated with a movie clip
 
     Returns
     -------
@@ -1110,8 +1108,9 @@ def loadMovData(movie_file, sheet = 'steptracking'):
         fine name of excel spreadsheet associated with movie_file.
 
     '''
-    # 
-    excel_file_exists, excel_filename = check_for_excel(movie_file)
+    file_stem = excel_file.split('.xlsx')[0]
+    excel_file_exists, excel_filename = check_for_excel(file_stem) 
+    
     if excel_file_exists:
         
         try:
@@ -1128,7 +1127,10 @@ def loadMovData(movie_file, sheet = 'steptracking'):
             sys.exit('Need to finish tracking all legs with frameStepper.py! \n')
     else:
         import initializeClip
-        initializeClip.main(movie_file)
+        try:
+            initializeClip.main(file_stem + '.mov')
+        except:
+            initializeClip.main(file_stem + '.mp4')
         needFrameStepper()
     return mov_data, excel_filename
 
@@ -1422,7 +1424,7 @@ def getGaits(movie_file, leg_set = 'lateral'):
         frame_times = getFrameTimes(movie_file)
         
         # Get up_down_times for this movie
-        mov_data, excel_filename = loadMovData(movie_file)
+        mov_data, excel_filename = loadUpDownData(movie_file)
         up_down_times, latest_event = getUpDownTimes(mov_data)
 
         # trim frame_times to only include frames up to last recorded event
@@ -1599,11 +1601,10 @@ def plotLegSet(ax, movie_file, legs_to_plot = 'all'):
     return ax
 
 
-def getGaitStyleVec(movie_file, leg_set = 'lateral'):
-    excel_file = movie_file.split('.')[0] + '.xlsx'
+def getGaitStyleVec(excel_file, leg_set = 'lateral', sheetname = 'gait_styles'):
     
     try:
-        gait_df = pd.read_excel(excel_file, sheet_name='gait_styles')
+        gait_df = pd.read_excel(excel_file, sheet_name=sheetname)
     except:
         print('No gait_styles sheet in ' + excel_file)
         return None, None
@@ -1621,7 +1622,7 @@ def getGaitStyleVec(movie_file, leg_set = 'lateral'):
     
     return times, gait_styles
 
-def plotGaits(gaits_ax, movie_file, leg_set='lateral'):
+def plotGaits(gaits_ax, excel_file, leg_set='lateral'):
     
     '''
     for ONE clip - plot steps with color-coded gait styles
@@ -1639,7 +1640,7 @@ def plotGaits(gaits_ax, movie_file, leg_set='lateral'):
     '''
 
     # get the gait styles info from the movie_file
-    times, gait_styles = getGaitStyleVec(movie_file, leg_set)
+    times, gait_styles = getGaitStyleVec(excel_file, leg_set)
     if gait_styles is None:
         print(' ... no gait style data - need analyzeSteps.py ...')
         return gaits_ax
