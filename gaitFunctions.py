@@ -632,6 +632,58 @@ def check_for_excel(movie_file):
         excel_file_exists = False
     return excel_file_exists, excel_filename
 
+def saveFrames(frame_folder, movie_file, add_timestamp = True):
+    
+    # check to see if frames folder exists; if not, make a folder
+    flist = glob.glob(frame_folder)
+
+    if len(flist) == 1:
+        print(' ... frames already saved for ' + movie_file + '\n')
+        return frame_folder
+
+    print('Saving frames for ' + movie_file + ' . . . . ')
+    print('.... creating a directory =  ' + str(frame_folder))
+    os.mkdir(frame_folder)
+
+    font = cv2.FONT_HERSHEY_SCRIPT_COMPLEX
+
+    vid = cv2.VideoCapture(movie_file)
+    fps = vid.get(5)
+
+    print('.... saving frames!')
+
+    base_name = movie_file.split('.')[0]
+    
+    frame_number = 0
+    while (vid.isOpened()):
+        
+        ret, frame = vid.read()
+        if ret: # found a frame
+        
+            frame_number += 1
+            # Get frame time and save it in a variable
+            # frameTime = int(vid.get(cv2.CAP_PROP_POS_MSEC))
+            frameTime = round(float(frame_number)/fps,4)
+            
+            if add_timestamp == True:
+      
+                # put the time variable on the video frame
+                frame = cv2.putText(frame, str(frameTime),
+                                    (100, 100),
+                                    font, 1,
+                                    (55, 55, 55),
+                                    4, cv2.LINE_8)
+
+            # save frame to file, with frameTime
+            if frameTime > 0: # cv2 sometimes(?) assigns the last frame of the movie to time 0            
+                file_name = base_name + '_' + str(int(frameTime*1000)).zfill(6) + '.png'
+                cv2.imwrite(os.path.join(frame_folder, file_name), frame)
+            
+        else: # no frame here
+            break
+    vid.release()
+    return frame_folder
+
 # quality control for leg_dict 
 def qcLegDict(up_down_times):
     for leg in up_down_times.keys():
@@ -1259,6 +1311,19 @@ def loadIdentityInfo(movie_file, excel_file = ''):
         
     return identity_info
 
+
+def displayFrame(frame):
+    # show the frame
+    cv2.imshow('press any key to exit', frame)
+
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+def getFirstFrame(videofile):
+    vidcap = cv2.VideoCapture(videofile)
+    success, image = vidcap.read()
+    if success:
+        return image
 
 def getFirstLastFrames(movie_file):
     filestem = movie_file.split('.')[0]

@@ -27,7 +27,7 @@ def main(movie_file, resize=100):
     # look for frame folder for this movie
     # if none there, create one and save frames
     frame_folder = movie_file.split('.')[0] + '_frames'
-    frame_folder = saveFrames(frame_folder, movie_file)
+    frame_folder = gaitFunctions.saveFrames(frame_folder, movie_file)
 
     # start tracking
     tracking = True
@@ -211,27 +211,6 @@ def saveData(excel_filename, foot_data, printme = False):
 
     return
 
-def createMovDataFile(movieFolder, videoFile, first_frame, last_frame):
-    # look for a 'mov_data.txt' file in movieFolder
-    # if none there, create one
-
-    out_file = os.path.join(movieFolder, 'mov_data.txt')
-    movieData = glob.glob(out_file)
-
-    if len(movieData) == 0:
-        print('No mov_data.txt file, making one ...')
-        vid = cv2.VideoCapture(os.path.join(movieFolder, videoFile))
-        vidlength = gaitFunctions.getVideoStats(vid, printout=True)[0]
-
-        print('\n Writing to ' + out_file + ' .... ')
-        with open(out_file, 'w') as o:
-            o.write('MovieName: ' + videoFile + '\n')
-            o.write('Length: ' + str(vidlength) + '\n')
-            o.write('Analyzed Frames: ' + str(first_frame/1000) + '-' + str(last_frame/1000) + '\n')
-            o.write('Speed Frames: ' + str(first_frame/1000) + '-' + str(last_frame/1000) + '\n')
-
-    return out_file
-
 def getFeetDone(foot_data):
     allFeet = getAllFeet()
     foot_keys = foot_data.keys()
@@ -297,7 +276,6 @@ def stepThroughFrames(folder_name, footname, resize=100):
     while True:
   
         if i >= numFrames:
-            frame_name: end_message
             i = numFrames-1
             print('All done tracking ' + footname + '!')
             cv2.waitKey(1)
@@ -396,69 +374,6 @@ def stepThroughFrames(folder_name, footname, resize=100):
                 
             return data
 
-def saveFrames(frame_folder, movie_file):
-    
-    # check to see if frames folder exists; if not, make a folder
-    flist = glob.glob(frame_folder)
-
-    if len(flist) == 1:
-        print(' ... frames already saved for ' + movie_file + '\n')
-        return frame_folder
-
-    print('Saving frames for ' + movie_file + ' . . . . ')
-    print('.... creating a directory =  ' + str(frame_folder))
-    os.mkdir(frame_folder)
-
-    font = cv2.FONT_HERSHEY_SCRIPT_COMPLEX
-
-    vid = cv2.VideoCapture(movie_file)
-    fps = vid.get(5)
-
-    print('.... saving frames!')
-
-    base_name = movie_file.split('.')[0]
-    
-    frame_number = 0
-    while (vid.isOpened()):
-        
-        ret, frame = vid.read()
-        if ret: # found a frame
-        
-            frame_number += 1
-            
-            # Get frame time and save it in a variable
-            # frameTime = int(vid.get(cv2.CAP_PROP_POS_MSEC))
-            frameTime = round(float(frame_number)/fps,4)
-
-            # put the time variable on the video frame
-            frame = cv2.putText(frame, str(frameTime),
-                                (100, 100),
-                                font, 1,
-                                (55, 55, 55),
-                                4, cv2.LINE_8)
-
-            # save frame to file, with frameTime
-            if frameTime > 0: # cv2 sometimes(?) assigns the last frame of the movie to time 0            
-                file_name = base_name + '_' + str(int(frameTime*1000)).zfill(6) + '.png'
-                cv2.imwrite(os.path.join(frame_folder, file_name), frame)
-            
-        else: # no frame here
-            break
-    vid.release()
-    return frame_folder
-
-def displayFrame(frame):
-    # show the frame
-    cv2.imshow('press any key to exit', frame)
-
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
-def getFirstFrame(videofile):
-    vidcap = cv2.VideoCapture(videofile)
-    success, image = vidcap.read()
-    if success:
-        return image
 
 if __name__== "__main__":
 
