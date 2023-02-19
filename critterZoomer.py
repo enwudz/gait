@@ -109,8 +109,8 @@ def main(movie_file):
     mean_length = np.mean(tracked_df.lengths.values)
     
     ## set size of crop window
-    crop_width_offset = int(mean_length * 0.8)
-    crop_height_offset = int(mean_length * 0.4)
+    crop_width_offset = int(mean_length * 0.4)
+    crop_height_offset = int(mean_length * 0.8)
     
     ## load frame files
     frame_files = sorted(glob.glob(os.path.join(frame_folder, '*.png')))
@@ -121,11 +121,10 @@ def main(movie_file):
         os.mkdir(cropped_folder)
     
     for i, frame_file in enumerate(frame_files):
-        # frametime = getTimeFromFilename(frame_file)
         
         # get data for this frame
         bearing = smoothed_bearings[i]
-        rotate_angle = bearing - 90
+        rotate_angle = bearing # - 90
         x = smoothed_x[i]
         y = smoothed_y[i]
         
@@ -205,13 +204,6 @@ def cropAroundCenter(img, center, height_offset, width_offset):
     # add pad of empty space pad around image
       
     pass    
-
-def getTimeFromFilename(im_file):
-    # sample filename: iw_6Feb_caffeine_tardigrade1_004-015_000030.png
-    filestem = im_file.split('.')[0]
-    msec = int(filestem.split('_')[-1])
-    sec = msec / 1000
-    return sec
     
 
 def padImage(image, pad_percentage):
