@@ -6,32 +6,14 @@ Created on Fri Feb 17 11:25:57 2023
 @author: iwoods
 
 CODE to make video where tardigrade stays in place and background moves
-
-Each frame:
+    Turns are smoothed to move gradually to from old to new bearing
     
-    IF IN A TURN
-        get change in bearing after - before
-        get number of frames during
-        bearing increment = change in bearing / num steps
-        rotate image by bearing increment
+to make movie, run:
+    python makeMovieFromImages.py searchterm fps outfile
     
-    ELSE
-        Use bearing to rotate image
-        Use smoothed x and smoothed y to define rectangle to crop
-        crop and save
-
-    ANOTHER IDEA FOR SMOOTHING THE BEARINGS
-        if not in a turn
-            get bearing for +N frames from now
-            make smooth steps to get there
-        if in a turn 
-            get bearing for when turn is finished
-            make smooth stepts to get there
-
-ffmpeg:
-
-   ffmpeg -f image2 -r 30 -pattern_type glob -i '*_rotacrop_*.png' -pix_fmt yuv420p -crf 20 rotated_movie.mp4
-   https://video.stackexchange.com/questions/18547/simple-video-editing-software-that-can-handlethis/18549#18549
+WISHLIST
+    add turn and stop labels to images
+    see alpha code from demoTracking.py
 
     
 """
@@ -46,23 +28,30 @@ import glob
 import os
 import scipy.signal
 
-def main(movie_file):
+def main(movie_file, zoom_percent = 100):
     
     save_cropped_frames = True
+    add_timestamp = True
+    zoom_percent = 300
     
     ''' check to see if rotated frames folder exists; if not, make a folder '''
     base_name = movie_file.split('.')[0]
-    cropped_folder = base_name + '_rotated'
+    cropped_folder = base_name + '_rotacrop'
     flist = glob.glob(cropped_folder)
     if len(flist) == 1:
         print(' ... cropped frames already saved for ' + movie_file + '\n')
-        showFrames(cropped_folder)
-        return
+        # showFrames(cropped_folder)
+        return cropped_folder
+    
+    # make a folder for the cropped frames if we want to save them
+    if save_cropped_frames:
+        os.mkdir(cropped_folder)
 
     ''' check for frame folder for this movie if none, create one and save frames '''
-    frame_folder = base_name + '_frames'
-    frame_folder = gaitFunctions.saveFrames(frame_folder, movie_file, add_timestamp=False)
+    # frame_folder = base_name + '_frames'
+    # frame_folder = gaitFunctions.saveFrames(frame_folder, movie_file, add_timestamp=False)
     
+    ''' get tracked path data and figure out bearing and cropping parameters '''
     # load tracked path data
     tracked_df, excel_filename = gaitFunctions.loadTrackedPath(movie_file)
     frametimes = tracked_df.times.values
@@ -113,70 +102,94 @@ def main(movie_file):
     crop_height_offset = int(mean_length * 0.8)
     
     ## load frame files
-    frame_files = sorted(glob.glob(os.path.join(frame_folder, '*.png')))
+    # frame_files = sorted(glob.glob(os.path.join(frame_folder, '*.png')))
     # print('frame files', len(frame_files))
     
-    # make a folder for the cropped frames if we want to save them
-    if save_cropped_frames:
-        os.mkdir(cropped_folder)
+    # go through movie and save frames    
+    font = cv2.FONT_HERSHEY_SCRIPT_COMPLEX
+
+    vid = cv2.VideoCapture(movie_file)
+    # fps = vid.get(5)
+
+    print('.... saving frames!')
+
+    base_name = movie_file.split('.')[0]
     
-    for i, frame_file in enumerate(frame_files):
+    i = 0
+    while (vid.isOpened()):
         
-        # get data for this frame
-        bearing = smoothed_bearings[i]
-        rotate_angle = bearing # - 90
-        x = smoothed_x[i]
-        y = smoothed_y[i]
-        
-        # load frame image
-        im = cv2.imread(frame_file)
-        
-        # get center of image
-        (h, w) = im.shape[:2]
-        (cX, cY) = (w // 2, h // 2)
-        
-        # get offset of centroid from center of image
-        x_centroid_offset = x - cX
-        y_centroid_offset = y - cY
-        
-        # pad image to twice max dimension
-        padded = padImage(im, 100)
-        # gaitFunctions.displayFrame(padded)
-        
-        # find new centroid after padding
-        (padded_h, padded_w) = padded.shape[:2]
-        (padded_cX, padded_cY) = (padded_w // 2, padded_h // 2)
-        new_x = int(padded_cX + x_centroid_offset)
-        new_y = int(padded_cY + y_centroid_offset)
-        # cv2.circle(padded, (new_x, new_y), 10, (0,0,0), -1)
-        
-        # rotate padded image around centroid    
-        M = cv2.getRotationMatrix2D((new_x, new_y), rotate_angle, 1.0)
-        rotated = cv2.warpAffine(padded, M, (padded_w, padded_h))
-        # gaitFunctions.displayFrame(rotated)    
-        
-        # crop around centroid
-        ybot = new_y - crop_height_offset
-        ytop = new_y + crop_height_offset
-        xbot = new_x - crop_width_offset
-        xtop = new_x + crop_width_offset
-        
-        cropped = rotated[ybot:ytop, xbot:xtop]        
-        # gaitFunctions.displayFrame(cropped)  
-        
-        resized = resizeImage(cropped, 300)
-        
-        cv2.imshow('press (q) to quit', resized)
-        if cv2.waitKey(25) & 0xFF == ord('q'):
+        ret, im = vid.read()
+        if ret == False: 
             break
+        else:
+            # found a frame
         
-        if save_cropped_frames:
-            if frametimes[i] > 0: # cv2 sometimes(?) assigns the last frame of the movie to time 0            
-                file_name = base_name + '_rotacrop_' + str(int(frametimes[i]*1000)).zfill(6) + '.png'
-                cv2.imwrite(os.path.join(cropped_folder, file_name), resized)
+            # get data for this frame
+            bearing = smoothed_bearings[i]
+            rotate_angle = bearing # - 90
+            x = smoothed_x[i]
+            y = smoothed_y[i]
             
-    if save_cropped_frames:
-        gaitFunctions.removeFramesFolder(movie_file)
+            # load frame image
+            # im = cv2.imread(frame_file)
+            
+            # get center of image
+            (h, w) = im.shape[:2]
+            (cX, cY) = (w // 2, h // 2)
+            
+            # get offset of centroid from center of image
+            x_centroid_offset = x - cX
+            y_centroid_offset = y - cY
+            
+            # pad image to twice max dimension
+            padded = padImage(im, 100)
+            # gaitFunctions.displayFrame(padded)
+            
+            # find new centroid after padding
+            (padded_h, padded_w) = padded.shape[:2]
+            (padded_cX, padded_cY) = (padded_w // 2, padded_h // 2)
+            new_x = int(padded_cX + x_centroid_offset)
+            new_y = int(padded_cY + y_centroid_offset)
+            # cv2.circle(padded, (new_x, new_y), 10, (0,0,0), -1)
+            
+            # rotate padded image around centroid    
+            M = cv2.getRotationMatrix2D((new_x, new_y), rotate_angle, 1.0)
+            rotated = cv2.warpAffine(padded, M, (padded_w, padded_h))
+            # gaitFunctions.displayFrame(rotated)    
+            
+            # crop around centroid
+            ybot = new_y - crop_height_offset
+            ytop = new_y + crop_height_offset
+            xbot = new_x - crop_width_offset
+            xtop = new_x + crop_width_offset
+            
+            cropped = rotated[ybot:ytop, xbot:xtop]        
+            # gaitFunctions.displayFrame(cropped)  
+            
+            resized = resizeImage(cropped, zoom_percent)
+            
+            if add_timestamp == True:
+      
+                # put the time variable on the video frame
+                resized = cv2.putText(resized, str(frametimes[i]),
+                                    (100, 100),
+                                    font, 1,
+                                    (55, 55, 55),
+                                    4, cv2.LINE_8)
+            
+            cv2.imshow('press (q) to quit', resized)
+            if cv2.waitKey(25) & 0xFF == ord('q'):
+                break
+            
+            if save_cropped_frames:
+                if frametimes[i] > 0: # cv2 sometimes(?) assigns the last frame of the movie to time 0            
+                    file_name = base_name + '_rotacrop_' + str(int(frametimes[i]*1000)).zfill(6) + '.png'
+                    cv2.imwrite(os.path.join(cropped_folder, file_name), resized)
+          
+        i += 1
+     
+    vid.release()
+    return cropped_folder
     
     
 def showFrames(frame_folder):

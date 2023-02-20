@@ -12,6 +12,19 @@ import cv2
 from scipy.stats import sem
 import re
 
+def makeMovieFromImages(searchterm, fps, outfile):
+    # needs ffmpeg installed
+    cmd1 = "ffmpeg -f image2 -r "
+    # fps
+    cmd2 = " -pattern_type glob -i '"
+    # searchterm
+    cmd3 = "' -pix_fmt yuv420p -crf 20 "
+    # outfile
+    
+    cmd = cmd1 + str(fps) + cmd2 + searchterm + cmd3 + outfile
+    print(cmd)
+    
+
 def boxScatterParams():
     alpha = 0.5 # scatter alpha
     scatter_color = 'slategray' # scatter color

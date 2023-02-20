@@ -16,8 +16,8 @@ From centroid coordinates (with frame times) [THESE FILES ARE NO LONGER MADE]
     show timing of turns (with decreasing alpha each frame) 
         and stops as text on the movie frames. 
     
-to make movie from saved frames:
-ffmpeg -f image2 -r 30 -pattern_type glob -i '*_frames_*.png' -pix_fmt yuv420p -crf 20 demo_movie.mp4
+to make movie from saved frames, run:
+    python makeMovieFromImages.py searchterm fps outfile
 
     
 """

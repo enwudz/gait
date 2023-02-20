@@ -16,7 +16,7 @@ import pandas as pd
 '''
 WISH LIST
 
-
+if tracking good, offer option to save ROTATED/CROPPED/ZOOMED frames (with critterZoomer.py)
 '''
 
 def main(movie_file, resize=100):
@@ -24,10 +24,28 @@ def main(movie_file, resize=100):
     # get step data dictionary and dataframe
     foot_data, foot_data_df, excel_filename = get_foot_data(movie_file)
 
-    # look for frame folder for this movie
-    # if none there, create one and save frames
-    frame_folder = movie_file.split('.')[0] + '_frames'
-    frame_folder = gaitFunctions.saveFrames(frame_folder, movie_file)
+    # look for rotated frames folder for this movie
+    base_name = movie_file.split('.')[0]
+    rotated_frames = base_name + '_rotacrop'
+    
+    # check to see if rotated frames available ... if not, ask if we want to make them
+    if len(glob.glob(rotated_frames)) > 0:
+        frame_folder = rotated_frames
+    else:
+    # if no rotated frames, or if we don't want to make them, then just save raw frames
+        print(' ... no frames saved for ' + movie_file )
+        decision = input(' ... should we use critterZoomer to make rotated & cropped frames? (y) or (n) : ')
+        
+        if decision == 'y':
+            import critterZoomer
+            critterZoomer.main(movie_file, resize)
+            frame_folder = rotated_frames
+        else: 
+                
+            # look for frame folder for this movie
+            # if none there, create one and save frames
+            frame_folder = base_name+ '_frames'
+            frame_folder = gaitFunctions.saveFrames(frame_folder, movie_file)
 
     # start tracking
     tracking = True
