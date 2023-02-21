@@ -5,35 +5,28 @@ Created on Tue Oct 11 06:46:13 2022
 
 @author: iwoods
 
-NEED TO UPDATE TO WORK WITH EXCEL FILES CREATED BY TRACKCRITTER
-    have centroids in these files
-    also have times of turns and stops
-
-[description of code below ... need to update code]
-From centroid coordinates (with frame times) [THESE FILES ARE NO LONGER MADE]
+From a movie file that has been tracked with trackCritter ...
     show path of centroids along the video (time gradient color)
     show frame times within video (time gradient color)
     show timing of turns (with decreasing alpha each frame) 
         and stops as text on the movie frames. 
     
 to make movie from saved frames, run:
-    python makeMovieFromImages.py searchterm fps outfile
+    python makeMovieFromImages.py 'searchterm' fps outfile
 
     
 """
 
 import sys
-import analyzePath
-import pandas as pd
 import numpy as np
 from matplotlib import cm
 import cv2
-import glob
+import gaitFunctions
 
-def main(centroid_file):
+def main(movie_file):
     
     # want to save frames to make a movie with ffmpeg?
-    save_frames = True
+    save_frames = False
     
     # plotting stuff to adjust
     font = cv2.FONT_HERSHEY_DUPLEX
@@ -41,30 +34,28 @@ def main(centroid_file):
     text_size = 2
     turn_color = (155, 155, 0)
     stop_color = (15, 0, 100)
-    time_x, time_y = [0.05, 0.1]
-    turn_x, turn_y = [0.05, 0.95]
-    stop_x, stop_y = [0.05, 0.8]
-    colormap = 'cool' # plasma, cool, Wistia, autumn, rainbow
-    
-    # get movie file
-    filestem = centroid_file.split('_centroids')[0]
-    movie_file = filestem + '.mov'
+    time_x, time_y = [0.05, 0.1] # where should we put the time label?
+    turn_x, turn_y = [0.05, 0.95] # where should we put the turn label?
+    stop_x, stop_y = [0.05, 0.8] # where should we put the stop label?
+    colormap = 'plasma' # plasma, cool, Wistia, autumn, rainbow
     
     # read in times and coordinates
-    df = pd.read_csv(centroid_file, names = ['frametime','x','y'], header=None)
-    frametimes = df.frametime.values
-    xcoords = df.x.values
-    ycoords = df.y.values
+    tracked_df, excel_filename = gaitFunctions.loadTrackedPath(movie_file)
+    frametimes = tracked_df.times.values    
+    xcoords = tracked_df.xcoords.values
+    ycoords = tracked_df.ycoords.values
+    stops = tracked_df.stops.values
+    turns = tracked_df.turns.values
     
     # get timing of turns and stops
-    stop_times, turn_times = analyzePath.main(centroid_file, 'none')  
-    stop_times = np.ravel(stop_times)
-    turn_times = np.ravel(turn_times)
+    # these are arrays of frametimes when there are stops and turns
+    stop_times = frametimes[np.where(stops==1)]
+    turn_times = frametimes[np.where(turns==1)]
     
     # get alphas for labels of turns and stops
     label_buffer = 30 # in frames
-    stop_alphas = labelTimes(frametimes, stop_times, label_buffer)
-    turn_alphas = labelTimes(frametimes, turn_times, label_buffer)
+    stop_alphas = gaitFunctions.labelTimes(frametimes, stop_times, label_buffer)
+    turn_alphas = gaitFunctions.labelTimes(frametimes, turn_times, label_buffer)
     
     # get colors for coordinates and times (coded for time)
     num_frames = getFrameCount(movie_file) 
@@ -72,7 +63,8 @@ def main(centroid_file):
     
     # get video
     vid = cv2.VideoCapture(movie_file)
-    frame_number = 0    
+    frame_number = 0
+    filestem = movie_file.split('.')[0]
     
     # checking frame times (from centroid file) vs. what cv2 says . . .
     #print(len(frametimes), frames_in_video) # these are not the same sometimes
@@ -81,6 +73,8 @@ def main(centroid_file):
     # set text positions for times, turns, stops
     vid_width  = int(vid.get(3))
     vid_height = int(vid.get(4))
+    
+    # where should we put the labels for frame time and stop and turn?
     time_stamp_position = (int(time_x * vid_width), int(time_y * vid_height) )
     turn_position =  (int(turn_x * vid_width), int(turn_y * vid_height) )
     stop_position = (int(stop_x * vid_width), int(stop_y * vid_height) )
@@ -151,70 +145,6 @@ def saveFrameToFile(file_stem, frame_number, frame):
     
     file_name = file_stem + '_frames_' + str(frame_number).zfill(8) + '.png'
     cv2.imwrite(file_name, frame, [cv2.IMWRITE_PNG_COMPRESSION, 0])
-
-def labelTimes(frametimes, labeltimes, buffer):
-    '''
-    Goal is to add label to a movie that gradually appears and disappears
-    
-    Take a vector of times, and return a vector of alphas
-        alpha = 1 during the times when an event is occurring
-            alpha ranges from 0 to 1 during buffer before event
-            alpha ranges from 1 to zero during buffer after event
-        
-
-    Parameters
-    ----------
-    frametimes : numpy array
-        A vector of times for each frame during the video
-    labeltimes : numpy array
-        A vector of times that should be labeled 
-    buffer : TYPE
-        The number of time increments (video frames) during which
-        the fade-in or fade-out occurs
-
-    Returns
-    -------
-    alphas : numpy array
-        A vector of alphas to show text
-
-    '''
-    
-    alphas = np.zeros(len(frametimes))
-    buffervals = np.linspace(0,1,buffer+2)[1:-1]
-    rev_buffervals = np.flip(buffervals)
-    # print(buffervals)
-
-    for i, frametime in enumerate(frametimes[:-1]):
-        
-        current_alpha = alphas[i]
-        # print(frametime)
-        
-        if frametime in labeltimes:
-            alphas[i] = 1
-            # print('in list')
-        
-        else:
-            
-            # look in frames AFTER this one (i.e. frame i) ... 
-            for j, b in enumerate(np.arange(buffer)):
-                
-                if i + j < len(frametimes):
-                    if frametimes[i + j] in labeltimes:
-                        # print('coming up soon',j)
-                        alpha_val = rev_buffervals[j]
-                        if alpha_val > current_alpha:
-                            alphas[i] = alpha_val
-                            break
-                            
-                    # look in frames BEFORE this one (i.e. before frame i)
-                    elif frametimes[i - (j+1)] in labeltimes:
-                        # print('saw it awhile ago', j)
-                        alpha_val = rev_buffervals[j]
-                        if alpha_val > current_alpha:
-                            alphas[i] = alpha_val
-                            break
-    
-    return alphas 
         
 
 def addCoordinatesToFrame(frame, xcoords, ycoords, colors, markersize=5):
@@ -258,15 +188,11 @@ def makeColorList(cmap_name, N):
 
      return [tuple(i) for i in cmap]
     
-if __name__ == "__main__":
-    
-    
-    if len(sys.argv) > 1:
-        centroid_file = sys.argv[1]
-    else:
-        centroid_list = glob.glob('*centroid*')
-        centroid_file = centroid_list[0]
-        
-    #print('Getting data from ' + centroid_file)
+if __name__== "__main__":
 
-    main(centroid_file)
+    if len(sys.argv) > 1:
+        movie_file = sys.argv[1]
+    else:
+        movie_file = gaitFunctions.selectFile(['mp4','mov'])
+
+    main(movie_file)

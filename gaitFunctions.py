@@ -310,6 +310,70 @@ def individualFromClipname(clipname):
     individual = clipname.split(res)[0]
     return individual
 
+def labelTimes(frametimes, labeltimes, buffer):
+    '''
+    Goal is to add label to a movie that gradually appears and disappears
+    
+    Take a vector of times, and return a vector of alphas
+        alpha = 1 during the times when an event is occurring
+            alpha ranges from 0 to 1 during buffer before event
+            alpha ranges from 1 to zero during buffer after event
+        
+
+    Parameters
+    ----------
+    frametimes : numpy array
+        A vector of times for each frame during the video
+    labeltimes : numpy array
+        A vector of times that should be labeled 
+    buffer : TYPE
+        The number of time increments (video frames) during which
+        the fade-in or fade-out occurs
+
+    Returns
+    -------
+    alphas : numpy array
+        A vector of alphas to show text
+
+    '''
+    
+    alphas = np.zeros(len(frametimes))
+    buffervals = np.linspace(0,1,buffer+2)[1:-1]
+    rev_buffervals = np.flip(buffervals)
+    # print(buffervals)
+
+    for i, frametime in enumerate(frametimes[:-1]):
+        
+        current_alpha = alphas[i]
+        # print(frametime)
+        
+        if frametime in labeltimes:
+            alphas[i] = 1
+            # print('in list')
+        
+        else:
+            
+            # look in frames AFTER this one (i.e. frame i) ... 
+            for j, b in enumerate(np.arange(buffer)):
+                
+                if i + j < len(frametimes):
+                    if frametimes[i + j] in labeltimes:
+                        # print('coming up soon',j)
+                        alpha_val = rev_buffervals[j]
+                        if alpha_val > current_alpha:
+                            alphas[i] = alpha_val
+                            break
+                            
+                    # look in frames BEFORE this one (i.e. before frame i)
+                    elif frametimes[i - (j+1)] in labeltimes:
+                        # print('saw it awhile ago', j)
+                        alpha_val = rev_buffervals[j]
+                        if alpha_val > current_alpha:
+                            alphas[i] = alpha_val
+                            break
+    
+    return alphas 
+
 def one_runs(a):
     '''
     

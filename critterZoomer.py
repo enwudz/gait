@@ -20,8 +20,6 @@ WISHLIST
 
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
 import sys
 import gaitFunctions
 import glob
@@ -30,9 +28,18 @@ import scipy.signal
 
 def main(movie_file, zoom_percent = 100):
     
-    save_cropped_frames = True
-    add_timestamp = True
+    save_cropped_frames = False
+    add_labels = True
     zoom_percent = 300
+    
+    # labeling stuff to adjust
+    font = cv2.FONT_HERSHEY_DUPLEX # cv2.FONT_HERSHEY_SCRIPT_COMPLEX 
+    text_size = 2
+    turn_color = (0,0,0) # (155, 155, 0)
+    stop_color = (0,0,0) #(15, 0, 100)
+    time_x, time_y = [0.05, 0.1] # where should we put the time label?
+    turn_x, turn_y = [0.05, 0.99] # where should we put the turn label?
+    stop_x, stop_y = [0.5, 0.99] # where should we put the stop label?
     
     ''' check to see if rotated frames folder exists; if not, make a folder '''
     base_name = movie_file.split('.')[0]
@@ -49,7 +56,7 @@ def main(movie_file, zoom_percent = 100):
 
     ''' check for frame folder for this movie if none, create one and save frames '''
     # frame_folder = base_name + '_frames'
-    # frame_folder = gaitFunctions.saveFrames(frame_folder, movie_file, add_timestamp=False)
+    # frame_folder = gaitFunctions.saveFrames(frame_folder, movie_file, add_labels)
     
     ''' get tracked path data and figure out bearing and cropping parameters '''
     # load tracked path data
@@ -57,6 +64,7 @@ def main(movie_file, zoom_percent = 100):
     frametimes = tracked_df.times.values
     bearings = tracked_df.bearings.values
     turns = tracked_df.turns.values
+    stops = tracked_df.stops.values
 
     if bearings[-1] == 0:
         bearings[-1] = bearings[-2]
@@ -92,6 +100,7 @@ def main(movie_file, zoom_percent = 100):
     # plt.plot(smoothed_bearings,'k')
     # plt.show()
     
+    ''' Crop video window according to tardigrade size '''
     ## Get XY coordinates and tardigrade size
     smoothed_x = tracked_df.smoothed_x.values
     smoothed_y = tracked_df.smoothed_y.values
@@ -101,15 +110,25 @@ def main(movie_file, zoom_percent = 100):
     crop_width_offset = int(mean_length * 0.4)
     crop_height_offset = int(mean_length * 0.8)
     
-    ## load frame files
-    # frame_files = sorted(glob.glob(os.path.join(frame_folder, '*.png')))
-    # print('frame files', len(frame_files))
+    ''' Get timing of turns and stops '''
+    # these are arrays of frametimes when there are stops and turns
+    stop_times = frametimes[np.where(stops==1)]
+    turn_times = frametimes[np.where(turns==1)]
     
-    # go through movie and save frames    
-    font = cv2.FONT_HERSHEY_SCRIPT_COMPLEX
-
+    # get alphas for labels of turns and stops
+    label_buffer = 30 # in frames
+    stop_alphas = gaitFunctions.labelTimes(frametimes, stop_times, label_buffer)
+    turn_alphas = gaitFunctions.labelTimes(frametimes, turn_times, label_buffer)
+    
+    # where should we put the labels for frame time and stop and turn?
     vid = cv2.VideoCapture(movie_file)
-    # fps = vid.get(5)
+    vid_width  = int(vid.get(4))
+    vid_height = int(vid.get(3))
+    time_stamp_position = (int(time_x * vid_width), int(time_y * vid_height) )
+    turn_position =  (int(turn_x * vid_width), int(turn_y * vid_height) )
+    stop_position = (int(stop_x * vid_width), int(stop_y * vid_height) )
+    
+    ''' go through movie and save frames '''
 
     print('.... saving frames!')
 
@@ -166,25 +185,44 @@ def main(movie_file, zoom_percent = 100):
             cropped = rotated[ybot:ytop, xbot:xtop]        
             # gaitFunctions.displayFrame(cropped)  
             
-            resized = resizeImage(cropped, zoom_percent)
+            if zoom_percent == 100:
+                frame = cropped
+            else:
+                frame = resizeImage(cropped, zoom_percent)
             
-            if add_timestamp == True:
+            if add_labels == True:
       
                 # put the time variable on the video frame
-                resized = cv2.putText(resized, str(frametimes[i]),
-                                    (100, 100),
-                                    font, 1,
+                frame = cv2.putText(frame, str(frametimes[i]),
+                                    time_stamp_position,
+                                    font, text_size,
                                     (55, 55, 55),
                                     4, cv2.LINE_8)
+                
+                # add text for turns (fade in before and out after by text alpha)
+                if turn_alphas[i] == 1:
+                    cv2.putText(frame, 'Turn', turn_position, font, text_size, turn_color, 4, cv2.LINE_8)
+                elif turn_alphas[i] > 0:
+                    overlay = frame.copy()
+                    cv2.putText(overlay, 'Turn', turn_position, font, text_size, turn_color, 4, cv2.LINE_8)
+                    frame = cv2.addWeighted(overlay, turn_alphas[i], frame, 1 - turn_alphas[i], 0) 
+                
+                # add text for stops
+                if stop_alphas[i] == 1:
+                    cv2.putText(frame, 'Stop', stop_position, font, text_size, stop_color, 4, cv2.LINE_8)
+                elif stop_alphas[i] > 0:
+                    overlay = frame.copy()
+                    cv2.putText(overlay, 'Stop', stop_position, font, text_size, stop_color, 4, cv2.LINE_8)
+                    frame = cv2.addWeighted(overlay, stop_alphas[i], frame, 1 - stop_alphas[i], 0) 
             
-            cv2.imshow('press (q) to quit', resized)
+            cv2.imshow('press (q) to quit', frame)
             if cv2.waitKey(25) & 0xFF == ord('q'):
                 break
             
             if save_cropped_frames:
                 if frametimes[i] > 0: # cv2 sometimes(?) assigns the last frame of the movie to time 0            
                     file_name = base_name + '_rotacrop_' + str(int(frametimes[i]*1000)).zfill(6) + '.png'
-                    cv2.imwrite(os.path.join(cropped_folder, file_name), resized)
+                    cv2.imwrite(os.path.join(cropped_folder, file_name), frame)
           
         i += 1
      
