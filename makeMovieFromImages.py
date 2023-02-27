@@ -26,7 +26,7 @@ def main(searchterm, fps, outfile):
         usage()
     
 def usage():
-    print('Usage: python makeMovieFromImages.py searchterm fps outfile')
+    print("Usage: python makeMovieFromImages.py 'searchterm' fps outfile")
     
 if __name__== "__main__":
 

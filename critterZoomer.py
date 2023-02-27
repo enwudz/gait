@@ -28,7 +28,7 @@ import scipy.signal
 
 def main(movie_file, zoom_percent = 100):
     
-    save_cropped_frames = False
+    save_cropped_frames = True
     add_labels = True
     zoom_percent = 300
     
@@ -129,8 +129,8 @@ def main(movie_file, zoom_percent = 100):
     stop_position = (int(stop_x * vid_width), int(stop_y * vid_height) )
     
     ''' go through movie and save frames '''
-
-    print('.... saving frames!')
+    if save_cropped_frames:
+        print('.... saving frames!')
 
     base_name = movie_file.split('.')[0]
     
