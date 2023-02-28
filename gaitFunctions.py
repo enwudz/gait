@@ -1753,10 +1753,10 @@ def getGaitStyleVec(excel_file, leg_set = 'lateral', sheetname = 'gait_styles'):
     
     # get gait categories and colors for these categories        
     if leg_set == 'rear':
-        all_combos, combo_colors = get_gait_combo_colors('rear')
+        # all_combos, combo_colors = get_gait_combo_colors('rear')
         data_column = 'gaits_rear'
     else:
-        all_combos, combo_colors = get_gait_combo_colors('lateral')
+        # all_combos, combo_colors = get_gait_combo_colors('lateral')
         data_column = 'gaits_lateral'
         
     times = gait_df.frametimes.values
@@ -1803,6 +1803,23 @@ def plotGaits(gaits_ax, excel_file, leg_set='lateral'):
     gaits_ax.set_frame_on(False)
     
     return gaits_ax #  = a matplotlib axis
+
+def gaitStyleLegend(ax, leg_set = 'lateral'):
+    
+    # get the plot colors for each gait style
+    all_combos, combo_colors = get_gait_combo_colors(leg_set)
+    
+    # print(all_combos)
+    # print(combo_colors)
+
+    for i, combo in enumerate(all_combos):
+        ax.plot([0.6,0.65],[i,i], color=combo_colors[combo], linewidth=10)
+        plt.text(0, i-0.2, combo.replace('_',' '), fontsize=8)
+
+    ax.set_xlim([-0.01, 0.66])
+    ax.set_ylim([-0.5, i + 0.5])
+    plt.axis('off')
+    return ax
 
 def define_swing_categories():
     leg_combo_keys = ['tripod_canonical', 

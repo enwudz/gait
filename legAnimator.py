@@ -46,7 +46,7 @@ def main(movie_file):
         return
     
     ## Do we have a folder of cropped, rotated images?
-    cropped_folder = base_name + '_rotated'
+    cropped_folder = base_name + '_rotacrop'
     if len(glob.glob(cropped_folder)) < 1:
         print('Need rotated images from ' + movie_file + ' ... run critterZoomer.py')
         return
@@ -93,19 +93,25 @@ def main(movie_file):
     print('\nSetting up an animated figure . . . ')
     f = plt.figure(figsize = (10,8))
     
-    lateral_steps_ax = f.add_axes([0.1, 0.05, 0.296, 0.9]) # size is 3.7, 8
-    tardi_ax = f.add_axes([0.4, 0.1, 0.3, 0.8])
-    rear_steps_ax =    f.add_axes([0.7, 0.05, 0.2,   0.9]) # size is 2.5, 8
+    lateral_steps_ax = f.add_axes([0.1, 0.18, 0.296, 0.83]) # size is 3.7, 8
+    tardi_ax = f.add_axes([0.4, 0.18, 0.3, 0.77])
+    rear_steps_ax =    f.add_axes([0.7, 0.18, 0.2,   0.83]) # size is 2.5, 8
     
     tardi_ax.axis('off')
     lateral_steps_ax.axis('off')
     rear_steps_ax.axis('off')
     
+    lateral_gait_legend_ax = f.add_axes([0.15, 0.03, 0.23, 0.15])
+    lateral_gait_legend_ax = gaitFunctions.gaitStyleLegend(lateral_gait_legend_ax, 'lateral')
+    
+    rear_gait_legend_ax = f.add_axes([0.75, 0.1, 0.13, 0.07])
+    rear_gait_legend_ax = gaitFunctions.gaitStyleLegend(rear_gait_legend_ax, 'rear')
+    
     ims = []
     print('Making the animation . . . can take awhile')
     for i, im_file in enumerate(im_files):
  
-        frame_time = getTimeFromFilename(im_file)
+        # frame_time = getTimeFromFilename(im_file)
         # print(frame_time)
         
         # get and display the tardigrade image
@@ -133,7 +139,6 @@ def main(movie_file):
     
     
     return
-
     
 def makeStepImages(folder, base_name, frames_swinging, time_window, leg_set='lateral'):
     

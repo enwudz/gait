@@ -2,12 +2,14 @@
 """
 
 Make a movie showing walking patterns
-from a mov_data.txt file from frame_stepper.py
+    from gait_styles sheet of excel file (from frameStepper)
 
-To make a movie from saved frames:
-ffmpeg -f image2 -r 10 -pattern_type glob -i 'boxstepper*.png' -pix_fmt yuv420p -crf 20 10fps_lateral_boxgrid_movie.mp4
-ffmpeg -f image2 -r 10 -pattern_type glob -i 'gaitstyles_*.png' -pix_fmt yuv420p -crf 20 -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" 10fps_gaitstyles_movie.mp4
--r is the framerate for the output movie
+to make movie from saved frames, run:
+    python makeMovieFromImages.py 'searchterm' fps outfile
+
+
+WishList:
+    color the boxes based on gait style
 
 """
 
@@ -16,140 +18,90 @@ import matplotlib.patches as patches
 import numpy as np
 import os
 import sys
-path_to_gait = '/Users/iwoods/Documents/GitHub/gait'
-sys.path.insert(0, path_to_gait)
-import gait_analysis
-import cv2
-# import matplotlib as mpl
+import gaitFunctions
+import pandas as pd
 
-def main(movie_folder):
+def main(movie_file, leg_set = 'lateral'):
     
     # ==> GET PLOT PARAMETERS   
     boxsize, stepregion, box_color, down_color, up_color = getPlotParameters()
   
-    # get an array of all legs on the critter
+    # set number of legs and orientation of plot
     num_legs = 8
-    up = get_legarray('up', num_legs)
-    legs = np.array(sorted(np.ravel(up)))
+    leg_group = 'up' # 'up' is all legs, with anterior toward top
     
-    # get plot coordinates for each leg
+    # get an array showing the orientation of the legs in the plot
+    up = get_legarray(leg_group, num_legs) # 
+    
+    # get dictionary of leg_name => lower left box coordinates and size of box showing steps
     leg_coordinates, stepbox_size = get_legcoordinates(up, boxsize, stepregion)
-        
+            
     # ==> SAMPLE plot for chosen legs
     # legs_to_plot = np.ravel(get_legarray('first_pair',8)) 
-    # plot_sample_legs(legs_to_plot, up, boxsize, stepregion, up_color, down_color, box_color)
+    # plot_sample_legs(legs_to_plot, up, boxsize, stepregion, up_color, box_color)
     
-    # ==> LOAD MOVIE DATA and get leg matrix for each frame
-    # leg matrix = 1's are swings, 0's are stances
-    # each column is a frame from a movie
-    all_leg_movement_matrix = get_legmatrix(legs, movie_folder)
+    # ==> Load gait style data
+    filestem = movie_file.split('.')[0]
+    excel_file = filestem + '.xlsx'
+    gait_data = pd.read_excel(excel_file, sheet_name='gait_styles')
+    times = gait_data.frametimes.values
+    
+    if leg_set == 'rear':
+   
+        gait_styles = gait_data['gaits_rear'].values
+        swings = gait_data['swinging_rear'].values
+        combos, combo_colors = gaitFunctions.get_gait_combo_colors('rear')
+        legs_to_show = gaitFunctions.get_leg_combos()[0]['rear']
+        
+    else:
+        
+        gait_styles = gait_data['gaits_lateral'].values
+        swings = gait_data['swinging_lateral'].values
+        combos, combo_colors = gaitFunctions.get_gait_combo_colors('lateral')
+        legs_to_show = gaitFunctions.get_leg_combos()[0]['lateral']
 
-    # ==> GET box graphic for each frame
-    # mpl.rcParams['savefig.pad_inches'] = 0
-    legs_to_show = ['L1','L2','L3','R1','R2','R3']
-    print('... saving frames for box movie ...')
-    for frame in np.arange(np.shape(all_leg_movement_matrix)[1]):
+    # ==> Save image for each frame
+    boxwalker_folder = filestem + '_boxwalker'
+    # os.mkdir(boxwalker_folder)
+    
+    print('... saving frames for box movie in ' + boxwalker_folder + ' ...')
+    
+    for i, frame_time in enumerate(times[:10]):
+        swinging_legs = swings[i].split('_')
+        gait_style = gait_styles[i]
+        gait_color = combo_colors[gait_style]
+        f,a = plot_frame(up, 
+                          swinging_legs, 
+                          gait_style, 
+                          gait_color,
+                          legs_to_show, 
+                          leg_coordinates, 
+                          boxsize, 
+                          stepbox_size, 
+                          box_color, 
+                          down_color, 
+                          up_color)
         
-        # which legs are swinging (1) vs. standing (0) in this frame
-        frame_data = all_leg_movement_matrix[:,frame]
-        # print(frame_data)
         
-        f, a = plot_frame(frame_data, legs, up, legs_to_show, leg_coordinates, boxsize, stepbox_size, box_color, down_color, up_color)
         # plt.show()
-        plt.savefig('boxstepper_' + str(frame).zfill(8) + '.png', facecolor = box_color)
-        plt.close()
-    
-    # ==> GET GAIT STYLES for each frame
-    lateral_legs = np.array(['L1','R1','L2','R2','L3','R3'])
-    # print(lateral_legs)
-    # lateral_leg_movement_matrix = get_legmatrix(lateral_legs, movie_folder)
-    # o = open('gaits_for_frames.txt','w')
-    # frame_number = 0
-    # for frame in np.arange(np.shape(lateral_leg_movement_matrix)[1]):
-    #     frame_number += 1
-    #     frame_data = lateral_leg_movement_matrix[:,frame]
-    #     gait_style = get_hexapodGaitStyle(frame_data, lateral_legs)
-    #     o.write(str(frame_number) + ',' + gait_style + '\n')
-    # o.close()
-    
-    # ==> Save blank frames with gait style labels
-    # movie_file = '2a058-062_cropped.mp4'
-    # vid = cv2.VideoCapture(movie_file)
-    # ret, frame = vid.read()
-    # fname = movie_file.split('.')[0] + '_first_frame.png'
-    # cv2.imwrite(fname, frame)
-    # # numframes = vid.get(cv2.CAP_PROP_FRAME_COUNT)
-    # dpi = 72
-    # frame_width = vid.get(3)/dpi
-    # frame_height = vid.get(4)/dpi
-    # # print(frame_width, frame_height)
-    # vid.release()
-    
-    # with open('gaits_for_frames.txt','r') as f:
-    #     gait_styles_for_frames = [x.rstrip().split(',')[1] for x in f.readlines()]
-    # # print(gait_styles_for_frames)
-    # # print(len(gait_styles_for_frames), numframes)
-    # all_combos, combo_colors = gait_analysis.get_gait_combo_colors('lateral')
-    # frame_num=0
-    # for gait_style in gait_styles_for_frames:
-
-    #     frame_num += 1
-    #     f,a = plt.subplots(figsize=(frame_width,frame_height), facecolor = 'k')
-    #     # a = f.add_axes((1, 1, frame_width, frame_height))
-
-    #     a.text(0.2, int(frame_height)/2, gait_style.replace('_','\n'), 
-    #            fontsize=40, color = combo_colors[gait_style])
-    #     a.set_facecolor('k')
-    #     a.set_xlim([0,frame_width])
-    #     a.set_ylim([0,frame_height])
-    #     a.axis('off')
-    #     # plt.show()
-    #     plt.savefig('gaitstyles_' + str(frame_num).zfill(8) + '.png', facecolor = box_color)
+        fname = os.path.join(boxwalker_folder, filestem + 'boxstepper_' + str(int(frame_time*1000)).zfill(6)  + '.png')
+        print(fname)
+    #     plt.savefig(fname, facecolor = box_color)
     #     plt.close()
 
-def get_hexapodGaitStyle(frame_data, legs):
-    
-    '''
-    
-    Gait styles for different combinations of swinging legs for hexapods (6 legs)
-    
-    Parameters
-    ----------
-    frame_data : numpy array
-        1s (for swings) and 0s (for stances) for a frame of a movie
-    legs : numpy array
-            all of the legs that are shown in frame_data ... in order
 
-    Returns
-    -------
-    gait_style : string
-        'tripod_canonical' or 'tripod_other' or
-        'tetrapod_canonical' or 'tetrapod_gallop' or 'tetrapod_other' or
-        'pentapod' or 'stand' or 'other'
-
-    '''
-    
-    # which legs are swinging?
-    swinging_legs = legs[np.where(frame_data == 1)]
-    
-    # make the swing_combo from these swinging legs
-    swing_combo = '_'.join(sorted(swinging_legs))
-
-    # find the gait_style for this swing_combo
-    gait_style = gait_analysis.get_swing_categories(swing_combo, 'lateral')
-
-    return(gait_style)
-
-def plot_frame(frame_data, legs, leg_array, legs_to_show, leg_coordinates, boxsize, stepbox_size, box_color, down_color, up_color):
+def plot_frame(leg_array, swinging_legs, gait_style, gait_color, legs_to_show, leg_coordinates, boxsize, stepbox_size, box_color, down_color, up_color):
     '''
     Parameters
     ----------
-    frame_data : numpy array
-        1s (for swings) and 0s (for stances) for a frame of a movie
-    legs : list or numpy array
-        all of the legs that are shown in frame_data ... in order
     leg_array : numpy array
-        a matrix (typically 2 columns x N rows) of legs ... N = number of pairs
+        an array showing the orientation of the legs in the plot
+    swinging_legs : list
+        which legs are swinging in this frame
+    gait_style : string
+        gait style at this frame
+    gait_color : matplotlib color
+        color for the gait style at this frame
     legs_to_show : list or numpy array
         which legs to show in the plot.
     leg_coordinates : dictionary
@@ -177,10 +129,6 @@ def plot_frame(frame_data, legs, leg_array, legs_to_show, leg_coordinates, boxsi
                        facecolor = box_color)#  , frameon=False)
     a = f.add_axes((0, 0, 1, 1))
     
-    # which legs are swinging?
-    swinging_legs = legs[np.where(frame_data == 1)]
-    # print(swinging_legs)
-    
     # set leg colors for each leg to plot
     for leg in legs_to_show:
         x,y = leg_coordinates[leg]
@@ -190,6 +138,7 @@ def plot_frame(frame_data, legs, leg_array, legs_to_show, leg_coordinates, boxsi
         else:
             # plot a STANCE box for this leg
             rect_color = down_color
+        
         rect = patches.Rectangle((x, y), stepbox_size, stepbox_size, facecolor=rect_color)
         a.add_patch(rect)
         
@@ -201,6 +150,7 @@ def plot_frame(frame_data, legs, leg_array, legs_to_show, leg_coordinates, boxsi
     # a.get_xaxis().set_visible(False)
     # a.get_yaxis().set_visible(False)
     
+    # get rid of bounding box
     for side in ['bottom','top','right','left']:
         a.spines[side].set_color('w')
         a.spines[side].set_linewidth(3)
@@ -216,8 +166,13 @@ def getPlotParameters():
     stepregion = 0.95
     # Colors for outline (box), for leg DOWN, and for leg UP
     box_color = 'k' # 'slategray'
+    
+    # get standard stance and swing colors
+    # down_color, up_color = gaitFunctions.stanceSwingColors()
+    
+    # OR choose stance and swing colors
     down_color = 'steelblue'
-    up_color = 'aliceblue'
+    up_color = 'aliceblue' 
     
     return boxsize, stepregion, box_color, down_color, up_color 
     
@@ -240,10 +195,9 @@ def get_legmatrix(legs, movie_folder):
     leg_matrix = gait_analysis.make_leg_matrix(legs, up_down_times, frame_times_with_events)
     return leg_matrix
 
-def plot_sample_legs(legs_to_plot, leg_array, boxsize, stepregion, up_color, down_color, box_color):
+def plot_sample_legs(legs_to_plot, leg_array, boxsize, stepregion, up_color, box_color):
     
-    # get a dictionary of sample states (alternating up and down)
-    leg_states = get_legstates(np.ravel(leg_array))
+    print('Test plot of ', legs_to_plot)
     
     # set up coordinates for each leg
     leg_coordinates, stepbox_size = get_legcoordinates(leg_array, boxsize, stepregion)
@@ -253,19 +207,16 @@ def plot_sample_legs(legs_to_plot, leg_array, boxsize, stepregion, up_color, dow
     f,a = plt.subplots(1,1, figsize = (fig_width, fig_height) )
     
     for leg in legs_to_plot:
-        if leg_states[leg] == 1:
-            rect_color = up_color
-        else:
-            rect_color = down_color
             
         x,y = leg_coordinates[leg]
+        print(leg,x,y)
     
-        rect = patches.Rectangle((x, y), stepbox_size, stepbox_size, facecolor=rect_color)
+        rect = patches.Rectangle((x, y), stepbox_size, stepbox_size, facecolor=up_color)
         a.add_patch(rect)
     
     a.set_facecolor(box_color)
-    # a.set_xlim([0,boxsize*np.shape(leg_array)[1]])
-    # a.set_ylim([0,boxsize*np.shape(leg_array)[0]])
+    a.set_xlim([0,boxsize*np.shape(leg_array)[1]])
+    a.set_ylim([0,boxsize*np.shape(leg_array)[0]])
     a.set_xticks([])
     a.set_yticks([])
     plt.show()
@@ -345,16 +296,11 @@ def get_legarray(leg_group, num_legs):
         legarray = up
     return legarray
     
-    
-if __name__ == "__main__":
+if __name__== "__main__":
 
     if len(sys.argv) > 1:
-        movie_folder = sys.argv[1]
+        movie_file = sys.argv[1]
     else:
-        dirs = next(os.walk(os.getcwd()))[1]
-        dirs = sorted([d for d in dirs if d.startswith('_') == False and d.startswith('.') == False])
-        movie_folder = dirs[0]
-        
-    print('Getting data from ' + movie_folder)
+        movie_file = gaitFunctions.selectFile(['mp4','mov'])
 
-    main(movie_folder)
+    main(movie_file)
