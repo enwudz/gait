@@ -227,6 +227,21 @@ def main(movie_file, zoom_percent = 100):
         i += 1
      
     vid.release()
+    
+    selection = input('\nSave video from rotated and cropped images? (y) or (n): ').rstrip()
+    if selection == 'y':
+        import makeMovieFromImages
+        searchterm = os.path.join(cropped_folder, '*rotacrop*')
+        savefile = os.path.join(cropped_folder, base_name + '_rotacrop.mp4')
+        makeMovieFromImages.main(searchterm, 30, savefile)
+    
+        selection = input('\nRemove frame images in ' + cropped_folder + '? (y) or (n): ').rstrip()
+        if selection == 'y':
+            searchterm = os.path.join(cropped_folder, '*.png')
+            frame_files = glob.glob(searchterm)
+            for frame in frame_files:
+                os.remove(frame)
+    
     return cropped_folder
     
     

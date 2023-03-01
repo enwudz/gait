@@ -12,6 +12,7 @@ import trackCritter
 import analyzeTrack
 import plotClip
 import gaitFunctions
+import critterZoomer
 import frameStepper
 import analyzeSteps
 import sys
@@ -28,11 +29,13 @@ def main(movie_file):
     trackCritter.main(movie_file, 25, True) # True is show tracking
     analyzeTrack.main(movie_file) # when finished with trackCritter
     plotClip.main(movie_file)
+    critterZoomer.main(movie_file)
     
     ## step-by-step timing
     # frameStepper.main(movie_file)
     # analyzeSteps.main(movie_file) # when finished with frameStepper
     # plotClip.main(movie_file)
+
 
 if __name__== "__main__":
 
@@ -45,16 +48,16 @@ if __name__== "__main__":
             
         # can also designate 'all' movies
         elif selection in ['all','a']:
-            movie_files = gaitFunctions.getMovieFiles(['mov','mp4'])
+            movie_files = gaitFunctions.selectFile(['mov','mp4'])
             for movie_file in movie_files:
                 main(movie_file)
             sys.exit('Finished processing all clips')
         
         # if nothing given in command, list movie files and ask which one to do
         else:
-            movie_file = gaitFunctions.select_movie_file()
+            movie_file = gaitFunctions.selectFile(['mov','mp4'])
     else:
-       movie_file = gaitFunctions.select_movie_file()
+       movie_file = gaitFunctions.selectFile(['mov','mp4'])
 
     if len(movie_file) > 0:
         print('Selected movie is ' + movie_file)
