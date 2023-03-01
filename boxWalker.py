@@ -1,16 +1,16 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 
-Make a movie showing walking patterns
+Make frames for an animation showing gait styles at each frame
     from gait_styles sheet of excel file (from frameStepper)
 
-to make movie from saved frames, run:
-    python makeMovieFromImages.py 'searchterm' fps outfile
-
+to make a movie from saved frames, run:
+    python makeMovieFromImages.py '*searchterm*' fps outfile
 
 WishList:
-    color the boxes based on gait style
-
+    set text position based on leg coordinates
+    
 """
 
 import matplotlib.pyplot as plt
@@ -23,18 +23,19 @@ import pandas as pd
 
 def main(movie_file, leg_set = 'lateral'):
     
+    # leg_set = 'rear'
+    
     # ==> GET PLOT PARAMETERS   
     boxsize, stepregion, box_color, down_color, up_color = getPlotParameters()
   
-    # set number of legs and orientation of plot
+    # get an array showing the orientation of the legs in the plot
     num_legs = 8
     leg_group = 'up' # 'up' is all legs, with anterior toward top
-    
-    # get an array showing the orientation of the legs in the plot
-    up = get_legarray(leg_group, num_legs) # 
+    leg_array = get_legarray(leg_group, num_legs) # 
     
     # get dictionary of leg_name => lower left box coordinates and size of box showing steps
-    leg_coordinates, stepbox_size = get_legcoordinates(up, boxsize, stepregion)
+    leg_coordinates, stepbox_size = get_legcoordinates(leg_array, boxsize, stepregion) 
+    # print(leg_coordinates)
             
     # ==> SAMPLE plot for chosen legs
     # legs_to_plot = np.ravel(get_legarray('first_pair',8)) 
@@ -52,6 +53,7 @@ def main(movie_file, leg_set = 'lateral'):
         swings = gait_data['swinging_rear'].values
         combos, combo_colors = gaitFunctions.get_gait_combo_colors('rear')
         legs_to_show = gaitFunctions.get_leg_combos()[0]['rear']
+        text_x, text_y = (70,140)
         
     else:
         
@@ -59,105 +61,61 @@ def main(movie_file, leg_set = 'lateral'):
         swings = gait_data['swinging_lateral'].values
         combos, combo_colors = gaitFunctions.get_gait_combo_colors('lateral')
         legs_to_show = gaitFunctions.get_leg_combos()[0]['lateral']
+        text_x, text_y = (45,40)
 
     # ==> Save image for each frame
-    boxwalker_folder = filestem + '_boxwalker'
-    # os.mkdir(boxwalker_folder)
+    boxwalker_folder = filestem + '_boxwalker_' + leg_set
+    os.mkdir(boxwalker_folder)
     
     print('... saving frames for box movie in ' + boxwalker_folder + ' ...')
     
-    for i, frame_time in enumerate(times[:10]):
-        swinging_legs = swings[i].split('_')
+    fig_height, fig_width = 2*np.array(np.shape(leg_array))
+    print('height',fig_height)
+    print('width',fig_width)
+    
+    for i, frame_time in enumerate(times):
+        try: # if no swinging legs, then we have nan, which we cannot split
+            swinging_legs = swings[i].split('_')
+        except:
+            swinging_legs = []
         gait_style = gait_styles[i]
         gait_color = combo_colors[gait_style]
-        f,a = plot_frame(up, 
-                          swinging_legs, 
-                          gait_style, 
-                          gait_color,
-                          legs_to_show, 
-                          leg_coordinates, 
-                          boxsize, 
-                          stepbox_size, 
-                          box_color, 
-                          down_color, 
-                          up_color)
+
+        f = plt.figure(figsize = (fig_width, fig_height), 
+                           facecolor = box_color)#  , frameon=False)
+        a = f.add_axes((0, 0, 1, 1))
         
+        # set leg colors for each leg to plot
+        for leg in legs_to_show:
+            x,y = leg_coordinates[leg]
+            if leg in swinging_legs:
+                # plot a SWING box for this leg
+                # rect_color = up_color        
+                rect_color = gait_color
+            else:
+                # plot a STANCE box for this leg
+                rect_color = down_color
+            
+            rect = patches.Rectangle((x, y), stepbox_size, stepbox_size, facecolor=rect_color)
+            a.add_patch(rect)
+            
+        a.set_facecolor(box_color)
+        a.set_xlim([0,boxsize*np.shape(leg_array)[1]])
+        a.set_ylim([0,boxsize*np.shape(leg_array)[0]])
+        
+        # set bounding box
+        for side in ['bottom','top','right','left']:
+            a.spines[side].set_color('k')
+            a.spines[side].set_linewidth(3)
+            
+        # add text for gait style
+        a.text(text_x, text_y, s=gait_style.replace('_','\n'), color=gait_color, fontsize=30, fontweight='bold')
         
         # plt.show()
-        fname = os.path.join(boxwalker_folder, filestem + 'boxstepper_' + str(int(frame_time*1000)).zfill(6)  + '.png')
-        print(fname)
-    #     plt.savefig(fname, facecolor = box_color)
-    #     plt.close()
-
-
-def plot_frame(leg_array, swinging_legs, gait_style, gait_color, legs_to_show, leg_coordinates, boxsize, stepbox_size, box_color, down_color, up_color):
-    '''
-    Parameters
-    ----------
-    leg_array : numpy array
-        an array showing the orientation of the legs in the plot
-    swinging_legs : list
-        which legs are swinging in this frame
-    gait_style : string
-        gait style at this frame
-    gait_color : matplotlib color
-        color for the gait style at this frame
-    legs_to_show : list or numpy array
-        which legs to show in the plot.
-    leg_coordinates : dictionary
-        lower left coordinates of step regions for each leg
-    boxsize : integer
-        size of field for each leg
-    stepbox_size : integer
-        size of field (width and height) devoted to each step or stance.
-    box_color : matplotlib color
-        background color of figure.
-    down_color : matplotlib color
-        color to show stance (aka foot down).
-    up_color : matplotlib color
-        color to show swing.
-
-    Returns
-    -------
-    f, a = handles for the figure and the axis
-
-    '''
-    
-    # set up a figure
-    fig_height, fig_width = 2*np.array(np.shape(leg_array)) 
-    f = plt.figure(figsize = (fig_width, fig_height), 
-                       facecolor = box_color)#  , frameon=False)
-    a = f.add_axes((0, 0, 1, 1))
-    
-    # set leg colors for each leg to plot
-    for leg in legs_to_show:
-        x,y = leg_coordinates[leg]
-        if leg in swinging_legs:
-            # plot a SWING box for this leg
-            rect_color = up_color        
-        else:
-            # plot a STANCE box for this leg
-            rect_color = down_color
-        
-        rect = patches.Rectangle((x, y), stepbox_size, stepbox_size, facecolor=rect_color)
-        a.add_patch(rect)
-        
-    a.set_facecolor(box_color)
-    a.set_xlim([0,boxsize*np.shape(leg_array)[1]])
-    a.set_ylim([0,boxsize*np.shape(leg_array)[0]])
-    # a.set_xticks([])
-    # a.set_yticks([])
-    # a.get_xaxis().set_visible(False)
-    # a.get_yaxis().set_visible(False)
-    
-    # get rid of bounding box
-    for side in ['bottom','top','right','left']:
-        a.spines[side].set_color('w')
-        a.spines[side].set_linewidth(3)
-
-    # plt.autoscale(tight=True)
-    
-    return f, a
+        fname = os.path.join(boxwalker_folder, filestem + '_boxstepper_' + str(int(frame_time*1000)).zfill(6)  + '.png')
+        # print(fname)
+        plt.savefig(fname, facecolor = box_color)
+        plt.close()
 
 def getPlotParameters():
     # The size of each box (in pixels)
@@ -171,29 +129,10 @@ def getPlotParameters():
     # down_color, up_color = gaitFunctions.stanceSwingColors()
     
     # OR choose stance and swing colors
-    down_color = 'steelblue'
+    down_color = 'dimgray' # 'steelblue'
     up_color = 'aliceblue' 
     
-    return boxsize, stepregion, box_color, down_color, up_color 
-    
-def get_legmatrix(legs, movie_folder):    
-    # get step times for each leg for which we have data
-    mov_data = os.path.join(movie_folder, 'mov_data.txt')
-    up_down_times, latest_event = gait_analysis.getUpDownTimes(mov_data) 
-    
-    # quality control on up_down_times
-    gait_analysis.qcUpDownTimes(up_down_times)
-    
-    # Get all frame times for this movie
-    frame_times = gait_analysis.get_frame_times(movie_folder)
-
-    # trim frame_times to only include frames up to last recorded event
-    last_event_frame = np.min(np.where(frame_times > latest_event*1000))
-    frame_times_with_events = frame_times[:last_event_frame]
-    
-    # get leg matrix
-    leg_matrix = gait_analysis.make_leg_matrix(legs, up_down_times, frame_times_with_events)
-    return leg_matrix
+    return boxsize, stepregion, box_color, down_color, up_color   
 
 def plot_sample_legs(legs_to_plot, leg_array, boxsize, stepregion, up_color, box_color):
     
@@ -241,28 +180,6 @@ def get_legcoordinates(leg_array, boxsize = 100, stepregion = 0.9):
             ycoord = stepbox_ys[y]
             leg_coordinates[leg] = np.array([xcoord, ycoord])
     return leg_coordinates, stepbox_size
-
-def get_legstates(legs):
-    
-    even_add = np.array([1,0])
-    odd_add = np.array([0,1])
-    
-    states = np.array([])
-    
-    if len(legs) % 2 != 0:
-        exit('please specify an even number of legs')
-    else:
-        num_leg_pairs = len(legs) / 2
-        
-    for i in np.arange(num_leg_pairs):
-        if i % 2 == 0:
-            states = np.append(states, even_add)
-        else:
-            states = np.append(states, odd_add)
-
-    leg_states = dict(zip(legs,states))
-    
-    return leg_states
     
 def get_legarray(leg_group, num_legs):
     # define legs and different orientations

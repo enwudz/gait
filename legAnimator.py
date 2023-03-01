@@ -29,7 +29,9 @@ import os
 import matplotlib.animation as animation
 import matplotlib.image as img
 
-def main(movie_file):
+def main(movie_file, leg_set = 'lateral'):
+    
+    leg_set = 'rear'
     
     ''' make sure we have everything we need '''
     
@@ -64,7 +66,23 @@ def main(movie_file):
         return
     
     ## Do we have box walker images? [ask: make or exit]
-    ## ************************************
+    boxwalker_lateral_folder = base_name + '_boxwalker_lateral'
+    if len(glob.glob(boxwalker_lateral_folder)) < 1:
+        print('Making lateral boxwalker images for ' + movie_file)
+        import boxWalker
+        boxWalker.main(movie_file, 'lateral')
+    else:
+        print('\nHave lateral boxwalker images for ' + movie_file + '!')
+    lateral_boxwalker_files = sorted(glob.glob(os.path.join(boxwalker_lateral_folder,'*.png')))
+        
+    boxwalker_rear_folder = base_name + '_boxwalker_rear'
+    if len(glob.glob(boxwalker_rear_folder)) < 1:
+        print('Making rear boxwalker images for ' + movie_file)
+        import boxWalker
+        boxWalker.main(movie_file, 'rear')
+    else:
+        print('\nHave rear boxwalker images for ' + movie_file + '!')
+    rear_boxwalker_files = sorted(glob.glob(os.path.join(boxwalker_rear_folder,'*.png')))
     
     ## Do we have images of lateral leg steps and gait styles [ask: make or exit]
     lateral_stepfolder = base_name + '_lateralsteps'
@@ -91,21 +109,30 @@ def main(movie_file):
     
     # ## Do the animated figure!
     print('\nSetting up an animated figure . . . ')
-    f = plt.figure(figsize = (10,8))
     
-    lateral_steps_ax = f.add_axes([0.1, 0.18, 0.296, 0.83]) # size is 3.7, 8
-    tardi_ax = f.add_axes([0.4, 0.18, 0.3, 0.77])
-    rear_steps_ax =    f.add_axes([0.7, 0.18, 0.2,   0.83]) # size is 2.5, 8
+    
+    if leg_set == 'rear':
+        f = plt.figure(figsize = (10,8))
+        steps_ax = f.add_axes([0.05, 0.18, 0.25, 0.8]) # width:height is 2.5:8 for rear
+        tardi_ax = f.add_axes([0.3, 0.18, 0.3, 0.75]) # width:height is 1:2 for tardi
+        box_ax = f.add_axes([0.6, 0.18, 0.4, 0.75]) # width:height is 1:2 for box
+        legend_ax = f.add_axes([0.13, 0.03, 0.12, 0.15])
+        legend_ax = gaitFunctions.gaitStyleLegend(legend_ax, 'rear')
+        step_files = rear_step_files
+        box_files = rear_boxwalker_files
+    else:
+        f = plt.figure(figsize = (12,8))
+        steps_ax = f.add_axes([0.05, 0.18, 0.37, 0.8]) # width:height is 3.7:8 for lateral
+        tardi_ax = f.add_axes([0.35, 0.18, 0.3, 0.75]) # width:height is 1:2 for tardi
+        box_ax = f.add_axes([0.58, 0.18, 0.4, 0.75]) # width:height is 1:2 for box
+        legend_ax = f.add_axes([0.15, 0.03, 0.2, 0.15])
+        legend_ax = gaitFunctions.gaitStyleLegend(legend_ax, 'lateral')
+        step_files = lateral_step_files
+        box_files = lateral_boxwalker_files
     
     tardi_ax.axis('off')
-    lateral_steps_ax.axis('off')
-    rear_steps_ax.axis('off')
-    
-    lateral_gait_legend_ax = f.add_axes([0.15, 0.03, 0.23, 0.15])
-    lateral_gait_legend_ax = gaitFunctions.gaitStyleLegend(lateral_gait_legend_ax, 'lateral')
-    
-    rear_gait_legend_ax = f.add_axes([0.75, 0.1, 0.13, 0.07])
-    rear_gait_legend_ax = gaitFunctions.gaitStyleLegend(rear_gait_legend_ax, 'rear')
+    steps_ax.axis('off')
+    box_ax.axis('off')
     
     ims = []
     print('Making the animation . . . can take awhile')
@@ -118,22 +145,24 @@ def main(movie_file):
         tardi_pic = img.imread(im_file)
         tardi_im = tardi_ax.imshow(tardi_pic, animated=True)
         
-        lateral_pic = img.imread(lateral_step_files[i])
-        lateral_im = lateral_steps_ax.imshow(lateral_pic, animated=True)
+        step_pic = img.imread(step_files[i])
+        step_im = steps_ax.imshow(step_pic, animated=True)
         
-        rear_pic = img.imread(rear_step_files[i])
-        rear_im = rear_steps_ax.imshow(rear_pic, animated=True)
+        box_pic = img.imread(box_files[i])
+        box_im = box_ax.imshow(box_pic, animated=True)
         
         # if i == 0: # show an initial one first
         #     tardi_ax.imshow(img.imread(im_files[i])) 
         #     lateral_steps_ax.imshow(img.imread(lateral_step_files[i]))
         #     rear_steps_ax.imshow(img.imread(rear_step_files[i]))
         
-        ims.append([tardi_im, rear_im, lateral_im])
+        ims.append([tardi_im, step_im, box_im])
     
     ani = animation.ArtistAnimation(f, ims, interval=33, blit=True, repeat = False) # repeat_delay=1000
-    ani.save(base_name + "_leganimator.mp4")
-    plt.show()
+    ani_file = base_name + "_" + leg_set + "_leganimator.mp4"
+    ani.save(ani_file)
+    print('Saved the animation as ' + ani_file)
+    # plt.show()
 
     exit()
     
