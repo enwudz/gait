@@ -9,13 +9,7 @@ usage: python initializeClip.py movie_file.mov
     ... if no movie file provided it will ask you which .mov to choose
     
 This program will:
-    make an excel file with 5 tabs: 
-            identity
-            pathtracking
-            path_stats
-            steptracking
-            step_stats
-    this excel has same name as the video clip, with .xlsx extension
+    make an excel file with same name as the video clip, with .xlsx extension
 
 It tries to extract info from the filename
     ... and adds the info to the 'identity' sheet
@@ -40,11 +34,16 @@ def main(movie_file, printme = True):
         print('... found an excel file for this clip!')
         df = pd.read_excel(excel_filename, sheet_name='identity', index_col=None)
         info = dict(zip(df['Parameter'].values, df['Value'].values))
+        
         if '#frames' not in info.keys():
             needFrames = True
-    
+        if 'species' not in info.keys():
+            info = extract_info(movie_file)
+            needFrames = True
+
     # if there is no file ... guess info from the filestem, and make a file!
     else:      
+        
         print('... no file yet - guessing info from file stem')
         info = extract_info(movie_file)
         print('... making an excel file: ' + excel_filename)
@@ -52,7 +51,7 @@ def main(movie_file, printme = True):
         with pd.ExcelWriter(excel_filename) as writer:
             df.to_excel(writer, index=False, sheet_name='identity')
         needFrames = True
-        
+    
     if needFrames:
         # get info for movie file
         vid_width, vid_height, vid_fps, vid_frames, vid_length = gaitFunctions.getVideoData(movie_file, False)
@@ -97,6 +96,11 @@ def make_identity_sheet(excel_filename, info):
     with pd.ExcelWriter(excel_filename, if_sheet_exists='replace', engine='openpyxl', mode='a') as writer:
         df.to_excel(writer, index=False, sheet_name='identity')
 
+def getAnimalList():
+    animal_list = ['tardigrade','cat','human','dog','mouse']
+    leg_list = [8,4,2,4,4]
+    return animal_list, leg_list
+
 def guess_the_thing(thing):
     ''' what is this thing?
     choices are: initials, date, treatment, individualID, time_range '''
@@ -104,6 +108,8 @@ def guess_the_thing(thing):
     month_abbreviations = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
     month_names = ['january','february','march','april','may','june','july','august','september','october','november','december']
     all_months = month_abbreviations + month_names
+    
+    animal_list, leg_list = getAnimalList()
     
     # is the thing initials?
     if len(thing) == 2 or len(thing) == 3:
@@ -120,7 +126,7 @@ def guess_the_thing(thing):
         return 'treatment'
     
     # is the thing an individual?
-    elif 'tardigrade' in thing or 'sample' in thing:
+    elif 'sample' in thing:
         return 'individualID'
     
     else:
@@ -132,6 +138,8 @@ def guess_the_thing(thing):
                 thing = thing.replace(num,'').lower()
             if thing.lower() in all_months:
                 return 'date'
+            if thing.lower() in animal_list:
+                return 'individualID'
         else:
             return 'treatment'
     
@@ -145,6 +153,14 @@ def extract_info(movie_file):
     info['individualID'] = ''
     info['time_range'] = ''
     info['file_stem'] = file_stem
+    info['species'] = ''
+    info['num_legs'] = ''
+    
+    animal_list, leg_list = getAnimalList()
+    for i,animal in enumerate(animal_list):
+        if animal in file_stem.lower():
+            info['species']=animal
+            info['num_legs']=leg_list[i]
     
     stuff = file_stem.split('_')
     if len(stuff) > 0:

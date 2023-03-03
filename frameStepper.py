@@ -23,6 +23,9 @@ def main(movie_file, resize=100):
     
     # get step data dictionary and dataframe
     foot_data, foot_data_df, excel_filename = get_foot_data(movie_file)
+    
+    # get number of feet
+    num_feet = get_num_feet(movie_file)
 
     # look for rotated frames folder for this movie
     base_name = movie_file.split('.')[0]
@@ -30,6 +33,7 @@ def main(movie_file, resize=100):
     
     # check to see if rotated frames available ... if not, ask if we want to make them
     if len(glob.glob(rotated_frames)) > 0:
+        print('... found saved rotated frames for ' + movie_file + '!')
         frame_folder = rotated_frames
     else:
     # if no rotated frames, or if we don't want to make them, then just save raw frames
@@ -40,20 +44,22 @@ def main(movie_file, resize=100):
             import critterZoomer
             critterZoomer.main(movie_file, resize)
             frame_folder = rotated_frames
+            
         else: 
-                
             # look for frame folder for this movie
             # if none there, create one and save frames
             frame_folder = base_name+ '_frames'
+            print(' ... OK, we will use the frames from the original clip')                   
             frame_folder = gaitFunctions.saveFrames(frame_folder, movie_file)
 
     # start tracking
     tracking = True
-    all_feet = getAllFeet()
+    all_feet = getAllFeet(num_feet)
+    
     while tracking:
 
         # select a foot to analyze
-        feet_to_do = getFeetToDo(foot_data)
+        feet_to_do = getFeetToDo(foot_data, num_feet)
         if len(feet_to_do) > 0:
             print('\nStill need to track steps for: ' + ', '.join(feet_to_do))
             foot = select_a_foot(feet_to_do)
@@ -98,10 +104,10 @@ def main(movie_file, resize=100):
         foot_data[foot+'_up'] = data[1]
 
         # all done with this foot, save data!
-        saveData(excel_filename, foot_data)
+        saveData(excel_filename, foot_data, num_feet)
 
     # all done tracking this foot. Check if we have data for all feet.
-    feet_to_do = getFeetToDo(foot_data)
+    feet_to_do = getFeetToDo(foot_data, num_feet)
     if len(feet_to_do) == 0:
         
         # print out data for all feet
@@ -118,7 +124,7 @@ def main(movie_file, resize=100):
     else:
         
         # print out data so far
-        feet_done = getFeetDone(foot_data)
+        feet_done = getFeetDone(foot_data, num_feet)
         for foot in feet_done:
             print_foot_data(foot_data, foot)
 
@@ -155,6 +161,25 @@ def select_a_foot(foot_list):
     
     return selection
 
+def get_num_feet(movie_file):
+    
+    # load identity info
+    identity_info = gaitFunctions.loadIdentityInfo(movie_file)
+    if 'num_legs' in identity_info.keys():
+        num_feet = int(identity_info['num_legs'])
+        
+    else:
+        import initializeClip
+        identity_info = initializeClip.main(movie_file)
+        if identity_info['num_legs'] > 0:
+            num_feet = int(identity_info['num_legs'])
+        else:
+            # assume 8
+            num_feet = 8
+    print(num_feet,'feet on this critter')
+    return num_feet
+        
+
 def get_foot_data(movie_file):
     
     ## make a dictionary to keep leg-up and leg-down times for each leg
@@ -164,6 +189,7 @@ def get_foot_data(movie_file):
     
     # load excel file for this clip, and get the step data if already present
     excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file)
+    
     if excel_file_exists:
         
         # check if there is any step data already; load if so
@@ -196,13 +222,13 @@ def get_foot_data(movie_file):
     
     return foot_data, foot_data_df, excel_filename
 
-def saveData(excel_filename, foot_data, printme = False):
+def saveData(excel_filename, foot_data, num_feet, printme = False):
           
     # print out foot dictionary    
     good_keys = []
     good_vals = []
     
-    all_feet = getAllFeet()
+    all_feet = getAllFeet(num_feet)
     print('Saving step data in the steptracking tab of ' + excel_filename)
     
     for foot in all_feet:
@@ -229,30 +255,30 @@ def saveData(excel_filename, foot_data, printme = False):
 
     return
 
-def getFeetDone(foot_data):
-    allFeet = getAllFeet()
+def getFeetDone(foot_data, num_feet):
+    allFeet = getAllFeet(num_feet)
     foot_keys = foot_data.keys()
     foot = [x.split('_')[0] for x in foot_keys]
     feet_done = list(set(foot))
     feet_done = [x for x in allFeet if x in feet_done] # standardize the order
     return feet_done
 
-def getFeetToDo(foot_data):
-    feet_done = getFeetDone(foot_data)
-    allFeet = getAllFeet()
+def getFeetToDo(foot_data, num_feet):
+    feet_done = getFeetDone(foot_data, num_feet)
+    allFeet = getAllFeet(num_feet)
     still_need = list(set(allFeet) - set(feet_done))
     # make sure they are in the right order
     feet_to_do = [x for x in allFeet if x in still_need ]
     return feet_to_do
 
-def getAllFeet():
-    feet = ['L1', 'R1', 'L2', 'R2', 'L3', 'R3', 'L4', 'R4']
+def getAllFeet(num_feet):
+    feet = gaitFunctions.get_leg_list(num_feet)
     return feet
 
-def selectFeet():
+def selectFeet(num_feet):
     selection = input('Enter feet to analyze (separated by spaces) or select (a)ll: ')
     if selection in ['a','all','A']:
-        feet_to_do = getAllFeet()
+        feet_to_do = getAllFeet(num_feet)
     else:
         feet_to_do = selection.split(' ')
     return feet_to_do

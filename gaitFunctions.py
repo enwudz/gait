@@ -11,6 +11,7 @@ import sys
 import cv2
 from scipy.stats import sem
 import re
+import scipy.signal
 
 def makeMovieFromImages(searchterm, fps, outfile):
     # needs ffmpeg installed
@@ -291,6 +292,33 @@ def plotTrack(ax, ax_colorbar, movie_file, tracked_df):
 
     return ax, ax_colorbar
     
+def smoothFiltfilt(x, pole=3, freq=0.1):
+
+    '''
+    adapted from https://swharden.com/blog/2020-09-23-signal-filtering-in-python/
+    output length is same as input length
+    as freq increases, signal is smoothed LESS
+
+    Parameters
+    ----------
+    x : numpy array
+        numpy array of x or y coordinates
+    pole : integer
+        see documentation.
+    freq : floating point decimal between 0 and 1
+        see documentation
+
+    Returns
+    -------
+    filtered: numpy array
+        smoothed data
+
+    '''
+
+    b, a = scipy.signal.butter(pole, freq)
+    filtered = scipy.signal.filtfilt(b,a,x)
+    return filtered
+
 
 def getTrackingConfidence(problem_frames, difference_threshold, printme = False):
     tracking_confidence = round( 100 - (sum(problem_frames) / len(problem_frames)) * 100 , 2)
@@ -549,6 +577,18 @@ def getIntervals(list1, list2, dec_round=3):
 
     return np.round(np.array(intervals), dec_round)
 
+def get_leg_list(num_legs):
+    
+    # order = left,right front to back
+    one_side = int(num_legs/2)
+    leg_list = []
+    
+    for i in np.arange(1,one_side+1):
+        leg_list.append('L' + str(i))
+        leg_list.append('R' + str(i))
+    
+    return leg_list
+    
 
 def get_leg_combos():
 
@@ -794,7 +834,7 @@ def selectFile(filetypes = ['mov','mp4']):
     return selected_file
 
 def identity_print_order():
-    return ['file_stem','date','treatment','individualID','time_range',
+    return ['file_stem','date','species','num_legs','treatment','individualID','time_range',
             'initials','#frames','fps','width','height','duration']
 
 def selectOneFromList(li):

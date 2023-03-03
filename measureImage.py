@@ -11,7 +11,7 @@ modified from measure_things.py (in tardigrade gait)
 Masure a single image and save image with labeled measurement on it
 '''
 
-def main(image_file):
+def main(image_file, saveImage = 'True'):
 
     # grab references to the global variables
     global D, image, refPt, drawing, nameText
@@ -36,18 +36,21 @@ def main(image_file):
             cv2.destroyAllWindows()
             break
 
-    # save the annotated image
-    stuff = image_file.split('.')
-    annotated_file = stuff[0] + '_measured.' + stuff[1]
-    cv2.imwrite(annotated_file, image)
-    
-    # save a scale file
     D = np.round(D,decimals=2)
+
     
-    scale_file = image_file.split('.')[0] + '_scale.txt'
-    o = open(scale_file,'w')
-    o.write('1mm='+str(D))
-    o.close()
+    if saveImage:
+        
+        # save the annotated image
+        stuff = image_file.split('.')
+        annotated_file = stuff[0] + '_measured.' + stuff[1]
+        cv2.imwrite(annotated_file, image)
+        
+        # save a scale file 
+        scale_file = image_file.split('.')[0] + '_scale.txt'
+        o = open(scale_file,'w')
+        o.write('1mm='+str(D))
+        o.close()
     
     return D
 

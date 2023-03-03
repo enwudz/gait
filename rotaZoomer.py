@@ -12,8 +12,6 @@ to make movie, run:
     python makeMovieFromImages.py searchterm fps outfile
     
 WISHLIST
-    add turn and stop labels to images
-    see alpha code from demoTracking.py
 
     
 """
@@ -26,17 +24,21 @@ import glob
 import os
 import scipy.signal
 
-def main(movie_file, zoom_percent = 100):
+def main(movie_file, zoom_percent = 100, direction = 'up'):
     
-    save_cropped_frames = True
+    print('Movie is ' + movie_file)
+    print('Zoom is ' + str(zoom_percent) + ' percent')
+    print('Direction of travel is ' + direction)
+    
+    save_cropped_frames = False
     add_labels = True
-    zoom_percent = 300
+    zoom_percent = 200
     
     # labeling stuff to adjust
     font = cv2.FONT_HERSHEY_DUPLEX # cv2.FONT_HERSHEY_SCRIPT_COMPLEX 
     text_size = 2
     turn_color = (0,0,0) # (155, 155, 0)
-    stop_color = (0,0,0) #(15, 0, 100)
+    stop_color = (0,0,0) # (15, 0, 100)
     time_x, time_y = [0.05, 0.1] # where should we put the time label?
     turn_x, turn_y = [0.05, 0.99] # where should we put the turn label?
     stop_x, stop_y = [0.5, 0.99] # where should we put the stop label?
@@ -45,18 +47,25 @@ def main(movie_file, zoom_percent = 100):
     base_name = movie_file.split('.')[0]
     cropped_folder = base_name + '_rotacrop'
     flist = glob.glob(cropped_folder)
+    
     if len(flist) == 1:
-        print(' ... cropped frames already saved for ' + movie_file + '\n')
-        # showFrames(cropped_folder)
-        return cropped_folder
+        print('... ' + cropped_folder + ' ... already exists \n')
+        
+        # check to see if images in this folder
+        searchterm = os.path.join(cropped_folder, '*.png')
+        if len(glob.glob(searchterm)) > 0:
+            print('... found rotated and cropped images in ' + cropped_folder)
+            return cropped_folder
+        else:
+            print('... no images in ' + cropped_folder + ' ... will save them now.')
+            save_cropped_frames = True
     
     # make a folder for the cropped frames if we want to save them
-    if save_cropped_frames:
-        os.mkdir(cropped_folder)
-
-    ''' check for frame folder for this movie if none, create one and save frames '''
-    # frame_folder = base_name + '_frames'
-    # frame_folder = gaitFunctions.saveFrames(frame_folder, movie_file, add_labels)
+    if save_cropped_frames is False:
+        selection = input('\nShould we save rotated and cropped frames? (y) or (n): ')
+        if selection == 'y':
+            save_cropped_frames = True
+            os.mkdir(cropped_folder)
     
     ''' get tracked path data and figure out bearing and cropping parameters '''
     # load tracked path data
@@ -100,15 +109,35 @@ def main(movie_file, zoom_percent = 100):
     # plt.plot(smoothed_bearings,'k')
     # plt.show()
     
-    ''' Crop video window according to tardigrade size '''
+    ''' Crop video window according to critter size ... so we need LENGTH '''
     ## Get XY coordinates and tardigrade size
     smoothed_x = tracked_df.smoothed_x.values
     smoothed_y = tracked_df.smoothed_y.values
     mean_length = np.mean(tracked_df.lengths.values)
+    if mean_length == 0:
+        print('Need to measure critter length!')
+        print(' ... getting image to measure ...')
+        import measureImage 
+        firstframe = gaitFunctions.getFirstFrame(movie_file)
+        imfile = movie_file.split('.')[0] + '_first.png'
+        cv2.imwrite(imfile, firstframe, [cv2.IMWRITE_PNG_COMPRESSION, 0])
+        critter_length = measureImage.main(imfile)
+        os.remove(imfile)
+    else:
+        critter_length = mean_length
+    
+    print('Cropping frames based on length of ' + str(critter_length) + ' pixels')
     
     ## set size of crop window
-    crop_width_offset = int(mean_length * 0.4)
-    crop_height_offset = int(mean_length * 0.8)
+    if direction in ['up','down']:
+        width_multiplier = 0.4 # 0.4 for tardigrades
+        height_multiplier = 0.8 # 0.8 for tardigrades
+    else:
+        width_multiplier = 0.8
+        height_multiplier = 0.6
+    
+    crop_width_offset = int(critter_length * width_multiplier)  
+    crop_height_offset = int(critter_length * height_multiplier) 
     
     ''' Get timing of turns and stops '''
     # these are arrays of frametimes when there are stops and turns
@@ -134,6 +163,18 @@ def main(movie_file, zoom_percent = 100):
 
     base_name = movie_file.split('.')[0]
     
+    # how to rotate image
+    if direction == 'down':
+        bearing_offset = 180
+    elif direction == 'left':
+        bearing_offset = -90
+    elif direction == 'right':
+        bearing_offset = 90
+    else:
+        bearing_offset = 0
+    print('bearing_offset',bearing_offset)
+    
+    
     i = 0
     while (vid.isOpened()):
         
@@ -145,7 +186,7 @@ def main(movie_file, zoom_percent = 100):
         
             # get data for this frame
             bearing = smoothed_bearings[i]
-            rotate_angle = bearing # - 90
+            rotate_angle = bearing - bearing_offset
             x = smoothed_x[i]
             y = smoothed_y[i]
             
@@ -297,11 +338,14 @@ def padImage(image, pad_percentage):
 
 if __name__== "__main__":
 
-    if len(sys.argv) > 1:
+    if len(sys.argv) == 4:
         movie_file = sys.argv[1]
+        zoom_percent = sys.argv[2]
+        direction = sys.argv[3]
+        main(movie_file, zoom_percent, direction)
     else:
         movie_file = gaitFunctions.selectFile(['mp4','mov'])
 
-    main(movie_file)
+    
     
     

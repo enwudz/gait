@@ -10,11 +10,12 @@ import sys
 import glob
 import numpy as np
 import pandas as pd
-import scipy.signal
 import gaitFunctions
 
 '''
 WISH LIST
+
+if no length, prompt to measure it
 
 '''
 
@@ -43,19 +44,29 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
 
     # read in data
     frametimes = tracked_data.times.values
-    areas = tracked_data.areas.values 
-    lengths = tracked_data.lengths.values 
+    
+    try:
+        areas = tracked_data.areas.values 
+        lengths = tracked_data.lengths.values 
+        uncertainties = tracked_data[uncertainty_col].values
+        
+    except:
+        areas = np.zeros(len(frametimes))
+        lengths = np.zeros(len(frametimes))
+        uncertainties = np.zeros(len(frametimes))
+        uncertainty_col = 'uncertainty'
+        
     xcoords = tracked_data.xcoords.values
     ycoords = tracked_data.ycoords.values
-    uncertainties = tracked_data[uncertainty_col].values
+    
     
     # get medians for critter size: area and length
     median_area = np.median(areas) / scale**2
     median_length = np.median(lengths) / scale
     
     # smooth the coordinates!
-    smoothedx = smoothFiltfilt(xcoords,3,0.05)
-    smoothedy = smoothFiltfilt(ycoords,3,0.05)
+    smoothedx = gaitFunctions.smoothFiltfilt(xcoords,3,0.05)
+    smoothedy = gaitFunctions.smoothFiltfilt(ycoords,3,0.05)
 
     # get vectors for distance, speed, cumulative_distance, bearings, bearing_changes
     distance, speed, cumulative_distance, bearings, bearing_changes = distanceSpeedBearings(frametimes, smoothedx, smoothedy)
@@ -89,7 +100,11 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
     num_turns = len(gaitFunctions.one_runs(turns))
     num_stops = len(gaitFunctions.one_runs(stops))
     cumulative_bearings = np.sum(bearing_changes)
-    tracking_confidence = gaitFunctions.getTrackingConfidence(uncertainties, pixel_threshold)
+    try:
+        tracking_confidence = gaitFunctions.getTrackingConfidence(uncertainties, pixel_threshold)
+    except:
+        tracking_confidence = 100
+        pixel_threshold = 100
     vals = [scale, median_area, median_length, clip_duration, total_distance, 
             average_speed, num_turns, num_stops, cruising_proportion, cumulative_bearings, 
             time_increment, pixel_threshold, tracking_confidence]
@@ -378,32 +393,6 @@ def cumulativeDistance(x,y):
     cumulative_distance = np.linalg.norm(XY - np.roll(XY, -1, axis=0), axis=1)[:-1].sum()
     return np.around(cumulative_distance, decimals = 2)
 
-def smoothFiltfilt(x, pole=3, freq=0.1):
-
-    '''
-    adapted from https://swharden.com/blog/2020-09-23-signal-filtering-in-python/
-    output length is same as input length
-    as freq increases, signal is smoothed LESS
-
-    Parameters
-    ----------
-    x : numpy array
-        numpy array of x or y coordinates
-    pole : integer
-        see documentation.
-    freq : floating point decimal between 0 and 1
-        see documentation
-
-    Returns
-    -------
-    filtered: numpy array
-        smoothed data
-
-    '''
-
-    b, a = scipy.signal.butter(pole, freq)
-    filtered = scipy.signal.filtfilt(b,a,x)
-    return filtered
 
 if __name__== "__main__":
 

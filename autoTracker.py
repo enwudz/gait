@@ -27,7 +27,7 @@ from scipy import stats
 import gaitFunctions
 import pandas as pd
 
-def main(movie_file, difference_threshold = 12, showTracking = True):
+def main(movie_file, difference_threshold = 25, showTracking = True):
     
     # get or make excel file for this clip
     excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file)
@@ -210,15 +210,6 @@ def findCritter(video_file, background, pixThreshold, showTracking):
     
     return centroid_coordinates, areas, lengths, problem_frames
 
-def writeData(filestem, centroid_coordinates, areas, lengths):
-    outfile = filestem + '_tracked.csv'
-    o = open(outfile, 'w')
-    for i, c in enumerate(centroid_coordinates):
-        stuff = [str(thing) for thing in c]
-        o.write(','.join([stuff[0], str(areas[i]), str(lengths[i]), 
-                          stuff[1], stuff[2]]) + '\n')
-        
-    o.close()
 
 def addCoordinatesToFrame(frame, coordinates, colors):
     '''
@@ -493,6 +484,8 @@ def printVidInfo(vid, printIt = True):
 
 if __name__== "__main__":
 
+    showtracking = True
+    
     if len(sys.argv) > 1:
         movie_file = sys.argv[1]
     else:
@@ -500,4 +493,16 @@ if __name__== "__main__":
        
     print('Movie is ' + movie_file)
 
-    main(movie_file)
+    try:
+        difference_threshold = int(sys.argv[2])
+    except:
+        difference_threshold = 25
+        
+    try:
+        show_track = sys.argv[3].lower()
+        if show_track == 'false':
+            showtracking = False
+    except:
+        showtracking = True
+
+    main(movie_file, difference_threshold, showtracking)

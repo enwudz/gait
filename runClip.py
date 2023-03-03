@@ -6,30 +6,31 @@ Created on Sun Oct  2 13:32:38 2022
 @author: iwoods
 """
 
-import glob
+import sys
 import initializeClip
-import trackCritter
+import autoTracker
 import analyzeTrack
 import plotClip
 import gaitFunctions
-import critterZoomer
-import frameStepper
-import analyzeSteps
-import sys
+# import critterZoomer
+# import frameStepper
+# import analyzeSteps
+
 
 def main(movie_file): 
     # can 'comment' individual steps on or off
     # <=== put a # before a line to comment it off
     
     ## make an excel file for a clip
-    # initializeClip.main(movie_file)
+    initializeClip.main(movie_file)
     
     ## automated path tracking, including speed, turns, stops
-    # if tracking wonky at 12, try 25, eg: (movie_file, 25, True) 
-    trackCritter.main(movie_file, 25, True) # True is show tracking
+    # if tracking wonky at 12, try 25 or 40 or ...  eg: (movie_file, 25, True) 
+    autoTracker.main(movie_file, 40, True) # True is show tracking
     analyzeTrack.main(movie_file) # when finished with trackCritter
+
     plotClip.main(movie_file)
-    critterZoomer.main(movie_file)
+    # critterZoomer.main(movie_file)
     
     ## step-by-step timing
     # frameStepper.main(movie_file)
