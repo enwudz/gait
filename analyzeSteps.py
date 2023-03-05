@@ -20,6 +20,10 @@ def main(movie_file):
 
     add_swing = True # do we want to collect mid-swing times for all other legs for each step?
 
+    # get legs
+    num_feet = gaitFunctions.get_num_feet(movie_file)
+    legs = gaitFunctions.get_leg_list(num_feet)
+
     # load mov_data = a dictionary of UP and DOWN times for each leg ... or complain that this data is not available
     excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file.split('.')[0]) 
     mov_data, excel_filename = gaitFunctions.loadUpDownData(excel_filename)
@@ -32,9 +36,6 @@ def main(movie_file):
     legID DownTime UpTime stance swing gait duty midSwingTime
     '''
     header = 'legID,DownTime,UpTime,stance,swing,gait,duty,midSwingTime'
-
-    # get legs
-    legs = gaitFunctions.get_leg_combos()[0]['legs_all']
 
     #### go through all legs, collect data for each step, and save all information in a list of lines
     data_for_steps = []
@@ -231,11 +232,11 @@ def main(movie_file):
             step_data_df.to_excel(writer, index=False, sheet_name='step_timing')
             
         ## Calculate average step parameters for each leg, and write to the step_stats sheet of the excel file
-        saveStepStats(step_data_df, excel_filename)
+        saveStepStats(legs, step_data_df, excel_filename)
 
         # get and save gait styles for every frame (to the gait_styles sheet)
         gaitFunctions.saveGaits(movie_file)
-        
+            
         # clean up!
         gaitFunctions.removeFramesFolder(movie_file)
         gaitFunctions.cleanUpTrash(movie_file)
@@ -344,9 +345,7 @@ def get_next_event(event_time, event_times):
         next_event_time = event_times[next_event_ind[0]]
     return next_event_time
     
-def saveStepStats(step_data_df, excel_filename):
-    
-    legs = gaitFunctions.get_leg_combos()[0]['legs_all']
+def saveStepStats(legs, step_data_df, excel_filename):
     
     stance_time = []
     swing_time = []

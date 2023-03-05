@@ -24,18 +24,16 @@ import glob
 import os
 import scipy.signal
 
-def main(movie_file, zoom_percent = 100, direction = 'up'):
+def main(movie_file, zoom_percent = 300, direction = 'up'):
     
     print('Movie is ' + movie_file)
     print('Zoom is ' + str(zoom_percent) + ' percent')
-    print('Direction of travel is ' + direction)
     
     save_cropped_frames = False
-    add_labels = True
-    zoom_percent = 200
-    
+      
     # labeling stuff to adjust
     font = cv2.FONT_HERSHEY_DUPLEX # cv2.FONT_HERSHEY_SCRIPT_COMPLEX 
+    add_labels = True
     text_size = 2
     turn_color = (0,0,0) # (155, 155, 0)
     stop_color = (0,0,0) # (15, 0, 100)
@@ -75,10 +73,33 @@ def main(movie_file, zoom_percent = 100, direction = 'up'):
     turns = tracked_df.turns.values
     stops = tracked_df.stops.values
 
+    # pad boundaries of bearings
     if bearings[-1] == 0:
         bearings[-1] = bearings[-2]
     if bearings[0] == 0:
         bearings[0] = bearings[1]
+    
+    # determine if there is a consistent direction of travel
+    if np.var(bearings) < 45:
+        # see if this is a tardigrade
+        identity_info = gaitFunctions.loadIdentityInfo(movie_file)
+        try:
+            species = [identity_info['species']]
+        except:
+            species = 'tardigrade'
+        
+        if species != 'tardigrade':
+            wiggle_room = 30
+            mean_bearings = np.mean(bearings)
+            if 270-wiggle_room < mean_bearings < 270+wiggle_room:
+                direction = 'left'
+            elif 90-wiggle_room < mean_bearings < 90+wiggle_room:
+                direction = 'right'
+            else:
+                direction = 'up'
+                
+    print('Direction of travel is ' + direction)
+    
     
     # smooth out bearing changes for abrupt turns and stops
     turn_ranges = gaitFunctions.one_runs(turns)
@@ -163,17 +184,20 @@ def main(movie_file, zoom_percent = 100, direction = 'up'):
 
     base_name = movie_file.split('.')[0]
     
-    # how to rotate image
+    # rotate image based on desired direction of travel
+    flipToRight = False
+    
     if direction == 'down':
         bearing_offset = 180
     elif direction == 'left':
         bearing_offset = -90
+        flipToRight = True
+        print('We will flip this to the right!')
     elif direction == 'right':
         bearing_offset = 90
     else:
         bearing_offset = 0
-    print('bearing_offset',bearing_offset)
-    
+    print('bearing_offset',bearing_offset) 
     
     i = 0
     while (vid.isOpened()):
@@ -225,6 +249,9 @@ def main(movie_file, zoom_percent = 100, direction = 'up'):
             
             cropped = rotated[ybot:ytop, xbot:xtop]        
             # gaitFunctions.displayFrame(cropped)  
+            
+            if flipToRight:
+                cropped = cv2.flip(cropped, 1)
             
             if zoom_percent == 100:
                 frame = cropped
@@ -345,6 +372,7 @@ if __name__== "__main__":
         main(movie_file, zoom_percent, direction)
     else:
         movie_file = gaitFunctions.selectFile(['mp4','mov'])
+        main(movie_file)
 
     
     

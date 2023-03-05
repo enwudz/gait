@@ -577,6 +577,30 @@ def getIntervals(list1, list2, dec_round=3):
 
     return np.round(np.array(intervals), dec_round)
 
+def get_num_feet(movie_file, excel_file = ''):
+    
+    if len(excel_file) == 0:
+        
+        # load identity info
+        identity_info = loadIdentityInfo(movie_file)
+        if 'num_legs' in identity_info.keys():
+            num_feet = int(identity_info['num_legs'])
+            
+        else:
+            import initializeClip
+            identity_info = initializeClip.main(movie_file)
+            if identity_info['num_legs'] > 0:
+                num_feet = int(identity_info['num_legs'])
+            else:
+                # assume 8
+                num_feet = 8
+    else:
+        identity_info = loadIdentityInfo('', excel_file)
+        num_feet = int(identity_info['num_legs'])
+        
+    # print(num_feet,'feet on this critter')
+    return num_feet
+
 def get_leg_list(num_legs):
     
     # order = left,right front to back
@@ -1158,15 +1182,25 @@ def proportionsFromList(li):
 
 def get_gait_combo_colors(leg_set = 'lateral'):
 
-    if leg_set == 'rear':
+    if leg_set in ['rear','two', 'human']:
+        num_legs = 2
+    if leg_set in ['lateral','six','insect']:
+        num_legs = 6
+    if leg_set in ['quad', 'four', 'tetrapod', 'cat', 'dog']:
+        num_legs = 4
+
+    if num_legs == 2:
         all_combos = ['stand','step','hop']
+        plot_colors = get_plot_colors(len(all_combos))      
+    elif num_legs == 4:
+        all_combos = ['stand','walk','trot','pace','trot','gallop','unipod','jump']
         plot_colors = get_plot_colors(len(all_combos))
-        combo_colors = dict(zip(all_combos, plot_colors))
-    else:
+    elif num_legs == 6:
         all_combos = ['stand','pentapod','tetrapod_canonical','tetrapod_gallop', 'tetrapod_other',
                 'tripod_canonical','tripod_other','other']
         plot_colors = get_plot_colors(len(all_combos))
-        combo_colors = dict(zip(all_combos, plot_colors))
+    
+    combo_colors = dict(zip(all_combos, plot_colors))
     return all_combos, combo_colors
 
 def gaitStyleProportionsPlot(ax, excel_files, leg_set = 'lateral'):
@@ -1205,9 +1239,11 @@ def gaitStyleProportionsPlot(ax, excel_files, leg_set = 'lateral'):
         gait_style_vectors.append(gait_style_vector)
 
     # set up colors
-    if leg_set == 'rear':
+    if leg_set in ['rear','two','human']:
         all_combos, combo_colors = get_gait_combo_colors('rear')
-    else:
+    elif leg_set in ['four','cat','dog','tetrapod']:
+        all_combos, combo_colors = get_gait_combo_colors('four')
+    elif leg_set in ['lateral','insect','six']:
         all_combos, combo_colors = get_gait_combo_colors('lateral')
 
     exp_names = []
@@ -1292,7 +1328,9 @@ def loadUpDownData(excel_file, sheet = 'steptracking'):
         except:
             needFrameStepper()
 
-        if len(mov_data) < 16:
+        num_feet = get_num_feet('junk', excel_filename)
+
+        if len(mov_data) < 2 * num_feet:
             sys.exit('Need to finish tracking all legs with frameStepper.py! \n')
     else:
         import initializeClip
@@ -1550,7 +1588,8 @@ def getGaits(movie_file, leg_set = 'lateral'):
         file name of a movie of a walking tardigrade
         needs to be tracked with frameStepper before running this!
     leg_set : string
-        either 'lateral' to get first 3 pairs, or 'rear' to get last pair
+        for tardigrades 'lateral' to get first 3 pairs, or 'rear' to get last pair
+        can also do 'four' to get tetrapod, or 'human' to get 2
 
     Returns
     -------
@@ -1560,9 +1599,6 @@ def getGaits(movie_file, leg_set = 'lateral'):
         list of gait styles, for every frame in frame_times
     up_legs : list
         list of which legs are swinging, for every frame in frame_times
-    leg_matrix : numpy array
-        rows = vector of swings (1's) and stances (0's) for each leg
-        columns = each frame of video clip.
 
     '''
         
@@ -1581,9 +1617,12 @@ def getGaits(movie_file, leg_set = 'lateral'):
         if len(gait_data) > 0:
             # if we have that info, just return it!
             frame_times = gait_data.frametimes.values
-            if leg_set == 'rear':
+            if leg_set in ['rear','two','human']:
                 gait_styles = gait_data.gaits_rear.values
                 up_legs = gait_data.swinging_rear.values
+            elif leg_set in ['quad', 'four', 'tetrapod', 'cat', 'dog']:
+                gait_styles = gait_data.gaits_four.values
+                up_legs = gait_data.swinging_four.values
             else:
                 gait_styles = gait_data.gaits_lateral.values
                 up_legs = gait_data.swinging_lateral.values
@@ -1613,11 +1652,13 @@ def getGaits(movie_file, leg_set = 'lateral'):
         last_event_frame = np.min(np.where(frame_times >= latest_event))
         frame_times_with_events = frame_times[:last_event_frame]
         
-        if leg_set == 'rear':
+        if leg_set in ['rear','two','human']:
             legs = get_leg_combos()[0]['legs_4']
             all_combos, combo_colors = get_gait_combo_colors('rear')
-        else:
-            legs = get_leg_combos()[0]['legs_lateral']
+        elif leg_set in ['quad', 'four', 'tetrapod', 'cat', 'dog']:
+            legs = get_leg_list(4)
+        elif leg_set in ['lateral','insect','six']:
+            legs = get_leg_list(6)
             all_combos, combo_colors = get_gait_combo_colors('lateral')
         
         # get leg matrix
@@ -1632,6 +1673,8 @@ def getGaits(movie_file, leg_set = 'lateral'):
             swinging_legs = legs[one_indices]
             swinging_leg_combo = '_'.join(sorted(swinging_legs))
             up_legs.append(swinging_leg_combo)
+            
+            # this is where I can adjust gait style categories
             gait_styles.append(get_swing_categories(swinging_leg_combo, leg_set))
             
         # append the last swinging_leg_combo and gait_style to make the size same as frame_times
@@ -1658,12 +1701,26 @@ def saveGaits(movie_file):
 
     '''
     
-    frame_times, lateral_gait_styles, lateral_up_legs = getGaits(movie_file, 'lateral')
-    frame_times, rear_gait_styles, rear_up_legs = getGaits(movie_file, 'rear')
+    # get species from identity info
+    identity_info = loadIdentityInfo(movie_file)
+    try:
+        species = identity_info['species']
+    except:
+        species = 'tardigrade'
     
-    d = {'frametimes':frame_times, 
-         'gaits_lateral':lateral_gait_styles, 'swinging_lateral':lateral_up_legs, 
-         'gaits_rear':rear_gait_styles, 'swinging_rear':rear_up_legs}
+    if species == 'tardigrade':
+        frame_times, lateral_gait_styles, lateral_up_legs = getGaits(movie_file, 'lateral')
+        frame_times, rear_gait_styles, rear_up_legs = getGaits(movie_file, 'rear')
+        
+        d = {'frametimes':frame_times, 
+             'gaits_lateral':lateral_gait_styles, 'swinging_lateral':lateral_up_legs, 
+             'gaits_rear':rear_gait_styles, 'swinging_rear':rear_up_legs}
+        
+    elif species in ['human','cat','dog']:
+        frame_times, gait_styles, up_legs = getGaits(movie_file, species)
+        
+        d = {'frametimes':frame_times, 
+             'gaits':gait_styles, 'swinging_leg':up_legs}
     
     df = pd.DataFrame(d)
     excel_filename = movie_file.split('.')[0] + '.xlsx'
@@ -1671,9 +1728,6 @@ def saveGaits(movie_file):
     print('Saving gaits to gait_styles sheet ... ')
     with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
         df.to_excel(writer, index=False, sheet_name='gait_styles')
-
-
-
 
 def frameSwings(movie_file):
     '''
@@ -1792,9 +1846,13 @@ def getGaitStyleVec(excel_file, leg_set = 'lateral', sheetname = 'gait_styles'):
         return None, None
     
     # get gait categories and colors for these categories        
-    if leg_set == 'rear':
+    if leg_set in ['rear','two','human']:
         # all_combos, combo_colors = get_gait_combo_colors('rear')
         data_column = 'gaits_rear'
+        
+    elif leg_set in ['four','cat','dog','tetrapod']:
+        data_column = 'gaits_four'
+        
     else:
         # all_combos, combo_colors = get_gait_combo_colors('lateral')
         data_column = 'gaits_lateral'
@@ -1860,6 +1918,12 @@ def gaitStyleLegend(ax, leg_set = 'lateral'):
     ax.set_ylim([-0.5, i + 0.5])
     plt.axis('off')
     return ax
+
+def tetrapod_swing_categories():
+    leg_combo_keys = ['trot','gallop','pace']
+    leg_combo_values = [['L1_R2','L2_R1'], ['L1_R1','L2_R2'], ['L1_L2','R1_R2']]
+    swing_categories = dict(zip(leg_combo_keys, leg_combo_values))
+    return swing_categories
 
 def define_swing_categories():
     leg_combo_keys = ['tripod_canonical', 
@@ -1941,20 +2005,44 @@ def combineDictionariesWithCommonKeys(dict_list):
 
 def get_swing_categories(swing_combination, leg_set = 'lateral'):
     
-    if leg_set == 'rear':
+    # this is where we can adjust gait styles
+    # for tardigrades, leg_set can be 'lateral' or 'rear'
+    # can also do other species, e.g. 'human', or 'cat', or 'dog' or 'tetrapod', or whatever . . . 
+    
+    if leg_set in ['rear','two','human']:
 
         if swing_combination == 'none' or swing_combination == '':
             gait_style = 'stand'
-        elif swing_combination == 'L4_R4':
+        elif swing_combination in ['L1_R1','L4_R4']:
             gait_style = 'hop'
         else: # L4 or R4
             gait_style = 'step'
 
-    else:
+    elif leg_set in ['four','tetrapod','cat','dog']:
+        
+        swinging_legs = swing_combination.split('_')    
+        num_legs_swinging = len(swinging_legs)
+        
+        if swing_combination == 'none' or swing_combination == '':
+            gait_style = 'stand'
+        elif num_legs_swinging == 1:
+            gait_style = 'walk'
+        elif swing_combination in ['L1_R2','L2_R1']:
+            gait_style = 'trot'
+        elif swing_combination in ['L1_R1','L2_R2']:
+            gait_style = 'gallop'
+        elif swing_combination in ['L1_L2','R1_R2']:
+            gait_style = 'pace'
+        elif num_legs_swinging == 3:
+            gait_style = 'unipod'
+        else:
+            gait_style = 'jump'       
+
+    else: # lateral legs of tardigrades, or any hexapod style gait
 
         # swing_combination is a sorted string of leg names, separated by underscore
         # e.g. 'L1_L3_R2' or 'L1_R3' (all L's comes before R's)    
-        swing_categories = define_swing_categories() # these are tripod and tetrapod groups
+        swing_categories = define_swing_categories() # hexapod combos: tripod and tetrapod groups
         
         # how many legs are swinging?
         if swing_combination == 'none' or swing_combination == '':

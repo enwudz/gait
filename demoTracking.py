@@ -30,7 +30,7 @@ def main(movie_file):
     
     # plotting stuff to adjust
     font = cv2.FONT_HERSHEY_DUPLEX
-    marker_size = 3
+    marker_size = 10
     text_size = 2
     turn_color = (155, 155, 0)
     stop_color = (15, 0, 100)

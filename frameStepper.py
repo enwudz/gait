@@ -25,7 +25,7 @@ def main(movie_file, resize=100):
     foot_data, foot_data_df, excel_filename = get_foot_data(movie_file)
     
     # get number of feet
-    num_feet = get_num_feet(movie_file)
+    num_feet = gaitFunctions.get_num_feet(movie_file)
 
     # look for rotated frames folder for this movie
     base_name = movie_file.split('.')[0]
@@ -38,11 +38,11 @@ def main(movie_file, resize=100):
     else:
     # if no rotated frames, or if we don't want to make them, then just save raw frames
         print(' ... no frames saved for ' + movie_file )
-        decision = input(' ... should we use critterZoomer to make rotated & cropped frames? (y) or (n) : ')
+        decision = input(' ... should we use rotaZoomer to make rotated & cropped frames? (y) or (n) : ')
         
         if decision == 'y':
-            import critterZoomer
-            critterZoomer.main(movie_file, resize)
+            import rotaZoomer
+            rotaZoomer.main(movie_file, resize)
             frame_folder = rotated_frames
             
         else: 
@@ -160,26 +160,7 @@ def select_a_foot(foot_list):
         selection = foot_list[choice-1]
     
     return selection
-
-def get_num_feet(movie_file):
-    
-    # load identity info
-    identity_info = gaitFunctions.loadIdentityInfo(movie_file)
-    if 'num_legs' in identity_info.keys():
-        num_feet = int(identity_info['num_legs'])
         
-    else:
-        import initializeClip
-        identity_info = initializeClip.main(movie_file)
-        if identity_info['num_legs'] > 0:
-            num_feet = int(identity_info['num_legs'])
-        else:
-            # assume 8
-            num_feet = 8
-    print(num_feet,'feet on this critter')
-    return num_feet
-        
-
 def get_foot_data(movie_file):
     
     ## make a dictionary to keep leg-up and leg-down times for each leg
