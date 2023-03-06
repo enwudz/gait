@@ -142,7 +142,7 @@ def main(movie_file, zoom_percent = 300, direction = 'up'):
         firstframe = gaitFunctions.getFirstFrame(movie_file)
         imfile = movie_file.split('.')[0] + '_first.png'
         cv2.imwrite(imfile, firstframe, [cv2.IMWRITE_PNG_COMPRESSION, 0])
-        critter_length = measureImage.main(imfile)
+        critter_length = measureImage.main(imfile, False)
         os.remove(imfile)
     else:
         critter_length = mean_length

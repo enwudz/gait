@@ -24,15 +24,19 @@ def main(movie_file, plot_style = ''): # track or speed or steps
         tracked_df = pd.read_excel(excel_filename, sheet_name='pathtracking', index_col=None)
         if len(tracked_df.columns) <= 4:
             exit(' \n ==> need to run analyzeTrack.py first! \n')
-        path_stats_df = pd.read_excel(excel_filename, sheet_name='path_stats', index_col=None)
-        path_stats = dict(zip(path_stats_df['path parameter'].values, path_stats_df['value'].values))
+        path_stats = gaitFunctions.loadPathStats(movie_file)
         
-        # info_df = pd.read_excel(excel_filename, sheet_name='identity', index_col=None)
-        # info = dict(zip(info_df['Parameter'].values, info_df['Value'].values))
     else:
         import initializeClip
         initializeClip.main(movie_file)
         exit('\n ==> need to run trackCritter.py and analyzeTrack.py first! \n')
+     
+    # some (older) data does not have units of scale ... ask to rerun analyzeTrack if so
+    try: 
+        unit = path_stats['unit']
+    except:
+        import analyzeTrack
+        analyzeTrack.main(movie_file)
      
     # collect data for path_stats
     # median_area = round(path_stats['area'],4)
@@ -72,7 +76,7 @@ def main(movie_file, plot_style = ''): # track or speed or steps
             ax, ax_colorbar = gaitFunctions.plotTrack(ax, ax_colorbar, movie_file, tracked_df)
             
             # ==> add labels from experiment and show plot:
-            ax.set_xlabel(getDataLabel(median_length, distance, clip_duration, angle_space, discrete_turns, num_stops ))
+            ax.set_xlabel(getDataLabel(unit, median_length, distance, clip_duration, angle_space, discrete_turns, num_stops ))
             plt.show()
             
             # prompted to keep plotting
@@ -86,7 +90,7 @@ def main(movie_file, plot_style = ''): # track or speed or steps
     
             # plot time (x) vs. speed (left y axis)
             speedax = f.add_axes([0.1, 0.1, 0.63, 0.6])      
-            speedax, distax = speedDistancePlot(speedax, tracked_df, scale)
+            speedax, distax = speedDistancePlot(speedax, tracked_df, scale, unit)
             speed_xlim = speedax.get_xlim()
                     
             # plot bearing changes on a separate axis above (a3)
@@ -324,20 +328,23 @@ def bearingChangePlot(a3, tracked_df):
                          facecolor = 'lightgray', edgecolor=None))
     return a3
 
-def speedDistancePlot(a1, tracked_df, scale):
+def speedDistancePlot(a1, tracked_df, scale, unit):
+    
+    if unit == 'inch':
+        unit = 'in'
     
     times = tracked_df.times.values
     speed = tracked_df.speed.values / scale
     line1 = a1.plot(times[:-1],speed[:-1],color='tab:blue',label='speed')
     a1.set_xlabel('Time (s)')
-    a1.set_ylabel('Speed (mm/s)', color = 'tab:blue')
+    a1.set_ylabel('Speed (' + unit + '/s)', color = 'tab:blue')
     a1.set_xlim([0, times[-1]])
     
     # plot time vs. cumulative distance (right y axis)
     a2 = a1.twinx()
     cumulative_distance = tracked_df.cumulative_distance.values / scale
     line2 = a2.plot(times[:-1],cumulative_distance[:-1],color='tab:red',label='distance')
-    a2.set_ylabel('Cumulative distance (mm)', color = 'tab:red')
+    a2.set_ylabel('Cumulative distance (' + unit + ')', color = 'tab:red')
     
     # add legend
     lns = line1+line2
@@ -360,14 +367,21 @@ def speedDistancePlot(a1, tracked_df, scale):
     return a1, a2
     
 
-def getDataLabel(length, distance, vid_length, angle_space = 0, discrete_turns = 0, num_stops = 0):
+def getDataLabel(unit, length, distance, vid_length, angle_space = 0, discrete_turns = 0, num_stops = 0):
+    
+    if unit == 'inch':
+        unit = 'in'
+    
+    data_label = ''
+    
     # convert from pixels?
     speed = np.around(distance/vid_length, decimals = 3)
-    data_label = 'Length : ' + str(length)
-    data_label += ', Distance : ' + str(distance)
-    data_label += ', Time: ' + str(vid_length)
-    data_label += ', Speed: ' + str(speed)
-    data_label += ', Stops: ' + str(int(num_stops))
+    if length > 0:
+        data_label += 'Length : ' + str(length) + ' ' + unit + ' ,'
+    data_label += 'Distance : ' + str(distance) + ' ' + unit
+    data_label += ', Time: ' + str(vid_length) + ' sec'
+    data_label += ', Speed: ' + str(speed) + ' ' + unit + '/sec'
+    data_label += '\nStops: ' + str(int(num_stops))
 
     # angle space
     if angle_space > 0:

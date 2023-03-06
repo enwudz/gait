@@ -31,7 +31,7 @@ def main(image_file, saveImage = 'True'):
         image = clone.copy()
         D, measure_key = measureImage()
 
-        if measure_key == ord('q') or measure_key ==ord('d'):
+        if measure_key == ord('q') or measure_key == ord('d'):
             measuring = False
             cv2.destroyAllWindows()
             break
@@ -49,7 +49,7 @@ def main(image_file, saveImage = 'True'):
         # save a scale file 
         scale_file = image_file.split('.')[0] + '_scale.txt'
         o = open(scale_file,'w')
-        o.write('1mm='+str(D))
+        o.write('1 mm='+str(D))
         o.close()
     
     return D

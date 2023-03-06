@@ -19,30 +19,32 @@ if no length, prompt to measure it
 
 '''
 
-def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
+def main(movie_file):
     
     # tracking data is from trackCritter.py, and is in an excel file for this clip
     
-    # load identity info for this clip
-    info = gaitFunctions.loadIdentityInfo(movie_file)
+    # load tracked path stats for this clip (if available)
+    path_stats = gaitFunctions.loadPathStats(movie_file)
     
-    # get scale (conversion between pixels and millimeters)
-    scale = getScale(info)
-    print('... 1 mm = ' + str(scale) + ' pixels')
-        
+    # get scale (conversion between pixels and real distance)
+    scale, unit = getScale(path_stats, movie_file)
+
     # load the tracked data
     tracked_data, excel_filename = gaitFunctions.loadTrackedPath(movie_file)
     if tracked_data is None:
         print('No path tracking data yet - run trackCritter.py')
-        return
+        return    
     
     cols = tracked_data.columns.values
     for c in cols:
         if 'uncertainty' in c:
             uncertainty_col = c
-            pixel_threshold = int(c.split('_')[-1])
+            try:
+                pixel_threshold = int(c.split('_')[-1])
+            except:
+                pixel_threshold = 100
 
-    # read in data
+    # read in tracking data
     frametimes = tracked_data.times.values
     
     try:
@@ -58,7 +60,6 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
         
     xcoords = tracked_data.xcoords.values
     ycoords = tracked_data.ycoords.values
-    
     
     # get medians for critter size: area and length
     median_area = np.median(areas) / scale**2
@@ -90,12 +91,13 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
     
     # add path tracking summary values to 'path_stats' tab
     # area, distance, average speed, num turns, num stops, bearings, time_increment for turns & stops
-    parameters = ['scale','area','length','clip duration','total distance','average speed',
+    parameters = ['scale','unit','area','length','clip duration','total distance','average speed',
                   '# turns','# stops', '% cruising', 'cumulative bearings','bin duration',
                   'pixel threshold','tracking confidence']
     
     clip_duration = frametimes[-1]
     total_distance = np.sum(distance) / scale
+
     average_speed = np.mean(speed[:-1]) / scale
     num_turns = len(gaitFunctions.one_runs(turns))
     num_stops = len(gaitFunctions.one_runs(stops))
@@ -105,7 +107,7 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
     except:
         tracking_confidence = 100
         pixel_threshold = 100
-    vals = [scale, median_area, median_length, clip_duration, total_distance, 
+    vals = [scale, unit, median_area, median_length, clip_duration, total_distance, 
             average_speed, num_turns, num_stops, cruising_proportion, cumulative_bearings, 
             time_increment, pixel_threshold, tracking_confidence]
     
@@ -115,11 +117,6 @@ def main(movie_file, plot_style = 'none'): # plot_style is 'track' or 'time'
     with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
         df2.to_excel(writer, index=False, sheet_name='path_stats')
     
-    # PLOTS
-    if plot_style != 'none':
-        # plot!
-        import plotPath
-        plotPath.main(movie_file, plot_style) 
         
     return df, df2
 
@@ -280,50 +277,82 @@ def distanceSpeedBearings(times, xcoords, ycoords):
     
     return distance, speed, cumulative_distance, bearings, bearing_changes
 
-def getScale(info):
+def getScale(path_stats, movie_file):
 
-    # does info have the scale already?
-    if 'scale' in info.keys():    
-        scale = float(info['scale'])
-    else:
-
-        scaleFile = glob.glob('*scale.txt')
-        if len(scaleFile) > 0:
-            with open(scaleFile[0],'r') as f:
-                stuff = f.readlines()
-                for thing in stuff:
-                    if '=' in thing:
-                        scale = float(thing.split('=')[1])
-                    else:
-                        scale = float(thing)
+    # does path_stats have the scale already?
+    if 'scale' in path_stats.keys():    
+        scale = float(path_stats['scale'])
+        if 'unit' in path_stats.keys():
+            unit = path_stats['unit']
         else:
-            print('no scale for ' + info['file_stem'])
-            print('... measure 1mm on the micrometer (see image) ... ')
-            micrometerFiles = glob.glob('*micrometer*')
-            if len(micrometerFiles) > 0:
-                import measureImage
-                micrometerFile = micrometerFiles[0]
-                scale = float(measureImage.main(micrometerFile))
+            unit = '1 mm'
     
-            else:
-                print('no micrometer image ... ')
-                scale = 1
+    # is there a file that contains measurement from  micrometer image?
+    elif len(glob.glob('*scale.txt')) > 0:
+        scaleFile = glob.glob('*scale.txt')[0]
+        with open(scaleFile,'r') as f:
+            stuff = f.readlines()
+            for thing in stuff:
+                if '=' in thing:
+                    scale = float(thing.split('=')[1])
+                    unit = thing.split('=')[0]
+                else:
+                    scale = float(thing)
+                    unit = '1 mm'
+                    
+    # is there a micrometer image?
+    elif len(glob.glob('*micrometer*png')) > 0:
+
+        print('... measure 1mm on the micrometer (see image) ... ')
+        micrometerFile = glob.glob('*micrometer*png')[0]
+        import measureImage
+        scale = float(measureImage.main(micrometerFile, True))
+        unit = '1 mm'
+
+    # no micrometer ... measure something on first frame or just ignore scale
+    else:
+        print(' ... no micrometer image and no scale file ... ')
         
-        # # update the excel file
-        # print('... adding scale to excel file for this clip ... ')
-        # excel_filename = info['file_stem'] + '.xlsx'
-        # parameters = gaitFunctions.identity_print_order()
-        # vals = [info[x] for x in parameters]
-        # parameters.append('scale')
-        # vals.append(scale)
+        print('\nOptions: ')
+        print('   1. measure a distance on the first frame')
+        print('   2. just set scale to 1 (i.e. ignore scale')
+        print()
+        selection = input('Which option? ')
         
-        # d = {'Parameter':parameters,'Value':vals}
-        # df = pd.DataFrame(d)
-        # with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
-        #     df.to_excel(writer, index=False, sheet_name='identity')
-        
-    #print('Scale is ' + str(scale))
-    return scale
+        try:
+            val = int(selection)
+        except:
+            sys.exit('Please choose a valid selection!')
+            
+        if val == 1:
+            firstframe = gaitFunctions.getFirstFrame(movie_file)
+            imfile = movie_file.split('.')[0] + '_first.png'
+            
+            import cv2
+            import os
+            import measureImage
+            
+            cv2.imwrite(imfile, firstframe, [cv2.IMWRITE_PNG_COMPRESSION, 0])
+            pixel_distance = measureImage.main(imfile, False)
+            os.remove(imfile)
+            
+            distance_measured = input('\nEnter numerical value of real distance (e.g. 95): ')
+            
+            try:
+                measurement = float(distance_measured)
+            except:
+                sys.exit('Please enter a number!')
+                
+            unit = input('\nEnter unit of measurement (e.g. inch or cm or mm): ')
+            
+            scale = pixel_distance / measurement
+            
+        else:
+            scale = 1
+            unit = 'no units'
+
+    print('Scale is ' + str(np.round(scale,2)) + ' pixels per ' + unit)
+    return scale, unit
 
 def getBearing(p1, p2):
     '''
@@ -398,14 +427,10 @@ if __name__== "__main__":
 
     if len(sys.argv) > 1:
         movie_file = sys.argv[1]
-        try:
-            plot_style = sys.argv[2]
-        except:
-            plot_style = 'none'
+
     else:
         movie_file = gaitFunctions.selectFile(['mp4','mov'])
-        plot_style = 'none'
        
     print('Movie is ' + movie_file)
 
-    main(movie_file, plot_style)
+    main(movie_file)
