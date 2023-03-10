@@ -1746,8 +1746,6 @@ def frameSwings(movie_file):
         values = list of legs that are swinging during this frame
 
     '''
-
-    frames_swinging = {}
     
     excel_file = movie_file.split('.')[0] + '.xlsx'
     
@@ -1756,24 +1754,28 @@ def frameSwings(movie_file):
     if gait_df is not None:
     
         frametimes = gait_df['frametimes'].values
-        swinging_lateral = gait_df['swinging_lateral'].values
-        swinging_rear = gait_df['swinging_rear'].values
+        frames_swinging = {k:[] for k in frametimes}     
         
-        for i, frame in enumerate(frametimes):
-            try:
-                lateral_swings = swinging_lateral[i].split('_')
-            except:
-                lateral_swings = []
-            try:
-                rear_swings = swinging_rear[i].split('_')
-            except:
-                rear_swings = []
-            frames_swinging[frame] = lateral_swings + rear_swings
+        cols = gait_df.columns.values
+        for col in cols:
+            if 'swinging' in col:
+                
+                swing_vals = gait_df[col].values
+                
+                for i, frame in enumerate(frametimes):
+                    
+                    try: 
+                        swings = swing_vals[i].split('_')
+                    except:
+                        swings = []
+                        
+                    frames_swinging[frame] = frames_swinging[frame] + swings
             
         return frames_swinging
     
     else:
         
+        # no gait data found
         return None
 
 
@@ -1851,7 +1853,7 @@ def getGaitStyleVec(excel_file, leg_set = 'lateral', sheetname = 'gait_styles'):
         data_column = 'gaits_rear'
         
     elif leg_set in ['four','cat','dog','tetrapod']:
-        data_column = 'gaits_four'
+        data_column = 'gaits'
         
     else:
         # all_combos, combo_colors = get_gait_combo_colors('lateral')

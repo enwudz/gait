@@ -16,6 +16,14 @@ make folders full of images of what I want ... and animate them ...
 (reminder of how to make a movie with ffmpeg, within a folder of images)
 ffmpeg -f image2 -r 30 -pattern_type glob -i '*.png' -pix_fmt yuv420p -crf 20 test_movie.mp4
 
+WISHLIST
+
+update plotGaitStyleAtTime to select plot orientation - horizontal or vertical
+
+different orientations for different critters - rightward motion for things filmed from side
+if filmed from the top, select leg sets to show
+
+
 """
 
 # import cv2
@@ -29,25 +37,41 @@ import os
 import matplotlib.animation as animation
 import matplotlib.image as img
 
-def main(movie_file, leg_set = 'lateral'):
-    
-    leg_set = 'rear'
-    
-    ''' make sure we have everything we need '''
+def main(movie_file):
     
     ## define the time window that we want to show for the step plots
     time_window = 5 # in seconds
     
-    ## Do we have an excel file with gait style data?
+    ## Figure out what species we are dealing with
+    identity_info = gaitFunctions.loadIdentityInfo(movie_file)
+    if 'species' in identity_info.keys():
+        species = identity_info['species']
+    else:
+        species = 'tardigrade'
+    print('This is a ' + species)
+    
+    ## if species is tardigrade, ask if we want to do lateral legs or rear legs
+    if species == 'tardigrade':
+        print('\nWhich leg set should we do?')
+        print('   1. rear legs')
+        print('   2. lateral legs')
+        selection = input('\nChoose one: ')
+        try: 
+            choice = int(selection)
+        except:
+            print(selection + ' is not valid, defaulting to lateral legs')
+            choice = 2  
+        if choice == 1:
+            leg_set = 'rear'
+        else:
+            leg_set = 'lateral'
+        print('You chose the ' + leg_set + ' legs')
+    
+    ''' make sure we have everything we need '''
+    
+    ## Do we have a folder of cropped, rotated images to animate into a movie?
     base_name = movie_file.split('.')[0]
     excel_file = base_name + '.xlsx'
-    times, lateral_gaits = gaitFunctions.getGaitStyleVec(excel_file, 'lateral')
-    times, rear_gaits = gaitFunctions.getGaitStyleVec(excel_file, 'rear')
-    if lateral_gaits is None or rear_gaits is None:
-        print('Need to have an excel file for ' + movie_file + ' with gait data from frameStepper.py')
-        return
-    
-    ## Do we have a folder of cropped, rotated images?
     cropped_folder = base_name + '_rotacrop'
     if len(glob.glob(cropped_folder)) < 1:
         print('Need rotated images from ' + movie_file + ' ... run critterZoomer.py')
@@ -65,72 +89,86 @@ def main(movie_file, leg_set = 'lateral'):
         print(' ... need data from frameStepper.py!')
         return
     
-    ## Do we have box walker images? [ask: make or exit]
-    boxwalker_lateral_folder = base_name + '_boxwalker_lateral'
-    if len(glob.glob(boxwalker_lateral_folder)) < 1:
-        print('Making lateral boxwalker images for ' + movie_file)
-        import boxWalker
-        boxWalker.main(movie_file, 'lateral')
-    else:
-        print('\nHave lateral boxwalker images for ' + movie_file + '!')
-    lateral_boxwalker_files = sorted(glob.glob(os.path.join(boxwalker_lateral_folder,'*.png')))
+    if species == 'tardigrade': 
         
-    boxwalker_rear_folder = base_name + '_boxwalker_rear'
-    if len(glob.glob(boxwalker_rear_folder)) < 1:
-        print('Making rear boxwalker images for ' + movie_file)
-        import boxWalker
-        boxWalker.main(movie_file, 'rear')
-    else:
-        print('\nHave rear boxwalker images for ' + movie_file + '!')
-    rear_boxwalker_files = sorted(glob.glob(os.path.join(boxwalker_rear_folder,'*.png')))
+        ## If species is tardigrade, do we have gait style data for this leg set?
+        times, gaits = gaitFunctions.getGaitStyleVec(excel_file, leg_set)    
+        if gaits is None:
+            print('Need to have an excel file for ' + movie_file + ' with gait data from frameStepper.py for ' + leg_set + ' legs')
+            return
+        
+        ## If tardigrade, do we have box walker images for this leg set?
+        boxwalker_folder = base_name + '_boxwalker_' + leg_set
+        if len(glob.glob(boxwalker_folder)) < 1:
+            print('Making lateral boxwalker images for ' + movie_file)
+            import boxWalker
+            boxWalker.main(movie_file, leg_set)
+        else:
+            print('\nHave ' + leg_set + ' boxwalker images for ' + movie_file + '!')
+        boxwalker_files = sorted(glob.glob(os.path.join(boxwalker_folder,'*.png')))
+        
+        ## If tardigrade, do we have images of leg steps and gait styles for this leg set?
+        stepfolder = base_name + '_' + leg_set + 'steps'
+        if len(glob.glob(stepfolder)) < 1:
+            print('Making ' + leg_set + ' step images for ' + movie_file)
+            os.mkdir(stepfolder)
+            makeStepImages(stepfolder, base_name, frames_swinging, time_window, leg_set)
+        else:
+            print('\nHave ' + leg_set + ' step images for ' + movie_file + '!')
+        step_files = sorted(glob.glob(os.path.join(stepfolder,'*.png')))
+        
+    else: # not a tardigrade ... 
     
-    ## Do we have images of lateral leg steps and gait styles [ask: make or exit]
-    lateral_stepfolder = base_name + '_lateralsteps'
-    if len(glob.glob(lateral_stepfolder)) < 1:
-        print('Making lateral step images for ' + movie_file)
-        os.mkdir(lateral_stepfolder)
-        makeStepImages(lateral_stepfolder, base_name, frames_swinging, time_window, 'lateral')
-    else:
-        print('\nHave lateral step images for ' + movie_file + '!')
-    lateral_step_files = sorted(glob.glob(os.path.join(lateral_stepfolder,'*.png')))
-    
-    ## Do we have images of rear leg steps and gait styles [ask: make or exit]
-    rear_stepfolder = base_name + '_rearsteps'
-    if len(glob.glob(rear_stepfolder)) < 1:
-        print('Making rear step images for ' + movie_file)
-        os.mkdir(rear_stepfolder)
-        makeStepImages(rear_stepfolder, base_name, frames_swinging, time_window, 'rear')
-    else:
-        print('\nHave rear step images for ' + movie_file + '!')
-    rear_step_files = sorted(glob.glob(os.path.join(rear_stepfolder,'*.png')))
-    
+        # Do we have gait style data for this leg set?
+        times, gaits = gaitFunctions.getGaitStyleVec(excel_file, species)
+        if gaits is None:
+            print('Need to have an excel file for ' + movie_file + ' with gait data from frameStepper.py for ' + leg_set + ' legs')
+            return
+        else:
+            print('Found gait data for ' + movie_file)
+           
+        # Do we have step images for this movie? ... should be HORIZONTAL plot
+        stepfolder = base_name + '_' + species + 'steps'
+        if len(glob.glob(stepfolder)) < 1:
+            print('Making ' + species + ' step images for ' + movie_file)
+            #os.mkdir(stepfolder)
+            makeStepImages(stepfolder, base_name, frames_swinging, time_window, species)
+        else:
+            print('\nHave ' + species + ' step images for ' + movie_file + '!')
+        step_files = sorted(glob.glob(os.path.join(stepfolder,'*.png')))
+        
+        
+        # Do we have boxwalker images for this movie? ... this should be oriented to the RIGHT
+        
+        exit()
+        
+        
     ## We have all the things we need!
     print('\nGood to go for ' + movie_file)
     
     # ## Do the animated figure!
     print('\nSetting up an animated figure . . . ')
     
-    
-    if leg_set == 'rear':
-        f = plt.figure(figsize = (10,8))
-        steps_ax = f.add_axes([0.05, 0.18, 0.25, 0.8]) # width:height is 2.5:8 for rear
-        tardi_ax = f.add_axes([0.3, 0.18, 0.3, 0.75]) # width:height is 1:2 for tardi
-        box_ax = f.add_axes([0.6, 0.18, 0.4, 0.75]) # width:height is 1:2 for box
-        legend_ax = f.add_axes([0.13, 0.03, 0.12, 0.15])
-        legend_ax = gaitFunctions.gaitStyleLegend(legend_ax, 'rear')
-        step_files = rear_step_files
-        box_files = rear_boxwalker_files
+    if species == 'tardigrade':
+        if leg_set == 'rear':
+            f = plt.figure(figsize = (10,8))
+            steps_ax = f.add_axes([0.05, 0.18, 0.25, 0.8]) # width:height is 2.5:8 for rear
+            critter_ax = f.add_axes([0.3, 0.18, 0.3, 0.75]) # width:height is 1:2 for tardi
+            box_ax = f.add_axes([0.6, 0.18, 0.4, 0.75]) # width:height is 1:2 for box
+            legend_ax = f.add_axes([0.13, 0.03, 0.12, 0.15])
+            legend_ax = gaitFunctions.gaitStyleLegend(legend_ax, 'rear')
+        else:
+            f = plt.figure(figsize = (12,8))
+            steps_ax = f.add_axes([0.05, 0.18, 0.37, 0.8]) # width:height is 3.7:8 for lateral
+            critter_ax = f.add_axes([0.35, 0.18, 0.3, 0.75]) # width:height is 1:2 for tardi
+            box_ax = f.add_axes([0.58, 0.18, 0.4, 0.75]) # width:height is 1:2 for box
+            legend_ax = f.add_axes([0.15, 0.03, 0.2, 0.15])
+            legend_ax = gaitFunctions.gaitStyleLegend(legend_ax, 'lateral')
     else:
-        f = plt.figure(figsize = (12,8))
-        steps_ax = f.add_axes([0.05, 0.18, 0.37, 0.8]) # width:height is 3.7:8 for lateral
-        tardi_ax = f.add_axes([0.35, 0.18, 0.3, 0.75]) # width:height is 1:2 for tardi
-        box_ax = f.add_axes([0.58, 0.18, 0.4, 0.75]) # width:height is 1:2 for box
-        legend_ax = f.add_axes([0.15, 0.03, 0.2, 0.15])
-        legend_ax = gaitFunctions.gaitStyleLegend(legend_ax, 'lateral')
-        step_files = lateral_step_files
-        box_files = lateral_boxwalker_files
+        # need to set up a plot for something that is not a tardigrade!
+        pass
     
-    tardi_ax.axis('off')
+    critter_ax.axis('off')
     steps_ax.axis('off')
     box_ax.axis('off')
     
@@ -142,13 +180,13 @@ def main(movie_file, leg_set = 'lateral'):
         # print(frame_time)
         
         # get and display the tardigrade image
-        tardi_pic = img.imread(im_file)
-        tardi_im = tardi_ax.imshow(tardi_pic, animated=True)
+        critter_pic = img.imread(im_file)
+        critter_im = critter_ax.imshow(critter_pic, animated=True)
         
         step_pic = img.imread(step_files[i])
         step_im = steps_ax.imshow(step_pic, animated=True)
         
-        box_pic = img.imread(box_files[i])
+        box_pic = img.imread(boxwalker_files[i])
         box_im = box_ax.imshow(box_pic, animated=True)
         
         # if i == 0: # show an initial one first
@@ -156,7 +194,7 @@ def main(movie_file, leg_set = 'lateral'):
         #     lateral_steps_ax.imshow(img.imread(lateral_step_files[i]))
         #     rear_steps_ax.imshow(img.imread(rear_step_files[i]))
         
-        ims.append([tardi_im, step_im, box_im])
+        ims.append([critter_im, step_im, box_im])
     
     ani = animation.ArtistAnimation(f, ims, interval=33, blit=True, repeat = False) # repeat_delay=1000
     ani_file = base_name + "_" + leg_set + "_leganimator.mp4"
@@ -201,8 +239,7 @@ def makeStepImages(folder, base_name, frames_swinging, time_window, leg_set='lat
             plt.savefig(os.path.join(folder,fname))
             plt.close(f)
     
-    
-    else:
+    elif leg_set == 'rear':
         ## rear step figures
         rear_legs = ['L4','R4']
         rear_combos, rear_combo_colors = gaitFunctions.get_gait_combo_colors('rear')
@@ -227,12 +264,29 @@ def makeStepImages(folder, base_name, frames_swinging, time_window, leg_set='lat
             
             plt.savefig(os.path.join(folder,fname))
             plt.close(f)
+            
+    else:
+        
+        if leg_set in ['cat','dog','tetrapod','four']:
+            legs = gaitFunctions.get_leg_list(4)
+        elif leg_set in ['human','two']:
+            legs = gaitFunctions.get_leg_list(2)
+        else:
+            sys.exit("I don't know what to do with " + leg_set)
+        
+        combos, combo_colors = gaitFunctions.get_gait_combo_colors(leg_set)
+        times, gaits = gaitFunctions.getGaitStyleVec(excel_file, leg_set)
+
+        print('Saving step figures in ' + folder)
+        print(' ... this takes awhile - sit tight!')
+        
     
     plt.close("all")
 
 
 def plotGaitStyleAtTime(ax, leg_set, frame_times, gait_styles, time_window, current_time, combo_colors): # combo colors
-            
+    
+        
     # make white bars up to the time where we actually have data
     min_time = current_time - time_window
     ax.bar(1, np.abs(min_time), width = 1, bottom = min_time, color = 'white')
