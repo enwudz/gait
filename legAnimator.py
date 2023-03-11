@@ -18,9 +18,6 @@ ffmpeg -f image2 -r 30 -pattern_type glob -i '*.png' -pix_fmt yuv420p -crf 20 te
 
 WISHLIST
 
-update plotGaitStyleAtTime to select plot orientation - horizontal or vertical
-
-different orientations for different critters - rightward motion for things filmed from side
 if filmed from the top, select leg sets to show
 
 
@@ -46,26 +43,23 @@ def main(movie_file):
     identity_info = gaitFunctions.loadIdentityInfo(movie_file)
     if 'species' in identity_info.keys():
         species = identity_info['species']
+        num_legs = identity_info['num_legs']
     else:
         species = 'tardigrade'
+        num_legs = 8
     print('This is a ' + species)
     
     ## if species is tardigrade, ask if we want to do lateral legs or rear legs
     if species == 'tardigrade':
-        print('\nWhich leg set should we do?')
-        print('   1. rear legs')
-        print('   2. lateral legs')
-        selection = input('\nChoose one: ')
-        try: 
-            choice = int(selection)
-        except:
-            print(selection + ' is not valid, defaulting to lateral legs')
-            choice = 2  
-        if choice == 1:
-            leg_set = 'rear'
-        else:
-            leg_set = 'lateral'
-        print('You chose the ' + leg_set + ' legs')
+        leg_set = gaitFunctions.choose_lateral_rear()
+    else:
+        leg_set = species
+        
+    # if movie duration is less then selected time window, set time window to movie duration
+    movie_duration = float(identity_info['duration'])
+    if movie_duration < time_window:
+        print('Setting time window for step plots to ' + str(movie_duration) + ' seconds')
+        time_window = movie_duration
     
     ''' make sure we have everything we need '''
     
@@ -74,74 +68,46 @@ def main(movie_file):
     excel_file = base_name + '.xlsx'
     cropped_folder = base_name + '_rotacrop'
     if len(glob.glob(cropped_folder)) < 1:
-        print('Need rotated images from ' + movie_file + ' ... run critterZoomer.py')
+        print('Need rotated images from ' + movie_file + ' ... run rotaZoomer.py')
         return
    
     ## Do we actually have image files in that folder?
     im_files = sorted(glob.glob(os.path.join(cropped_folder, '*.png')))
     if len(im_files) == 0:
-        print('No image files found in ' + cropped_folder)
+        print('No image files found in ' + cropped_folder + ' ... save images with rotaZoomer.py')
         return
     
     ## Do we have step data for this movie?
     frames_swinging = gaitFunctions.frameSwings(movie_file)
     if frames_swinging is None: # nothing here
-        print(' ... need data from frameStepper.py!')
+        print(' ... need step data from frameStepper.py!')
         return
-    
-    if species == 'tardigrade': 
+    times, gaits = gaitFunctions.getGaitStyleVec(excel_file, leg_set)    
+    if gaits is None:
+        print('Need to have an excel file for ' + movie_file + ' with gait data from frameStepper.py for ' + leg_set + ' legs')
+        return
+    else:
+        print('Found gait data for ' + movie_file)
         
-        ## If species is tardigrade, do we have gait style data for this leg set?
-        times, gaits = gaitFunctions.getGaitStyleVec(excel_file, leg_set)    
-        if gaits is None:
-            print('Need to have an excel file for ' + movie_file + ' with gait data from frameStepper.py for ' + leg_set + ' legs')
-            return
+    ## Do we have images of leg steps and gait styles for this leg set?
+    stepfolder = base_name + '_' + leg_set + 'steps'
+    if len(glob.glob(stepfolder)) < 1:
+        print('Making ' + leg_set + ' step images for ' + movie_file)
+        os.mkdir(stepfolder)
+        makeStepImages(stepfolder, base_name, frames_swinging, time_window, leg_set)
+    else:
+        print('\nHave ' + leg_set + ' step images for ' + movie_file + '!')
+    step_files = sorted(glob.glob(os.path.join(stepfolder,'*.png')))
         
-        ## If tardigrade, do we have box walker images for this leg set?
-        boxwalker_folder = base_name + '_boxwalker_' + leg_set
-        if len(glob.glob(boxwalker_folder)) < 1:
-            print('Making lateral boxwalker images for ' + movie_file)
-            import boxWalker
-            boxWalker.main(movie_file, leg_set)
-        else:
-            print('\nHave ' + leg_set + ' boxwalker images for ' + movie_file + '!')
-        boxwalker_files = sorted(glob.glob(os.path.join(boxwalker_folder,'*.png')))
-        
-        ## If tardigrade, do we have images of leg steps and gait styles for this leg set?
-        stepfolder = base_name + '_' + leg_set + 'steps'
-        if len(glob.glob(stepfolder)) < 1:
-            print('Making ' + leg_set + ' step images for ' + movie_file)
-            os.mkdir(stepfolder)
-            makeStepImages(stepfolder, base_name, frames_swinging, time_window, leg_set)
-        else:
-            print('\nHave ' + leg_set + ' step images for ' + movie_file + '!')
-        step_files = sorted(glob.glob(os.path.join(stepfolder,'*.png')))
-        
-    else: # not a tardigrade ... 
-    
-        # Do we have gait style data for this leg set?
-        times, gaits = gaitFunctions.getGaitStyleVec(excel_file, species)
-        if gaits is None:
-            print('Need to have an excel file for ' + movie_file + ' with gait data from frameStepper.py for ' + leg_set + ' legs')
-            return
-        else:
-            print('Found gait data for ' + movie_file)
-           
-        # Do we have step images for this movie? ... should be HORIZONTAL plot
-        stepfolder = base_name + '_' + species + 'steps'
-        if len(glob.glob(stepfolder)) < 1:
-            print('Making ' + species + ' step images for ' + movie_file)
-            #os.mkdir(stepfolder)
-            makeStepImages(stepfolder, base_name, frames_swinging, time_window, species)
-        else:
-            print('\nHave ' + species + ' step images for ' + movie_file + '!')
-        step_files = sorted(glob.glob(os.path.join(stepfolder,'*.png')))
-        
-        
-        # Do we have boxwalker images for this movie? ... this should be oriented to the RIGHT
-        
-        exit()
-        
+    ## Do we have boxwalker images for this movie
+    boxwalker_folder = base_name + '_boxwalker_' + leg_set
+    if len(glob.glob(boxwalker_folder)) < 1:
+        print('Making boxwalker images for ' + movie_file + ', ' + leg_set + ' legs')
+        import boxWalker
+        boxWalker.main(movie_file, leg_set)
+    else:
+        print('\nHave ' + leg_set + ' boxwalker images for ' + movie_file + '!')
+    boxwalker_files = sorted(glob.glob(os.path.join(boxwalker_folder,'*.png')))
         
     ## We have all the things we need!
     print('\nGood to go for ' + movie_file)
@@ -165,9 +131,15 @@ def main(movie_file):
             legend_ax = f.add_axes([0.15, 0.03, 0.2, 0.15])
             legend_ax = gaitFunctions.gaitStyleLegend(legend_ax, 'lateral')
     else:
-        # need to set up a plot for something that is not a tardigrade!
-        pass
-    
+        # set up a plot for a non-tardigrade critter
+        f = plt.figure(figsize = (14,8))
+        step_ax_width = 0.8
+        step_ax_height = 0.5 # step_ax_width / (10/(num_legs/2))
+        steps_ax = f.add_axes([0.1, 0.05, step_ax_width, step_ax_height]) # width:height is 10:number_of_legs/2 for non-tardi critter
+        critter_ax = f.add_axes([0.45, 0.51, 0.5, 0.4])  # width:height is 4:3 for non-tardi critter
+        box_ax = f.add_axes([0.05, 0.51, 0.5, 0.4]) # width:height is number_of_legs / 2 + 1 : number_of_legs for non-tardi critter
+        
+    # exit()
     critter_ax.axis('off')
     steps_ax.axis('off')
     box_ax.axis('off')
@@ -194,13 +166,24 @@ def main(movie_file):
         #     lateral_steps_ax.imshow(img.imread(lateral_step_files[i]))
         #     rear_steps_ax.imshow(img.imread(rear_step_files[i]))
         
+        # ims.append([critter_im, step_im])
         ims.append([critter_im, step_im, box_im])
     
-    ani = animation.ArtistAnimation(f, ims, interval=33, blit=True, repeat = False) # repeat_delay=1000
-    ani_file = base_name + "_" + leg_set + "_leganimator.mp4"
-    ani.save(ani_file)
-    print('Saved the animation as ' + ani_file)
-    # plt.show()
+    
+    # save at multiple fps?
+    fps_list = [5,10,30]
+    # fps_list= [30]
+    
+    for fps in fps_list:
+        frame_interval = int(1000/fps)
+        
+        ani = animation.ArtistAnimation(f, ims, interval=frame_interval, blit=True, repeat = False) # repeat_delay=1000
+        
+        ani_file = base_name + "_" + str(fps) + "fps_" + leg_set + "_leganimator.mp4"
+        print(str(fps) + 'fps animation finished. Saving the animation as ' + ani_file)
+        ani.save(ani_file)
+    
+        # plt.show()
 
     exit()
     
@@ -214,7 +197,7 @@ def makeStepImages(folder, base_name, frames_swinging, time_window, leg_set='lat
     
     if leg_set == 'lateral':
         ## lateral step figures
-        lateral_legs = ['L3','L2','L1','R1','R2','R3']
+        lateral_legs = gaitFunctions.get_leg_list(6,'stepplot')
         times, lateral_gait_styles = gaitFunctions.getGaitStyleVec(excel_file, 'lateral')
         lateral_combos, lateral_combo_colors = gaitFunctions.get_gait_combo_colors('lateral')
         
@@ -225,13 +208,14 @@ def makeStepImages(folder, base_name, frames_swinging, time_window, leg_set='lat
         for frame_time in times:
             
             fname = base_name + '_' + str(int(frame_time*1000)).zfill(6) + '.png'
-            f = plt.figure(figsize=(3.7,8))
+            fig_size = (3.7,8)
+            f = plt.figure(figsize=fig_size)
             step_ax = f.add_axes([0.15, 0.05, 0.6, 0.88])
             gait_ax = f.add_axes([0.8, 0.05, 0.15, 0.88])
-            step_ax = plotLegSetAtTime(step_ax, lateral_legs, times, frames_swinging, time_window, 
+            step_ax = plotLegSetAtTime(step_ax, 'vertical', lateral_legs, times, frames_swinging, time_window, 
                                                 frame_time, swing_color, stance_color)
                   
-            gait_ax = plotGaitStyleAtTime(gait_ax, 'lateral', times, lateral_gait_styles, time_window, frame_time, lateral_combo_colors)
+            gait_ax = plotGaitStyleAtTime(gait_ax, leg_set, times, lateral_gait_styles, time_window, frame_time, lateral_combo_colors)
             
             step_ax.set_ylim([frame_time-time_window, frame_time])
             gait_ax.set_ylim([frame_time-time_window, frame_time])
@@ -251,13 +235,13 @@ def makeStepImages(folder, base_name, frames_swinging, time_window, leg_set='lat
         for frame_time in times:
             
             fname = base_name + '_' + str(int(frame_time*1000)).zfill(6) + '.png'
-            f = plt.figure(figsize=(2.5,8))
+            fig_size = (2.5,8)
+            f = plt.figure(figsize=fig_size)
             step_ax = f.add_axes([0.25, 0.05, 0.45, 0.88])
             gait_ax = f.add_axes([0.75, 0.05, 0.2, 0.88])
-            step_ax = plotLegSetAtTime(step_ax, rear_legs, times, frames_swinging, time_window, 
+            step_ax = plotLegSetAtTime(step_ax, 'vertical', rear_legs, times, frames_swinging, time_window, 
                                                 frame_time, swing_color, stance_color)
-            
-            gait_ax = plotGaitStyleAtTime(gait_ax, 'rear', times, rear_gait_styles, time_window, frame_time, rear_combo_colors)
+            gait_ax = plotGaitStyleAtTime(gait_ax, leg_set, times, rear_gait_styles, time_window, frame_time, rear_combo_colors)
             
             step_ax.set_ylim([frame_time-time_window, frame_time])
             gait_ax.set_ylim([frame_time-time_window, frame_time])
@@ -268,9 +252,9 @@ def makeStepImages(folder, base_name, frames_swinging, time_window, leg_set='lat
     else:
         
         if leg_set in ['cat','dog','tetrapod','four']:
-            legs = gaitFunctions.get_leg_list(4)
+            legs = gaitFunctions.get_leg_list(4,'stepplot')
         elif leg_set in ['human','two']:
-            legs = gaitFunctions.get_leg_list(2)
+            legs = gaitFunctions.get_leg_list(2,'stepplot')
         else:
             sys.exit("I don't know what to do with " + leg_set)
         
@@ -280,45 +264,80 @@ def makeStepImages(folder, base_name, frames_swinging, time_window, leg_set='lat
         print('Saving step figures in ' + folder)
         print(' ... this takes awhile - sit tight!')
         
+        for frame_time in times:
+            fname = base_name + '_' + str(int(frame_time*1000)).zfill(6) + '.png'
+            fig_size = (10, len(legs)/2)
+            f = plt.figure(figsize=fig_size)
+            step_ax = f.add_axes([0.1, 0.15,  0.85, 0.6])
+            gait_ax = f.add_axes([0.1, 0.8,   0.85, 0.1])
+            step_ax = plotLegSetAtTime(step_ax, 'horizontal', legs, times, frames_swinging, time_window,
+                                       frame_time, swing_color, stance_color)
+            gait_ax = plotGaitStyleAtTime(gait_ax, leg_set, times, gaits, time_window, frame_time, combo_colors)
+            
+            step_ax.set_xlim([frame_time-time_window, frame_time])
+            gait_ax.set_xlim([frame_time-time_window, frame_time])
+            
+            plt.savefig(os.path.join(folder,fname))
+            # plt.show()
+            plt.close(f)
     
     plt.close("all")
+    return fig_size
 
 
 def plotGaitStyleAtTime(ax, leg_set, frame_times, gait_styles, time_window, current_time, combo_colors): # combo colors
     
-        
+    if leg_set in ['lateral','rear']:
+        plot_orientation = 'vertical'
+    else:
+        plot_orientation = 'horizontal'
+    
     # make white bars up to the time where we actually have data
     min_time = current_time - time_window
-    ax.bar(1, np.abs(min_time), width = 1, bottom = min_time, color = 'white')
+    
+    if plot_orientation == 'vertical':
+        ax.bar(1, np.abs(min_time), width = 1, bottom = min_time, color = 'white')
+    else:
+        ax.barh(1, np.abs(min_time), height = 1, left = min_time, color = 'white')
     
     # add stances and swings 
     max_time_index = np.argmax(frame_times >= current_time)
     
     previous_time = 0
     for i, style in enumerate(gait_styles[:max_time_index]):
-        bar_height = frame_times[i] - previous_time
-        ax.bar(1, bar_height, width=1, bottom=previous_time, color = combo_colors[style])
-        previous_time += bar_height
+        bar_size = frame_times[i] - previous_time
+        if plot_orientation == 'vertical':
+            ax.bar(1, bar_size, width=1, bottom=previous_time, color = combo_colors[style])
+        else:
+            ax.barh(1, bar_size, height=1, left=previous_time, color = combo_colors[style])
+        previous_time += bar_size
     
     # ax.invert_yaxis()
-    ax.set_xlabel('gait\n' + leg_set)
+    if plot_orientation == 'vertical':
+        ax.set_xlabel('gait\n' + leg_set)
+        ax.xaxis.set_label_position('top') 
+        # ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    else:
+        ax.set_ylabel('gait\n')
+        ax.yaxis.set_label_position('right') 
 
     ax.set_yticks([])
     ax.set_xticks([])
-    ax.xaxis.set_label_position('top') 
     ax.set_frame_on(False)
-    # ax.yaxis.set_major_locator(MaxNLocator(integer=True))
     
     return ax
 
 
-def plotLegSetAtTime(ax, legs_to_plot, frame_times, frames_swinging, time_window, current_time, swing_color, stance_color):
+def plotLegSetAtTime(ax, plot_orientation, legs_to_plot, frame_times, frames_swinging, time_window, current_time, swing_color, stance_color):
     
     for i, leg in enumerate(legs_to_plot):
         
         # make white bars up to the time where we actually have data
         min_time = current_time - time_window
-        stepbars = ax.bar(i+1, np.abs(min_time), width = 1, bottom = min_time, color = 'white')
+        if plot_orientation == 'vertical':
+            stepbars = ax.bar(i+1, np.abs(min_time), width = 1, bottom = min_time, color = 'white')
+        else:
+            stepbars = ax.barh(i+1, np.abs(min_time), height = 1, left = min_time, color = 'white')
         
         # add stances and swings 
         max_time_index = np.argmax(frame_times >= current_time)
@@ -326,25 +345,40 @@ def plotLegSetAtTime(ax, legs_to_plot, frame_times, frames_swinging, time_window
         bottom_val = 0
         for j, frame_time in enumerate(frame_times[:max_time_index]): # define time window to plot here
             
-            bar_height = frame_times[j+1] - frame_times[j]
+            bar_size = frame_times[j+1] - frame_times[j]
             if leg in frames_swinging[frame_time]:
                 bar_color = swing_color
             else:
                 bar_color = stance_color
-                
-            ax.bar(i+1, bar_height, width=1, bottom = bottom_val, color = bar_color)
-            bottom_val += bar_height
+            
+            if plot_orientation == 'vertical':
+                ax.bar(i+1, bar_size, width=1, bottom = bottom_val, color = bar_color)
+            else: 
+                ax.barh(i+1, bar_size, height=1, left = bottom_val, color = bar_color)
+            bottom_val += bar_size
     
-    # ax.invert_yaxis()
-    ax.set_xlim([0.5, len(legs_to_plot)+0.5])
-    ax.set_ylabel('Time (sec)')
-    ax.set_xticks(np.arange(len(legs_to_plot))+1)
-    ax.set_xticklabels(legs_to_plot)
-    ax.set_xlabel('legs')
-    ax.xaxis.tick_top()
-    ax.xaxis.set_label_position('top') 
+    if plot_orientation == 'vertical':
+        # ax.invert_yaxis()
+        ax.set_xlim([0.5, len(legs_to_plot)+0.5])
+        ax.set_ylabel('Time (sec)')
+        ax.set_xticks(np.arange(len(legs_to_plot))+1)
+        ax.set_xticklabels(legs_to_plot)
+        ax.set_xlabel('legs')
+        ax.xaxis.tick_top()
+        ax.xaxis.set_label_position('top') 
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    else:
+        # ax.invert_xaxis()
+        ax.set_ylim([0.5, len(legs_to_plot)+0.5])
+        ax.set_xlabel('Time (sec)')
+        ax.set_yticks(np.arange(len(legs_to_plot))+1)
+        ax.set_yticklabels(legs_to_plot)
+        ax.set_ylabel('legs')
+        ax.yaxis.tick_right()
+        ax.yaxis.set_label_position('right') 
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    
     ax.set_frame_on(False)
-    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
     
     return ax
     

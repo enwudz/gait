@@ -23,23 +23,38 @@ import pandas as pd
 
 def main(movie_file, leg_set = 'lateral'):
     
-    # leg_set = 'rear'
+    ## Figure out what species we are dealing with
+    identity_info = gaitFunctions.loadIdentityInfo(movie_file)
+    if 'species' in identity_info.keys():
+        species = identity_info['species']
+        leg_group = 'right'
+    else:
+        species = 'tardigrade'
+        leg_group = 'up'
+    if 'num_legs' in identity_info.keys():
+        num_legs = identity_info['num_legs']
+    else:
+        num_legs = 8
+    print('This is a ' + species + ' with ' + str(num_legs) + ' legs to show')
+    
+    # get an array showing the orientation of the legs in the plot
+    if species == 'tardigrade':
+        leg_set = gaitFunctions.choose_lateral_rear()
+        leg_array = get_legarray(leg_group, num_legs)
+    else:
+        leg_set = species
+        leg_array = get_legarray(leg_group, num_legs + 2)
     
     # ==> GET PLOT PARAMETERS   
     boxsize, stepregion, box_color, down_color, up_color = getPlotParameters()
   
-    # get an array showing the orientation of the legs in the plot
-    num_legs = 8
-    leg_group = 'up' # 'up' is all legs, with anterior toward top
-    leg_array = get_legarray(leg_group, num_legs) # 
-    
     # get dictionary of leg_name => lower left box coordinates and size of box showing steps
     leg_coordinates, stepbox_size = get_legcoordinates(leg_array, boxsize, stepregion) 
     # print(leg_coordinates)
             
     # ==> SAMPLE plot for chosen legs
-    # legs_to_plot = np.ravel(get_legarray('first_pair',8)) 
-    # plot_sample_legs(legs_to_plot, up, boxsize, stepregion, up_color, box_color)
+    # legs_to_plot = np.ravel(get_legarray('all', num_legs)) 
+    # plot_sample_legs(legs_to_plot, leg_array, boxsize, stepregion, up_color, box_color)
     
     # ==> Load gait style data
     filestem = movie_file.split('.')[0]
@@ -55,13 +70,21 @@ def main(movie_file, leg_set = 'lateral'):
         legs_to_show = gaitFunctions.get_leg_combos()[0]['rear']
         text_x, text_y = (70,140)
         
-    else:
+    elif leg_set == 'lateral':
         
         gait_styles = gait_data['gaits_lateral'].values
         swings = gait_data['swinging_lateral'].values
         combos, combo_colors = gaitFunctions.get_gait_combo_colors('lateral')
         legs_to_show = gaitFunctions.get_leg_combos()[0]['lateral']
         text_x, text_y = (45,40)
+        
+    else:
+        
+        gait_styles = gait_data['gaits'].values
+        swings = gait_data['swinging_leg'].values
+        combos, combo_colors = gaitFunctions.get_gait_combo_colors(num_legs)
+        legs_to_show = gaitFunctions.get_leg_list(4)
+        text_x, text_y = (15,95) # this is assuming rightward orientation
 
     # ==> Save image for each frame
     boxwalker_folder = filestem + '_boxwalker_' + leg_set
@@ -70,8 +93,8 @@ def main(movie_file, leg_set = 'lateral'):
     print('... saving frames for box movie in ' + boxwalker_folder + ' ...')
     
     fig_height, fig_width = 2*np.array(np.shape(leg_array))
-    print('height',fig_height)
-    print('width',fig_width)
+    # print('height',fig_height)
+    # print('width',fig_width)
     
     for i, frame_time in enumerate(times):
         try: # if no swinging legs, then we have nan, which we cannot split
@@ -108,11 +131,12 @@ def main(movie_file, leg_set = 'lateral'):
             a.spines[side].set_color('k')
             a.spines[side].set_linewidth(3)
             
-        # add text for gait style
+        # add text for gait style ... if tardigrade!
+        # if species == 'tardigrade':
         a.text(text_x, text_y, s=gait_style.replace('_','\n'), color=gait_color, fontsize=30, fontweight='bold')
         
         # plt.show()
-        fname = os.path.join(boxwalker_folder, filestem + '_boxstepper_' + str(int(frame_time*1000)).zfill(6)  + '.png')
+        fname = os.path.join(boxwalker_folder, filestem + '_boxwalker_' + str(int(frame_time*1000)).zfill(6)  + '.png')
         # print(fname)
         plt.savefig(fname, facecolor = box_color)
         plt.close()
@@ -182,8 +206,9 @@ def get_legcoordinates(leg_array, boxsize = 100, stepregion = 0.9):
     return leg_coordinates, stepbox_size
     
 def get_legarray(leg_group, num_legs):
+    
     # define legs and different orientations
-    legs = np.array(['L1','R1','L2','R2','L3','R3','L4','R4'])
+    legs = np.array(gaitFunctions.get_leg_list(num_legs))
     
     up = legs.reshape(int(num_legs/2),2)
     
