@@ -24,7 +24,6 @@ def makeMovieFromImages(searchterm, fps, outfile):
     
     cmd = cmd1 + str(fps) + cmd2 + searchterm + cmd3 + outfile
     print(cmd)
-    
 
 def boxScatterParams():
     alpha = 0.5 # scatter alpha
@@ -401,6 +400,31 @@ def labelTimes(frametimes, labeltimes, buffer):
                             break
     
     return alphas 
+
+
+def zero_runs(a):
+    '''
+    
+    From a 1-d array (vector) of zeros and ones
+    Find the indices where each 'bout' of zeros starts and stops
+
+    Parameters
+    ----------
+    a : numpy array
+        a vector of zeros and ones.
+
+    Returns
+    -------
+    ranges : numpy array
+        start and end indices of each 'run' of zeros within a.
+
+    '''
+    # Create an array that is 1 where a is 1, and pad each end with an extra 0.
+    iszero = np.concatenate(([0], np.equal(a, 0).view(np.int8), [0]))
+    absdiff = np.abs(np.diff(iszero))
+    # Runs start and end where absdiff is 1.
+    ranges = np.where(absdiff == 1)[0].reshape(-1, 2)
+    return ranges
 
 def one_runs(a):
     '''

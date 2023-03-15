@@ -36,90 +36,169 @@ import matplotlib.patches as mpatches
 import gaitFunctions
 from matplotlib.animation import FuncAnimation
 
+
 def main():
 
-    arr = np.linspace(0,1,50)
-    swingvals = np.hstack((arr,np.flip(arr)))
+    ## ==> get up / down times for legs
+    ## either from framestepper in an experiment excel file
+    # up_down_times, frame_times = load_movie_steps()
     
-    legs = ['L1','R1','L2','R2','L3','R3','L4','R4']
-    swings = [1, 1, 0.6, 0.6, 0.3, 0.3, 0, 0]
-    swingextents = dict(zip(legs,swings))
-    legstates = {}
-    for leg in legs:
-        legstates[leg] = 'up'
+    ## OR make simulated data based on step parameters
+    up_down_times, frame_times = load_simulated_steps()
+    # print(up_down_times)
     
-    f,ax = plt.subplots()
-    ax = drawLegs(ax, swingextents, legstates)
-    
-    # have swingextents = dictionary of swing extents
-    # keys = leg names, values = array of swing extents for each leg
-    
-    # have legstates = a dictionary of leg states (up or down)
-    # keys = leg names, values = array of up or downs
-    
-    # ani = FuncAnimation(fig, animate, frames=len(swingextents), 
-    #                     interval=33, repeat=True, fargs=[ax, swingextents, legstates]) 
-    
-    plt.show()
+    ## ==> want 2 dictionaries:
+    ## legstates = a dictionary of leg states (up or down)
+    ##     keys = leg names, values = list of up or downs
+    ## legangles = a dictionary of swing extents (backward = 0, forward = 1)
+    ##     keys = leg names, values = array of swing extents
+    legstates, legangles = get_leg_swings(up_down_times, frame_times)
 
-def animate(i, ax, swingextents, legstates):
-        
+    ## make basic animation
+    basic_animation(legangles, legstates, False) # True to save      
+
+def load_simulated_steps():
+    ## define step parameters
+    simulation = {}
+    simulation['num_legs'] = 4
+    simulation['num_cycles'] = 10
+    simulation['gait_cycle'] = 0.43 # in seconds
+    simulation['duty_factor'] = 0.44 # in fraction of gait cycle
+    simulation['opposite_offset'] = 0.5 # in fraction of gait cycle
+    simulation['anterior_offset'] = 0.5  # in fraction of gait cycle
+    simulation['fps'] = 30
+    up_down_times, frame_times = simulate_steps(simulation)
+    return up_down_times, frame_times
+
+def basic_animation(legangles, legstates, save_animation = False):    
+    fig, ax = plt.subplots(figsize=(7,8))
+    ani = FuncAnimation(fig, animate_steps, frames=len(legangles['L1']), 
+                        interval=33, repeat=False, fargs=[ax, legangles, legstates]) 
     
+    if save_animation:
+        ani.save('animation.mp4')
+    plt.show()
+    
+def animate_steps(i, ax, legangles, legstates):
+        
+    legs = list(legangles.keys())
+    
+    ax.clear()
+    
+    legstate = {}
+    swingextent = {}
+    
+    for leg in legs:
+        legstate[leg] = legstates[leg][i]
+        swingextent[leg] = legangles[leg][i]
+    
+    ax = drawLegs(ax, swingextent, legstate)
     
     return
 
-
-def rightSegmentPatch(midright, body_buffer, segmentheight, segmentwidth):
+def get_leg_swings(up_down_times, frame_times):    
+    ## get legs, with specified leg order
+    num_legs = len(up_down_times)
+    legs = gaitFunctions.get_leg_list(num_legs)
+    legs = [x for x in legs if x in up_down_times.keys()]
     
-    midright[0] += body_buffer
-    curve = 0.2
+    ## get leg matrix
+    leg_matrix = gaitFunctions.make_leg_matrix(legs, up_down_times, frame_times)
+    
+    ## get leg states (up or down) and leg angles (forward or backward extent) from leg_matrix
+    legstates = {}
+    legangles = {}
+    for i, leg in enumerate(legs):
+        leg_binary = leg_matrix[i,:]
+        legstates[leg] = ['up' if x == 1 else 'down' for x in leg_binary]
+
+        # get indices of runs of zeros (stances) and ones (swings)
+        one_runs = gaitFunctions.one_runs(leg_binary)
+        zero_runs = gaitFunctions.zero_runs(leg_binary)
+        
+        angles = np.zeros(len(leg_binary))
+        # for swings ... legangle is 0 at beginning of swing and 1 at end of swing
+        for run in one_runs: # swings!
+            len_run = run[1] - run[0]
+            vals = np.linspace(0,1,len_run)
+            angles[run[0]:run[1]] = vals
+        
+        # for stance ... legangle is 1 at beginning of stance and 0 at end of stance
+        for run in zero_runs: # stances!
+            len_run = run[1] - run[0]
+            vals = np.linspace(1,0,len_run)
+            angles[run[0]:run[1]] = vals
+            
+        legangles[leg] = angles
+        
+    return legstates, legangles
+
+def load_movie_steps():
+    movie_file = gaitFunctions.selectFile(['mp4','mov'])
+    frame_times = gaitFunctions.getFrameTimes(movie_file)
+    excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file.split('.')[0]) 
+    mov_data, excel_filename = gaitFunctions.loadUpDownData(excel_filename)
+    up_down_times, last_event = gaitFunctions.getUpDownTimes(mov_data)
+    return up_down_times, frame_times
+
+def rightSegmentPatch(midright, body_buffer, curve_buffer, segmentheight, segmentwidth):
+    
+    curve_offset = curve_buffer * segmentheight
+    body_offset = body_buffer * segmentwidth
+    midright[0] += body_offset
     xstart = midright[0]
     ystart = midright[1]
     segmentwidth += body_buffer
     Path = mpath.Path
     codes, verts = zip(*[
         (Path.MOVETO, midright), # get to start
-        (Path.LINETO, [xstart, ystart + (1-curve) * segmentheight/2]), # line to beginning of upper right curve
-        # (Path.CURVE4, [xstart + curve * segmentwidth, ystart + segmentheight/2]), # upper right curve ... but need two more points to make curve
-        (Path.LINETO, [xstart - segmentwidth, ystart + segmentheight/2]), # line to upper left corner
-        (Path.LINETO, [xstart - segmentwidth, ystart - segmentheight/2]), # line to lower left corner
-        (Path.LINETO, [xstart, ystart - (1-curve) * segmentheight/2]), # line to beginning of lower left curve
-        # (Path.CURVE4, [xstart + curve * segmentwidth, ystart - (1-curve) * segmentheight/2]), # lower left curve ... but need two more points to make curve
+        (Path.LINETO, [xstart, ystart + segmentheight/2 - curve_offset]), 
+        (Path.CURVE3, [xstart, ystart + segmentheight/2]),
+        (Path.LINETO, [xstart - curve_offset, ystart + segmentheight/2]),
+        (Path.LINETO, [xstart - segmentwidth - body_offset, ystart + segmentheight/2]), 
+        (Path.LINETO, [xstart - segmentwidth - body_offset, ystart - segmentheight/2]),
+        (Path.LINETO, [xstart - curve_offset, ystart - segmentheight/2]),
+        (Path.CURVE3, [xstart, ystart - segmentheight/2]),
+        (Path.LINETO, [xstart, ystart - segmentheight/2 + curve_offset]),
         (Path.CLOSEPOLY, midright) # line to beginning
         ])
     
     return codes, verts
 
-def leftSegmentPatch(midleft, body_buffer, segmentheight, segmentwidth):
+
+def leftSegmentPatch(midleft, body_buffer, curve_buffer, segmentheight, segmentwidth):
     
-    midleft[0] -= body_buffer
-    curve = 0.2
+    curve_offset = curve_buffer * segmentheight
+    body_offset = body_buffer * segmentwidth
+    midleft[0] -= body_offset
     xstart = midleft[0]
     ystart = midleft[1]
     segmentwidth += body_buffer
     Path = mpath.Path
     codes, verts = zip(*[
         (Path.MOVETO, midleft), # get to start
-        (Path.LINETO, [xstart, ystart + (1-curve) * segmentheight/2]), # line to beginning of upper left curve
-        # (Path.CURVE4, [xstart + curve * segmentwidth, ystart + segmentheight/2]), # upper left curve ... but need two more points to make curve
-        (Path.LINETO, [xstart + segmentwidth, ystart + segmentheight/2]), # line to upper right corner
-        (Path.LINETO, [xstart + segmentwidth, ystart - segmentheight/2]), # line to lower right corner
-        (Path.LINETO, [xstart, ystart - (1-curve) * segmentheight/2]), # line to beginning of lower left curve
-        # (Path.CURVE4, [xstart + curve * segmentwidth, ystart - (1-curve) * segmentheight/2]), # lower left curve ... but need two more points to make curve
+        (Path.LINETO, [xstart, ystart + segmentheight/2 - curve_offset]), 
+        (Path.CURVE3, [xstart, ystart + segmentheight/2]),
+        (Path.LINETO, [xstart + curve_offset, ystart + segmentheight/2]),
+        (Path.LINETO, [xstart + segmentwidth + body_offset, ystart + segmentheight/2]), 
+        (Path.LINETO, [xstart + segmentwidth + body_offset, ystart - segmentheight/2]),
+        (Path.LINETO, [xstart + curve_offset, ystart - segmentheight/2]),
+        (Path.CURVE3, [xstart, ystart - segmentheight/2]),
+        (Path.LINETO, [xstart, ystart - segmentheight/2 + curve_offset]),
         (Path.CLOSEPOLY, midleft) # line to beginning
         ])
     
     return codes, verts
 
-def arcColor(magnitude, blackwhite):
+def arcColor(magnitude, updown):
     
     '''
     Parameters
     ----------
     magnitude : floating point decimal between 0 and 1
         how dark or light do we want the shade.
-    blackwhite : string
-        'black' or 'white'.
+    updown : string
+        'up' or 'down'.
 
     Returns
     -------
@@ -136,7 +215,7 @@ def arcColor(magnitude, blackwhite):
     pos = int(magnitude*100)-1
     shade = y[pos] * c
     
-    if blackwhite == 'black':
+    if updown == 'up':
         shade = np.array([1-x for x in shade])
     
     return shade
@@ -175,7 +254,8 @@ def drawLegs(ax, swingextents, legstates):
     segment_width = 0.8 * leg_length
     segment_height = 2.2 * leg_length
     
-    body_buffer = 0.2 * leg_length
+    body_buffer = 0.2 # fraction of segment width
+    curve_buffer = 0.05 # fraction of segment height
     
     all_legs = gaitFunctions.get_leg_list(10)
     legs = [x for x in all_legs if x in swingextents.keys()]
@@ -225,12 +305,12 @@ def drawLegs(ax, swingextents, legstates):
             # leg_point[0] = leg_point[0] + 0.2 * leg_length
             rec = mpatches.Rectangle(leg_point, width=leg_length, height=leg_thickness, color = leg_color,
                                 transform=Affine2D().rotate_deg_around(*point_of_rotation, 90+leg_angle)+ax.transData)
-            codes,verts = leftSegmentPatch(bod_point, body_buffer, segment_height, segment_width)
+            codes,verts = leftSegmentPatch(bod_point, body_buffer, curve_buffer, segment_height, segment_width)
         else:
             # leg_point[0] = leg_point[0] - 0.2 * leg_length
             rec = mpatches.Rectangle(leg_point, width=leg_length, height=leg_thickness, color = leg_color,
                                 transform=Affine2D().rotate_deg_around(*point_of_rotation, 90-leg_angle)+ax.transData)
-            codes,verts = rightSegmentPatch(bod_point, body_buffer, segment_height, segment_width)
+            codes,verts = rightSegmentPatch(bod_point, body_buffer, curve_buffer, segment_height, segment_width)
         
         
         # plt.scatter(point_of_rotation[0],point_of_rotation[1], c='r', s=50) # check leg point
@@ -252,14 +332,87 @@ def drawLegs(ax, swingextents, legstates):
     ax.set_facecolor("steelblue") # slategray
     
     # # clear the frame and ticks
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['bottom'].set_visible(False)
-    ax.spines['left'].set_visible(False)
-    ax.get_xaxis().set_ticks([])
-    ax.get_yaxis().set_ticks([])
+    # ax.spines['top'].set_visible(False)
+    # ax.spines['right'].set_visible(False)
+    # ax.spines['bottom'].set_visible(False)
+    # ax.spines['left'].set_visible(False)
+    # ax.get_xaxis().set_ticks([])
+    # ax.get_yaxis().set_ticks([])
 
     return ax
+
+def simulate_steps(simulation):
+    # leg quantity and number of cycles to show
+    num_legs = simulation['num_legs']
+    legs_per_side = int(num_legs/2)
+    num_cycles = simulation['num_cycles']
+    
+    # step parameters
+    gait_cycle = simulation['gait_cycle'] # in seconds
+    duty_factor = simulation['duty_factor'] # in fraction of gait cycle
+    opposite_offset = simulation['opposite_offset'] # in fraction of gait cycle
+    anterior_offset = simulation['anterior_offset'] # in fraction of gait cycle
+    fps = simulation['fps']
+    
+    # figure out some parameters of timing
+    max_time = int(num_cycles * gait_cycle)
+    frame_times = np.linspace(0,max_time,max_time*fps)
+    frame_times = frame_times[1:]
+    seconds_per_stance = duty_factor * gait_cycle
+    opposite_offset_seconds = opposite_offset * gait_cycle
+    anterior_offset_seconds = anterior_offset * gait_cycle
+    
+    # figure out some relatinoships between legs
+    left_legs = np.array(['L' + str(n+1) for n in range(legs_per_side)])
+    right_legs = np.array([x.replace('L','R') for x in left_legs])
+    all_leg_list = np.hstack((left_legs, right_legs))
+    anterior_left = np.roll(left_legs,1)
+    anterior_right = np.roll(right_legs,1)
+    anterior_leg_list = np.hstack((anterior_left,anterior_right))
+    anterior_legs = dict(zip(all_leg_list, anterior_leg_list))
+    opposite_legs = {}
+    for i, leg in enumerate(left_legs):
+        opposite_legs[leg] = right_legs[i]
+    for i, leg in enumerate(right_legs):
+        opposite_legs[leg] = left_legs[i]
+    
+    leg_ups = {}
+    leg_downs = {}
+    
+    # set ups and downs times for rear left leg
+    rear_left  = 'L' + str(legs_per_side)
+    leg_ups[rear_left] = []
+    leg_downs[rear_left] = [-gait_cycle, 0]
+    for x in range(num_cycles):
+        leg_downs[rear_left].append(leg_downs[rear_left][-1] + gait_cycle)
+    leg_ups[rear_left]  = [x + seconds_per_stance for x in leg_downs[rear_left]]
+    
+    # get times for other left legs 
+    for leg in np.flip(left_legs)[:-1]:
+        # print(leg, anterior_legs[leg])
+        leg_downs[anterior_legs[leg]] = [x + anterior_offset_seconds for x in leg_downs[leg]]
+        leg_ups[anterior_legs[leg]] = [x + anterior_offset_seconds for x in leg_ups[leg]]
+    
+    # get times for all right legs
+    for leg in left_legs:
+        leg_downs[opposite_legs[leg]] = [x + opposite_offset_seconds for x in leg_downs[leg]]
+        leg_ups[opposite_legs[leg]] = [x + opposite_offset_seconds for x in leg_ups[leg]]
+        
+    # trim to times we want . . .
+    for leg in leg_downs.keys():
+        leg_downs[leg] = [x for x in leg_downs[leg] if x >= 0]
+        leg_downs[leg] = [x for x in leg_downs[leg] if x <= max_time]
+        leg_ups[leg] = [x for x in leg_ups[leg] if x >= 0]
+        leg_ups[leg] = [x for x in leg_ups[leg] if x <= max_time]
+        
+    # convert to the legacy dictionary up_down_times
+    up_down_times = {}
+    for leg in leg_downs.keys():
+        up_down_times[leg] = {}
+        up_down_times[leg]['d'] = leg_downs[leg]
+        up_down_times[leg]['u'] = leg_ups[leg]
+    
+    return up_down_times, frame_times
 
 if __name__ == '__main__':
     main()
