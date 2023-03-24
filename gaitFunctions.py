@@ -1737,6 +1737,24 @@ def getGaits(movie_file, leg_set = 'lateral'):
 
     return frame_times, gait_styles, up_legs
 
+def getFeetFromSpecies(species='tardigrade'):
+    if species in ['two','human',2, 'rear', 'tardigrade_rear']:
+        num_legs = 2
+    elif species in [4, 'four', 'tetrapod', 'dog','cat']:
+        num_legs = 4
+    elif species in ['lateral','insect','tardigrade','tardigrade_lateral','six',6]:
+        num_legs = 6
+    else:
+        
+        need_selection = True
+        while(need_selection):
+            selection = input('Enter number of legs for this critter: ')
+            try:
+                num_legs = int(selection)
+            except:
+                print('\nInvalid entry for number of legs! Try again \n')
+    return num_legs
+
 def saveGaits(movie_file):
     '''
     Save gait styles for lateral legs and rear legs (or all legs of a non-tardigrade) ...

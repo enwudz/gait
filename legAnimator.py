@@ -7,24 +7,7 @@ Created on Mon Mar 13 21:58:21 2023
 
 animation of legs
 
-(To make simulation)
-From gait cycle, duty factor, anterior offsets, opposite offsets
-    make frame times based on 30 fps for N gait cycles
-	make list of up times and down times for all legs
-
-(For real data and simulation)
-From list of up times and down times for all legs ... and frame times
-    determine extent of swing at each frame
-    record leg state at each frame	
-
-(Add head)
-From axis, number of segments, segment width
-	add a head to axis
-
-(Add tail)
-From axis, number of segments)
-	add a tail to axis
-
+(option to) add animated step plot along with critter?
 
 """
 
@@ -39,12 +22,16 @@ from matplotlib.animation import FuncAnimation
 
 def main():
 
+    critter = 'cat'
+    num_legs = gaitFunctions.getFeetFromSpecies(critter)
+    animation_fps = 15
+
     ## ==> get up / down times for legs
     ## either from framestepper in an experiment excel file
     # up_down_times, frame_times = load_movie_steps()
     
     ## OR make simulated data based on step parameters
-    up_down_times, frame_times = load_simulated_steps()
+    up_down_times, frame_times = load_simulated_steps(num_legs)
     # print(up_down_times)
     
     ## ==> want 2 dictionaries:
@@ -55,31 +42,34 @@ def main():
     legstates, legangles = get_leg_swings(up_down_times, frame_times)
 
     ## make basic animation
-    basic_animation(legangles, legstates, False) # True to save      
+    basic_animation(legangles, legstates, critter, animation_fps, False) # True to save      
 
-def load_simulated_steps():
+def load_simulated_steps(num_legs):
     ## define step parameters
     simulation = {}
-    simulation['num_legs'] = 4
+    simulation['num_legs'] = num_legs
     simulation['num_cycles'] = 10
-    simulation['gait_cycle'] = 0.43 # in seconds
-    simulation['duty_factor'] = 0.44 # in fraction of gait cycle
+    simulation['gait_cycle'] = 1 # in seconds
+    simulation['duty_factor'] = 0.5 # in fraction of gait cycle
     simulation['opposite_offset'] = 0.5 # in fraction of gait cycle
     simulation['anterior_offset'] = 0.5  # in fraction of gait cycle
     simulation['fps'] = 30
     up_down_times, frame_times = simulate_steps(simulation)
     return up_down_times, frame_times
 
-def basic_animation(legangles, legstates, save_animation = False):    
+def basic_animation(legangles, legstates, critter, fps=30, save_animation=False):    
+    
+    frame_interval = int((1 / fps) * 1000)
+    
     fig, ax = plt.subplots(figsize=(7,8))
     ani = FuncAnimation(fig, animate_steps, frames=len(legangles['L1']), 
-                        interval=33, repeat=False, fargs=[ax, legangles, legstates]) 
+                        interval=frame_interval, repeat=False, fargs=[ax, legangles, legstates, critter]) 
     
     if save_animation:
         ani.save('animation.mp4')
     plt.show()
-    
-def animate_steps(i, ax, legangles, legstates):
+
+def animate_steps(i, ax, legangles, legstates, critter = 'tardigrade'):
         
     legs = list(legangles.keys())
     
@@ -94,7 +84,73 @@ def animate_steps(i, ax, legangles, legstates):
     
     ax = drawLegs(ax, swingextent, legstate)
     
+    num_segments = int(len(legs)/2)
+    
+    # add head
+    if critter in ['tardigrade','cat']:
+        ax = add_head(ax, num_segments, critter)
+
+    # add tail
+    if critter in ['tardigrade','cat']:
+        ax = add_tail(ax, num_segments, critter)
+        
     return
+
+def add_tail(ax, num_segments, critter):
+    
+    xlims = ax.get_xlim()
+    ylims = ax.get_ylim()
+    
+    segmentwidth = (xlims[1]-xlims[0]) / 2
+    segmentheight = (xlims[1]-xlims[0]) / num_segments
+    
+    bottom_middle = [ xlims[0] + segmentwidth , ylims[0] ]
+    
+    if critter == 'cat':
+        
+        codes,verts = cat_tail(bottom_middle, segmentwidth, segmentheight)
+        tail = mpatches.PathPatch(mpath.Path(verts, codes), fc='k')
+        ax.add_patch(tail)
+        ax.set_ylim([ylims[0] - (1.6*segmentheight), ylims[1] ])
+        
+    else:
+        
+        codes,verts = tardigrade_tail(bottom_middle, segmentwidth, segmentheight)
+        tail = mpatches.PathPatch(mpath.Path(verts, codes), fc='k')
+        ax.add_patch(tail)
+        ax.set_ylim([ylims[0] - (0.5*segmentheight), ylims[1] ])
+        
+    return ax
+
+def add_head(ax, num_segments, critter = 'tardigrade'):
+    
+    xlims = ax.get_xlim()
+    ylims = ax.get_ylim()
+    
+    segmentwidth = (xlims[1]-xlims[0]) / 2
+    segmentheight = (xlims[1]-xlims[0]) / num_segments
+    
+    top_middle = [ xlims[0] + segmentwidth , ylims[1] ]
+    
+    if critter == 'cat':
+        codes,verts = cat_head(top_middle, segmentwidth, segmentheight)
+        head = mpatches.PathPatch(mpath.Path(verts, codes), fc='k')
+        ax.add_patch(head)
+    else:
+        headcodes, headverts, lefteye, righteye , ls_codes, ls_verts, rs_codes, rs_verts = tardigrade_head(top_middle,segmentwidth, segmentheight)
+        head = mpatches.PathPatch(mpath.Path(headverts, headcodes), fc='k')
+        ax.add_patch(head)
+        ax.add_patch(lefteye)
+        ax.add_patch(righteye)
+        lstylet = mpatches.PathPatch(mpath.Path(ls_verts, ls_codes), ec='w', lw=3, fc = 'none')
+        ax.add_patch(lstylet)
+        rstylet = mpatches.PathPatch(mpath.Path(rs_verts, rs_codes), ec='w', lw=3, fc = 'none')
+        ax.add_patch(rstylet)
+       
+    ax.set_ylim([ylims[0], ylims[1]+(1.1*segmentheight)])
+    
+    return ax
+    
 
 def get_leg_swings(up_down_times, frame_times):    
     ## get legs, with specified leg order
@@ -244,7 +300,7 @@ def drawLegs(ax, swingextents, legstates):
 
     Returns
     -------
-    ax
+    ax, 
 
     '''
     
@@ -332,14 +388,125 @@ def drawLegs(ax, swingextents, legstates):
     ax.set_facecolor("steelblue") # slategray
     
     # # clear the frame and ticks
-    # ax.spines['top'].set_visible(False)
-    # ax.spines['right'].set_visible(False)
-    # ax.spines['bottom'].set_visible(False)
-    # ax.spines['left'].set_visible(False)
-    # ax.get_xaxis().set_ticks([])
-    # ax.get_yaxis().set_ticks([])
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.get_xaxis().set_ticks([])
+    ax.get_yaxis().set_ticks([])
 
     return ax
+
+def tardigrade_tail(startpoint, segmentwidth, segmentheight):
+
+    segmentwidth = 0.45 * segmentwidth # how much of the axis do we want to fill with head?
+    
+    Path = mpath.Path
+    
+    codes, verts = zip(*[
+        (Path.MOVETO, [startpoint[0] + 0 * segmentwidth, startpoint[1] + 0 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] -1 * segmentwidth, startpoint[1] + 0 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0] - 0.45 * segmentwidth, startpoint[1] - 0.4 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0] + 0.45 * segmentwidth, startpoint[1] - 0.4 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] + 1 * segmentwidth, startpoint[1] + 0 * segmentheight ]),
+        (Path.CLOSEPOLY, [startpoint[0] + 0 * segmentwidth, startpoint[1] + 0 * segmentheight ]),
+        ])
+    
+    return codes, verts
+
+def cat_tail(startpoint, segmentwidth, segmentheight):
+    Path = mpath.Path
+    
+    codes, verts = zip(*[
+        (Path.MOVETO, [startpoint[0] + 0 * segmentwidth, startpoint[1] - 0 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] - 0.1 * segmentwidth, startpoint[1] - 0 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0] - 0.3 * segmentwidth, startpoint[1] - 0.56 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0] - 0.1 * segmentwidth, startpoint[1] - 1.1 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] - 0.15 * segmentwidth, startpoint[1] - 1.3 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0] - 0.15 * segmentwidth, startpoint[1] - 1.4 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0] + 0 * segmentwidth, startpoint[1] - 1.45 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] + 0.1 * segmentwidth, startpoint[1] - 1.35 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0] + 0.25 * segmentwidth, startpoint[1] - 1.1 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0] + 0.1 * segmentwidth, startpoint[1] - 0.56 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] + 0.2 * segmentwidth, startpoint[1] - 0 * segmentheight ]),
+        (Path.CLOSEPOLY, [startpoint[0]+ 0 * segmentwidth, startpoint[1] - 0 * segmentheight ]),
+        ])
+    
+    return codes, verts
+
+def tardigrade_head(startpoint, segmentwidth, segmentheight):
+    
+    segmentwidth = 0.45 * segmentwidth # how much of the axis do we want to fill with head?
+    segmentheight = 0.85 * segmentheight
+    
+    Path = mpath.Path
+    eye_radius = 0.1 * segmentwidth
+    
+    headcodes, headverts = zip(*[
+        (Path.MOVETO, [startpoint[0]+0 * segmentwidth, startpoint[1]+0 * segmentheight ]),
+        (Path.LINETO, [startpoint[0]-0.9 * segmentwidth, startpoint[1]+0 * segmentheight ]),
+        (Path.CURVE3, [startpoint[0]-1 * segmentwidth, startpoint[1]+0 * segmentheight ]),
+        (Path.LINETO, [startpoint[0]-1 * segmentwidth, startpoint[1]+0.08 * segmentheight ]),
+        (Path.LINETO, [startpoint[0]-1 * segmentwidth, startpoint[1]+0.56 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0]-0.95 * segmentwidth, startpoint[1]+0.64 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0]-0.65 * segmentwidth, startpoint[1]+0.85 * segmentheight ]),
+        (Path.LINETO, [startpoint[0]-0 * segmentwidth, startpoint[1]+0.90 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0]+0.65 * segmentwidth, startpoint[1]+0.85 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0]+0.95 * segmentwidth, startpoint[1]+0.64 * segmentheight ]),
+        (Path.LINETO, [startpoint[0]+1 * segmentwidth, startpoint[1]+0.56 * segmentheight ]),
+        (Path.LINETO, [startpoint[0]+1 * segmentwidth, startpoint[1]+0.08 * segmentheight ]),
+        (Path.CURVE3, [startpoint[0]+1 * segmentwidth, startpoint[1]+0 * segmentheight ]),
+        (Path.LINETO, [startpoint[0]+0.9 * segmentwidth, startpoint[1]+0 * segmentheight ]),
+        (Path.CLOSEPOLY, [startpoint[0]+0 * segmentwidth, startpoint[1]+0 * segmentheight ]),
+        ])
+    
+    lefteye = mpatches.Circle([startpoint[0] - 0.6 * segmentwidth, startpoint[1] + 0.52 * segmentheight ], eye_radius, color = 'w')
+    
+    righteye = mpatches.Circle([startpoint[0] + 0.6 * segmentwidth, startpoint[1] + 0.52 * segmentheight ], eye_radius, color = 'w')
+    
+    ls_codes, ls_verts = zip(*[
+        (Path.MOVETO, [startpoint[0]-0.1 * segmentwidth, startpoint[1]+0.8 * segmentheight ]),
+        (Path.CURVE3, [startpoint[0]-0.1 * segmentwidth, startpoint[1]+0.24 * segmentheight ]),
+        (Path.LINETO, [startpoint[0]-0.6 * segmentwidth, startpoint[1]+0.12 * segmentheight ]),
+        ])
+    
+    rs_codes, rs_verts = zip(*[
+        (Path.MOVETO, [startpoint[0]+0.1 * segmentwidth, startpoint[1]+0.8 * segmentheight ]),
+        (Path.CURVE3, [startpoint[0]+0.1 * segmentwidth, startpoint[1]+0.24 * segmentheight ]),
+        (Path.LINETO, [startpoint[0]+0.6 * segmentwidth, startpoint[1]+0.12 * segmentheight ]),
+        ])
+        
+
+    
+    return headcodes, headverts, lefteye, righteye , ls_codes, ls_verts, rs_codes, rs_verts
+    
+
+def cat_head(startpoint, segmentwidth, segmentheight):
+    
+    segmentwidth = 0.75 * segmentwidth # how much of the axis do we want to fill with head?
+    
+    Path = mpath.Path
+    codes, verts = zip(*[
+        (Path.MOVETO, [startpoint[0],startpoint[1]]),
+        (Path.LINETO, [startpoint[0] - 0.65 * segmentwidth,startpoint[1]]),
+        (Path.CURVE3, [startpoint[0] - 0.88 * segmentwidth,startpoint[1] + 0.04 * segmentheight]),
+        (Path.LINETO, [startpoint[0] - 0.94 * segmentwidth,startpoint[1] + 0.21 * segmentheight]),
+        (Path.CURVE3, [startpoint[0] - 1 * segmentwidth,startpoint[1] + 0.375 * segmentheight]),
+        (Path.LINETO, [startpoint[0] - 0.9 * segmentwidth,startpoint[1] + 0.6 * segmentheight]),
+        (Path.LINETO, [startpoint[0] - 1 * segmentwidth,startpoint[1] + 1 * segmentheight]),
+        (Path.LINETO, [startpoint[0] - 0.4 * segmentwidth,startpoint[1] + 0.79 * segmentheight]),
+        (Path.CURVE3, [startpoint[0] ,startpoint[1] + 0.88 * segmentheight]),
+        (Path.LINETO, [startpoint[0] + 0.4 * segmentwidth,startpoint[1] + 0.79 * segmentheight]),
+        (Path.LINETO, [startpoint[0] + 1 * segmentwidth,startpoint[1] + 1 * segmentheight]),
+        (Path.LINETO, [startpoint[0] + 0.9 * segmentwidth,startpoint[1] + 0.6 * segmentheight]),
+        (Path.CURVE3, [startpoint[0] + 1 * segmentwidth,startpoint[1] + 0.375 * segmentheight]),
+        (Path.LINETO, [startpoint[0] + 0.94 * segmentwidth,startpoint[1] + 0.21 * segmentheight]),
+        (Path.CURVE3, [startpoint[0] + 0.88 * segmentwidth,startpoint[1] + 0.04 * segmentheight]),
+        (Path.LINETO, [startpoint[0] + 0.65 * segmentwidth,startpoint[1]]),
+        (Path.CLOSEPOLY, [startpoint[0],startpoint[1]]),
+        ])
+    
+    return codes, verts
 
 def simulate_steps(simulation):
     # leg quantity and number of cycles to show
