@@ -22,7 +22,7 @@ from matplotlib.animation import FuncAnimation
 
 def main():
 
-    critter = 'cat'
+    critter = 'tardigrade'
     num_legs = gaitFunctions.getFeetFromSpecies(critter)
     animation_fps = 15
 
@@ -52,7 +52,7 @@ def load_simulated_steps(num_legs):
     simulation['gait_cycle'] = 1 # in seconds
     simulation['duty_factor'] = 0.5 # in fraction of gait cycle
     simulation['opposite_offset'] = 0.5 # in fraction of gait cycle
-    simulation['anterior_offset'] = 0.5  # in fraction of gait cycle
+    simulation['anterior_offset'] = 0.5 # in fraction of gait cycle
     simulation['fps'] = 30
     up_down_times, frame_times = simulate_steps(simulation)
     return up_down_times, frame_times
@@ -300,46 +300,59 @@ def drawLegs(ax, swingextents, legstates):
 
     Returns
     -------
-    ax, 
+    ax : matplotlib axis object with all legs drawn in appropriate positions
 
     '''
     
+    # how thick and long should we make the legs?
     leg_thickness = 0.6 # height
     leg_length = 1.6 # width
     
+    # how wide and tall should we make the segments?
     segment_width = 0.8 * leg_length
     segment_height = 2.2 * leg_length
     
-    body_buffer = 0.2 # fraction of segment width
+    # how much of the body should cover the legs, and how much curve in each segment?
+    body_buffer = 0.1 * segment_width # fraction of segment width
     curve_buffer = 0.05 # fraction of segment height
     
+    # get a list of legs that we need to worry about here
     all_legs = gaitFunctions.get_leg_list(10)
     legs = [x for x in all_legs if x in swingextents.keys()]
 
+    # set up number of body segments, depending on number of legs
     if len(legs) % 2 == 0:
         num_rows = int(len(legs) / 2)
         num_cols = int(len(legs) / num_rows)
     else:
         num_rows = 1
         num_cols = 1 
-    
     body_width = num_cols * (leg_length + segment_width)
     body_length = num_rows * segment_height
     
     # get leg points from number of legs
     # build up from front left
     leg_points = {}
+    body_ys = {}
     start_x = 0
     start_y = 0
     counter = 0
+    
     for row in range(num_rows):
+        # row =  each segment
+        
+        # col = left or right. Left leg = col 0,2,4 ...; right leg = col 1,3,5 ...
         for col in range(num_cols):
             
-            # add column offset to starting x point
-            this_x = start_x + col * 2 * segment_width
-            
+            # find starting x point for this leg
+            if col % 2 == 0: # a left leg!
+                this_x = start_x - segment_width
+            else: # a right leg!
+                this_x = start_x + segment_width
+
             # add row offset to starting y point
             this_y = start_y - row * segment_height
+            body_ys[legs[counter]] = this_y
             
             # get point for this leg
             leg_points[legs[counter]] = [this_x, this_y]
@@ -353,17 +366,25 @@ def drawLegs(ax, swingextents, legstates):
         leg_color = arcColor(swingextents[leg], legstates[leg])
         leg_angle = swingAngle(swingextents[leg])
         leg_point = leg_points[leg]
+        
+        # body_ypos = body_ys[leg] 
         bod_point = leg_points[leg]
         
         point_of_rotation = np.array([leg_point[0], leg_point[1] + leg_thickness/2])
         
-        if 'L' in leg:
+        ### WORK
+        # want to recode leftSegmentPatch (and right) to start at 0,body_ypos
+        # NEED to set midline to x = 0
+        
+        # draw the leg and the body segment
+        if 'L' in leg: # a left leg!
             # leg_point[0] = leg_point[0] + 0.2 * leg_length
+            leg_point[0] -= body_buffer
             rec = mpatches.Rectangle(leg_point, width=leg_length, height=leg_thickness, color = leg_color,
                                 transform=Affine2D().rotate_deg_around(*point_of_rotation, 90+leg_angle)+ax.transData)
             codes,verts = leftSegmentPatch(bod_point, body_buffer, curve_buffer, segment_height, segment_width)
-        else:
-            # leg_point[0] = leg_point[0] - 0.2 * leg_length
+        else: # a right leg!
+            leg_point[0] += body_buffer
             rec = mpatches.Rectangle(leg_point, width=leg_length, height=leg_thickness, color = leg_color,
                                 transform=Affine2D().rotate_deg_around(*point_of_rotation, 90-leg_angle)+ax.transData)
             codes,verts = rightSegmentPatch(bod_point, body_buffer, curve_buffer, segment_height, segment_width)
@@ -376,8 +397,8 @@ def drawLegs(ax, swingextents, legstates):
     
     # set axis limits
     ax.set_aspect('equal')
-    ax.set_xlim([-leg_length * 1.2, 1.2 * (body_width - leg_length * 1.2)])
-    ax.set_ylim([-10,1])
+    ax.set_xlim([-1.1* body_width/2, 1.1 * body_width/2])
+    # ax.set_ylim([-10,1])
     ax.set_ylim([ segment_height/2 - body_length, segment_height/2 ] )
     
     # # set axis orientation
@@ -392,8 +413,8 @@ def drawLegs(ax, swingextents, legstates):
     ax.spines['right'].set_visible(False)
     ax.spines['bottom'].set_visible(False)
     ax.spines['left'].set_visible(False)
-    ax.get_xaxis().set_ticks([])
-    ax.get_yaxis().set_ticks([])
+    # ax.get_xaxis().set_ticks([])
+    # ax.get_yaxis().set_ticks([])
 
     return ax
 
