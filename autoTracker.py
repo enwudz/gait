@@ -20,7 +20,7 @@ so need to figure out what to do if this is the case
 
 import cv2
 import numpy as np
-from matplotlib import cm
+from matplotlib import colormaps as cm
 import glob
 import sys
 from scipy import stats
@@ -233,7 +233,7 @@ def addCoordinatesToFrame(frame, coordinates, colors):
     return frame
 
 def makeColorList(cmap_name, N):
-     cmap = cm.get_cmap(cmap_name, N)
+     cmap = cm[cmap_name]
      cmap = cmap(np.arange(N))[:,0:3]
      cmap = np.fliplr(cmap)
 
@@ -409,7 +409,7 @@ def backgroundFromRandomFrames(movie_file, num_background_frames):
         
         # get mode of image stack for each pixel
         print("... calculating mode for background image (takes awhile) ...")
-        background_image = stats.mode(video_stack, axis=2)[0][:,:] # this is SLOW!
+        background_image = stats.mode(video_stack, axis=2, keepdims=True)[0][:,:] # this is SLOW!
         
         # consider blurring the background image a bit?
 

@@ -22,9 +22,9 @@ from matplotlib.animation import FuncAnimation
 
 def main():
 
-    critter = 'tardigrade'
+    critter = 'cat'
     num_legs = gaitFunctions.getFeetFromSpecies(critter)
-    animation_fps = 15
+    animation_fps = 30
 
     ## ==> get up / down times for legs
     ## either from framestepper in an experiment excel file
@@ -197,51 +197,40 @@ def load_movie_steps():
     up_down_times, last_event = gaitFunctions.getUpDownTimes(mov_data)
     return up_down_times, frame_times
 
-def rightSegmentPatch(midright, body_buffer, curve_buffer, segmentheight, segmentwidth):
-    
+def rightSegmentPatch(startpoint, curve_buffer, segmentheight, segmentwidth):
+
     curve_offset = curve_buffer * segmentheight
-    body_offset = body_buffer * segmentwidth
-    midright[0] += body_offset
-    xstart = midright[0]
-    ystart = midright[1]
-    segmentwidth += body_buffer
     Path = mpath.Path
     codes, verts = zip(*[
-        (Path.MOVETO, midright), # get to start
-        (Path.LINETO, [xstart, ystart + segmentheight/2 - curve_offset]), 
-        (Path.CURVE3, [xstart, ystart + segmentheight/2]),
-        (Path.LINETO, [xstart - curve_offset, ystart + segmentheight/2]),
-        (Path.LINETO, [xstart - segmentwidth - body_offset, ystart + segmentheight/2]), 
-        (Path.LINETO, [xstart - segmentwidth - body_offset, ystart - segmentheight/2]),
-        (Path.LINETO, [xstart - curve_offset, ystart - segmentheight/2]),
-        (Path.CURVE3, [xstart, ystart - segmentheight/2]),
-        (Path.LINETO, [xstart, ystart - segmentheight/2 + curve_offset]),
-        (Path.CLOSEPOLY, midright) # line to beginning
+        (Path.MOVETO, [startpoint[0] + 0 * segmentwidth, startpoint[1] + 0 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] + 0 * segmentwidth, startpoint[1] + 0.5 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] + 1 * segmentwidth - curve_offset, startpoint[1] + 0.5 * segmentheight ]),
+        (Path.CURVE3, [startpoint[0] + 1 * segmentwidth, startpoint[1] + 0.5 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] + 1 * segmentwidth, startpoint[1] + 0.5 * segmentheight - curve_offset ]),
+        (Path.LINETO, [startpoint[0] + 1 * segmentwidth, startpoint[1] - 0.5 * segmentheight + curve_offset ]),
+        (Path.CURVE3, [startpoint[0] + 1 * segmentwidth, startpoint[1] - 0.5 * segmentheight]),
+        (Path.LINETO, [startpoint[0] + 1 * segmentwidth - curve_offset, startpoint[1] - 0.5 * segmentheight]),
+        (Path.LINETO, [startpoint[0] - 0 * segmentwidth, startpoint[1] - 0.5 * segmentheight]),
+        (Path.CLOSEPOLY, [startpoint[0] + 0 * segmentwidth, startpoint[1] + 0 * segmentheight ]),
         ])
     
     return codes, verts
 
+def leftSegmentPatch(startpoint, curve_buffer, segmentheight, segmentwidth):
 
-def leftSegmentPatch(midleft, body_buffer, curve_buffer, segmentheight, segmentwidth):
-    
     curve_offset = curve_buffer * segmentheight
-    body_offset = body_buffer * segmentwidth
-    midleft[0] -= body_offset
-    xstart = midleft[0]
-    ystart = midleft[1]
-    segmentwidth += body_buffer
     Path = mpath.Path
     codes, verts = zip(*[
-        (Path.MOVETO, midleft), # get to start
-        (Path.LINETO, [xstart, ystart + segmentheight/2 - curve_offset]), 
-        (Path.CURVE3, [xstart, ystart + segmentheight/2]),
-        (Path.LINETO, [xstart + curve_offset, ystart + segmentheight/2]),
-        (Path.LINETO, [xstart + segmentwidth + body_offset, ystart + segmentheight/2]), 
-        (Path.LINETO, [xstart + segmentwidth + body_offset, ystart - segmentheight/2]),
-        (Path.LINETO, [xstart + curve_offset, ystart - segmentheight/2]),
-        (Path.CURVE3, [xstart, ystart - segmentheight/2]),
-        (Path.LINETO, [xstart, ystart - segmentheight/2 + curve_offset]),
-        (Path.CLOSEPOLY, midleft) # line to beginning
+        (Path.MOVETO, [startpoint[0] + 0 * segmentwidth, startpoint[1] + 0 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] + 0 * segmentwidth, startpoint[1] + 0.5 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] - 1 * segmentwidth + curve_offset, startpoint[1] + 0.5 * segmentheight ]),
+        (Path.CURVE3, [startpoint[0] - 1 * segmentwidth, startpoint[1] + 0.5 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] - 1 * segmentwidth, startpoint[1] + 0.5 * segmentheight - curve_offset ]),
+        (Path.LINETO, [startpoint[0] - 1 * segmentwidth, startpoint[1] - 0.5 * segmentheight + curve_offset ]),
+        (Path.CURVE3, [startpoint[0] - 1 * segmentwidth, startpoint[1] - 0.5 * segmentheight]),
+        (Path.LINETO, [startpoint[0] - 1 * segmentwidth + curve_offset, startpoint[1] - 0.5 * segmentheight]),
+        (Path.LINETO, [startpoint[0] - 0 * segmentwidth, startpoint[1] - 0.5 * segmentheight]),
+        (Path.CLOSEPOLY, [startpoint[0] + 0 * segmentwidth, startpoint[1] + 0 * segmentheight ]),
         ])
     
     return codes, verts
@@ -310,10 +299,10 @@ def drawLegs(ax, swingextents, legstates):
     
     # how wide and tall should we make the segments?
     segment_width = 0.8 * leg_length
-    segment_height = 2.2 * leg_length
+    segment_height = 1.8 * leg_length
     
     # how much of the body should cover the legs, and how much curve in each segment?
-    body_buffer = 0.1 * segment_width # fraction of segment width
+    body_buffer = 0.2 * segment_width # fraction of segment width
     curve_buffer = 0.05 # fraction of segment height
     
     # get a list of legs that we need to worry about here
@@ -355,7 +344,7 @@ def drawLegs(ax, swingextents, legstates):
             body_ys[legs[counter]] = this_y
             
             # get point for this leg
-            leg_points[legs[counter]] = [this_x, this_y]
+            leg_points[legs[counter]] = [this_x, this_y - leg_thickness/2]
 
             counter += 1
     
@@ -366,30 +355,22 @@ def drawLegs(ax, swingextents, legstates):
         leg_color = arcColor(swingextents[leg], legstates[leg])
         leg_angle = swingAngle(swingextents[leg])
         leg_point = leg_points[leg]
-        
-        # body_ypos = body_ys[leg] 
-        bod_point = leg_points[leg]
-        
-        point_of_rotation = np.array([leg_point[0], leg_point[1] + leg_thickness/2])
-        
-        ### WORK
-        # want to recode leftSegmentPatch (and right) to start at 0,body_ypos
-        # NEED to set midline to x = 0
+        bod_point = [0, body_ys[leg]]
         
         # draw the leg and the body segment
         if 'L' in leg: # a left leg!
-            # leg_point[0] = leg_point[0] + 0.2 * leg_length
-            leg_point[0] -= body_buffer
+            leg_point = [leg_point[0] + body_buffer, leg_point[1]]
+            point_of_rotation = np.array([leg_point[0], leg_point[1] + leg_thickness/2])
             rec = mpatches.Rectangle(leg_point, width=leg_length, height=leg_thickness, color = leg_color,
                                 transform=Affine2D().rotate_deg_around(*point_of_rotation, 90+leg_angle)+ax.transData)
-            codes,verts = leftSegmentPatch(bod_point, body_buffer, curve_buffer, segment_height, segment_width)
+            codes,verts = leftSegmentPatch(bod_point, curve_buffer, segment_height, segment_width)
         else: # a right leg!
-            leg_point[0] += body_buffer
+            leg_point = [leg_point[0] - body_buffer, leg_point[1]]
+            point_of_rotation = np.array([leg_point[0], leg_point[1] + leg_thickness/2])
             rec = mpatches.Rectangle(leg_point, width=leg_length, height=leg_thickness, color = leg_color,
                                 transform=Affine2D().rotate_deg_around(*point_of_rotation, 90-leg_angle)+ax.transData)
-            codes,verts = rightSegmentPatch(bod_point, body_buffer, curve_buffer, segment_height, segment_width)
-        
-        
+            codes,verts = rightSegmentPatch(bod_point, curve_buffer, segment_height, segment_width)
+            
         # plt.scatter(point_of_rotation[0],point_of_rotation[1], c='r', s=50) # check leg point
         bod = mpatches.PathPatch(mpath.Path(verts, codes), fc='k')
         ax.add_patch(rec)
@@ -398,14 +379,9 @@ def drawLegs(ax, swingextents, legstates):
     # set axis limits
     ax.set_aspect('equal')
     ax.set_xlim([-1.1* body_width/2, 1.1 * body_width/2])
-    # ax.set_ylim([-10,1])
     ax.set_ylim([ segment_height/2 - body_length, segment_height/2 ] )
     
-    # # set axis orientation
-    # if leftright == 'right':
-    #     ax.invert_xaxis()
-    
-    # # set background color
+    # set background color
     ax.set_facecolor("steelblue") # slategray
     
     # # clear the frame and ticks
@@ -413,14 +389,14 @@ def drawLegs(ax, swingextents, legstates):
     ax.spines['right'].set_visible(False)
     ax.spines['bottom'].set_visible(False)
     ax.spines['left'].set_visible(False)
-    # ax.get_xaxis().set_ticks([])
-    # ax.get_yaxis().set_ticks([])
+    ax.get_xaxis().set_ticks([])
+    ax.get_yaxis().set_ticks([])
 
     return ax
 
 def tardigrade_tail(startpoint, segmentwidth, segmentheight):
 
-    segmentwidth = 0.45 * segmentwidth # how much of the axis do we want to fill with head?
+    segmentwidth = 0.38 * segmentwidth # how much of the axis do we want to fill with head?
     
     Path = mpath.Path
     
@@ -436,28 +412,31 @@ def tardigrade_tail(startpoint, segmentwidth, segmentheight):
     return codes, verts
 
 def cat_tail(startpoint, segmentwidth, segmentheight):
+
+    segmentwidth = 0.8 * segmentwidth
+    segmentheight = 1 * segmentheight
     Path = mpath.Path
     
     codes, verts = zip(*[
-        (Path.MOVETO, [startpoint[0] + 0 * segmentwidth, startpoint[1] - 0 * segmentheight ]),
+        (Path.MOVETO, [startpoint[0] - 0.05 * segmentwidth, startpoint[1] - 0 * segmentheight ]),
         (Path.LINETO, [startpoint[0] - 0.1 * segmentwidth, startpoint[1] - 0 * segmentheight ]),
         (Path.CURVE4, [startpoint[0] - 0.3 * segmentwidth, startpoint[1] - 0.56 * segmentheight ]),
         (Path.CURVE4, [startpoint[0] - 0.1 * segmentwidth, startpoint[1] - 1.1 * segmentheight ]),
         (Path.LINETO, [startpoint[0] - 0.15 * segmentwidth, startpoint[1] - 1.3 * segmentheight ]),
         (Path.CURVE4, [startpoint[0] - 0.15 * segmentwidth, startpoint[1] - 1.4 * segmentheight ]),
-        (Path.CURVE4, [startpoint[0] + 0 * segmentwidth, startpoint[1] - 1.45 * segmentheight ]),
-        (Path.LINETO, [startpoint[0] + 0.1 * segmentwidth, startpoint[1] - 1.35 * segmentheight ]),
-        (Path.CURVE4, [startpoint[0] + 0.25 * segmentwidth, startpoint[1] - 1.1 * segmentheight ]),
-        (Path.CURVE4, [startpoint[0] + 0.1 * segmentwidth, startpoint[1] - 0.56 * segmentheight ]),
-        (Path.LINETO, [startpoint[0] + 0.2 * segmentwidth, startpoint[1] - 0 * segmentheight ]),
-        (Path.CLOSEPOLY, [startpoint[0]+ 0 * segmentwidth, startpoint[1] - 0 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0] - 0.05 * segmentwidth, startpoint[1] - 1.45 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] + 0 * segmentwidth, startpoint[1] - 1.35 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0] + 0.15 * segmentwidth, startpoint[1] - 1.1 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0] + 0 * segmentwidth, startpoint[1] - 0.56 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] + 0.15 * segmentwidth, startpoint[1] - 0 * segmentheight ]),
+        (Path.CLOSEPOLY, [startpoint[0] - 0.05 * segmentwidth, startpoint[1] - 0 * segmentheight ]),
         ])
     
     return codes, verts
 
 def tardigrade_head(startpoint, segmentwidth, segmentheight):
     
-    segmentwidth = 0.45 * segmentwidth # how much of the axis do we want to fill with head?
+    segmentwidth = 0.4 * segmentwidth # how much of the axis do we want to fill with head?
     segmentheight = 0.85 * segmentheight
     
     Path = mpath.Path
@@ -497,14 +476,13 @@ def tardigrade_head(startpoint, segmentwidth, segmentheight):
         (Path.LINETO, [startpoint[0]+0.6 * segmentwidth, startpoint[1]+0.12 * segmentheight ]),
         ])
         
-
     
     return headcodes, headverts, lefteye, righteye , ls_codes, ls_verts, rs_codes, rs_verts
     
 
 def cat_head(startpoint, segmentwidth, segmentheight):
     
-    segmentwidth = 0.75 * segmentwidth # how much of the axis do we want to fill with head?
+    segmentwidth = 0.6 * segmentwidth # how much of the axis do we want to fill with head?
     
     Path = mpath.Path
     codes, verts = zip(*[
