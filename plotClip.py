@@ -18,6 +18,8 @@ import pandas as pd
 
 def main(movie_file, plot_style = ''): # track or speed or steps
 
+    print('\nPreparing plots for ' + movie_file)
+
     # load excel file for this clip and get tracked_df
     excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file)
     if excel_file_exists:
@@ -37,7 +39,8 @@ def main(movie_file, plot_style = ''): # track or speed or steps
     except:
         import analyzeTrack
         analyzeTrack.main(movie_file)
-     
+        path_stats = gaitFunctions.loadPathStats(movie_file)
+        
     # collect data for path_stats
     # median_area = round(path_stats['area'],4)
     scale = float(path_stats['scale'])
@@ -121,7 +124,7 @@ def main(movie_file, plot_style = ''): # track or speed or steps
             
             # plot time (x) vs. speed (left y axis)
             speedax = f.add_axes([0.1, 0.55, 0.65, 0.3]) 
-            speedax, distax = speedDistancePlot(speedax, tracked_df, scale)
+            speedax, distax = speedDistancePlot(speedax, tracked_df, scale, unit)
             speed_xlim = speedax.get_xlim()
             speedax.set_xlabel('')
             
@@ -453,5 +456,6 @@ if __name__== "__main__":
         movie_file = gaitFunctions.selectFile(['mp4','mov'])
         plot_style = ''
 
-    print('Plot style is ' + plot_style)
+    if len(plot_style) > 0:
+        print('Plot style is ' + plot_style)
     main(movie_file, plot_style)

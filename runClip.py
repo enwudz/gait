@@ -12,7 +12,7 @@ import autoTracker
 import analyzeTrack
 import plotClip
 import gaitFunctions
-# import critterZoomer
+# import rotaZoomer
 # import frameStepper
 # import analyzeSteps
 
@@ -29,7 +29,7 @@ def main(movie_file):
     autoTracker.main(movie_file, 40, True) # True is show tracking
     analyzeTrack.main(movie_file) # when finished with trackCritter
 
-    plotClip.main(movie_file)
+    # plotClip.main(movie_file)
     # critterZoomer.main(movie_file)
     
     ## step-by-step timing
@@ -49,7 +49,7 @@ if __name__== "__main__":
             
         # can also designate 'all' movies
         elif selection in ['all','a']:
-            movie_files = gaitFunctions.selectFile(['mov','mp4'])
+            movie_files = gaitFunctions.getFileList(['mov','mp4'])
             for movie_file in movie_files:
                 main(movie_file)
             sys.exit('Finished processing all clips')

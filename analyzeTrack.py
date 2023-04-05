@@ -69,7 +69,7 @@ def main(movie_file):
     smoothedx = gaitFunctions.smoothFiltfilt(xcoords,3,0.05)
     smoothedy = gaitFunctions.smoothFiltfilt(ycoords,3,0.05)
 
-    # get vectors for distance, speed, cumulative_distance, bearings, bearing_changes
+    # from smoothed data, get vectors for distance, speed, cumulative_distance, bearings, bearing_changes
     distance, speed, cumulative_distance, bearings, bearing_changes = distanceSpeedBearings(frametimes, smoothedx, smoothedy)
     
     # get vectors for stops and turns
