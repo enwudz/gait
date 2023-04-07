@@ -118,6 +118,7 @@ def main():
         treatment = identity_info['treatment']
         individual = identity_info['individualID']
         date = identity_info['date']
+        # print(treatment, individual, date)
         uniq_id = '_'.join([treatment, individual, date])
         
         #### ===> load path_stats from this clip
