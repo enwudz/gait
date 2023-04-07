@@ -14,146 +14,99 @@ import matplotlib.pyplot as plt
 import matplotlib.path as mpath
 import matplotlib.patches as mpatches
 
-
 def main():
-    
-    fig,ax = plt.subplots()
-    segmentheight = 1.5
-    segmentwidth = 1
+
+    segmentwidth = 12
+    segmentheight = 16
     startpoint = [0,0]
-    
-    # body_buffer = 0.1
-    # curve_buffer = 0.2
-    # codes, verts = segment_blob(startpoint, body_buffer, curve_buffer, segmentheight, segmentwidth)
-    
-    codes,verts = cat_tail(startpoint, segmentwidth, segmentheight)
-    
-    # codes, verts, lefteye, righteye, ls_codes, ls_verts, rs_codes, rs_verts = tardigrade_head(startpoint, segmentwidth, segmentheight)
+    fig, ax = plt.subplots(figsize=(8,6))
+    codes, verts, larm_codes, larm_verts, rarm_codes, rarm_verts, head_codes, head_verts = human_torso(startpoint, segmentwidth, segmentheight)
+
     bod = mpatches.PathPatch(mpath.Path(verts, codes), fc='k')
     ax.add_patch(bod)
-    # ax.add_patch(lefteye)
-    # ax.add_patch(righteye)
-    # lstylet = mpatches.PathPatch(mpath.Path(ls_verts, ls_codes), ec='w', lw=3, fc = 'none')
-    # ax.add_patch(lstylet)
-    # rstylet = mpatches.PathPatch(mpath.Path(rs_verts, rs_codes), ec='w', lw=3, fc = 'none')
-    # ax.add_patch(rstylet)
 
-    ax.set_xlim([-2,2])
-    ax.set_ylim([-2.5,2])
+    larm = mpatches.PathPatch(mpath.Path(larm_verts, larm_codes), ec='w', lw=3, fc = 'none')
+    ax.add_patch(larm)
+
+    rarm = mpatches.PathPatch(mpath.Path(rarm_verts, rarm_codes), ec='w', lw=3, fc = 'none')
+    ax.add_patch(rarm)
+
+    head = mpatches.PathPatch(mpath.Path(head_verts, head_codes), ec='w', lw=3, fc = 'none')
+    ax.add_patch(head)
+
+    ax.set_xlim([-segmentwidth, segmentwidth])
+    ax.set_ylim([0, segmentheight])
+
+    ax.set_facecolor("steelblue") # slategray
     ax.set_aspect('equal')
+
+
     plt.show()
 
-def cat_tail(startpoint, segmentwidth, segmentheight):
+
+def human_torso(startpoint, segmentwidth, segmentheight):
     Path = mpath.Path
     
     codes, verts = zip(*[
-        (Path.MOVETO, [startpoint[0] + 0 * segmentwidth, startpoint[1] - 0 * segmentheight ]),
-        (Path.LINETO, [startpoint[0] - 0.1 * segmentwidth, startpoint[1] - 0 * segmentheight ]),
-        (Path.CURVE4, [startpoint[0] - 0.3 * segmentwidth, startpoint[1] - 0.56 * segmentheight ]),
-        (Path.CURVE4, [startpoint[0] - 0.1 * segmentwidth, startpoint[1] - 1.1 * segmentheight ]),
-        (Path.LINETO, [startpoint[0] - 0.15 * segmentwidth, startpoint[1] - 1.3 * segmentheight ]),
-        (Path.CURVE4, [startpoint[0] - 0.15 * segmentwidth, startpoint[1] - 1.4 * segmentheight ]),
-        (Path.CURVE4, [startpoint[0] + 0 * segmentwidth, startpoint[1] - 1.45 * segmentheight ]),
-        (Path.LINETO, [startpoint[0] + 0.1 * segmentwidth, startpoint[1] - 1.35 * segmentheight ]),
-        (Path.CURVE4, [startpoint[0] + 0.25 * segmentwidth, startpoint[1] - 1.1 * segmentheight ]),
-        (Path.CURVE4, [startpoint[0] + 0.1 * segmentwidth, startpoint[1] - 0.56 * segmentheight ]),
-        (Path.LINETO, [startpoint[0] + 0.2 * segmentwidth, startpoint[1] - 0 * segmentheight ]),
-        (Path.CLOSEPOLY, [startpoint[0]+ 0 * segmentwidth, startpoint[1] - 0 * segmentheight ]),
-        ])
-    
-    return codes, verts
+        (Path.MOVETO, [startpoint[0]+0 * segmentwidth, startpoint[1]+0.5 * segmentheight ]),
+        (Path.LINETO, [startpoint[0]+0 * segmentwidth, startpoint[1]+ 0.06 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0]- 0.09 * segmentwidth, startpoint[1]+ 0.06 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0]- 0.25 * segmentwidth, startpoint[1]+ 0.12 * segmentheight ]),
+        (Path.LINETO, [startpoint[0]- 0.33 * segmentwidth, startpoint[1]+ 0.18 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0]- 0.35 * segmentwidth, startpoint[1]+ 0.18 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0]- 0.75 * segmentwidth, startpoint[1]+ 0.25 * segmentheight ]),
+        (Path.LINETO, [startpoint[0]- 0.92 * segmentwidth, startpoint[1]+ 0.625 * segmentheight ]),
+        (Path.LINETO, [startpoint[0]- 0.83 * segmentwidth, startpoint[1]+ 0.94 * segmentheight ]),
+        (Path.CURVE3, [startpoint[0]- 0.71 * segmentwidth, startpoint[1]+ 0.98 * segmentheight ]),
+        (Path.LINETO, [startpoint[0]- 0.58 * segmentwidth, startpoint[1]+ 0.94 * segmentheight ]),
+        (Path.LINETO, [startpoint[0]- 0.62 * segmentwidth, startpoint[1]+ 0.6875 * segmentheight ]),
+        (Path.CURVE3, [startpoint[0]- 0.25 * segmentwidth, startpoint[1]+ 0.75 * segmentheight ]),
+        (Path.LINETO, [startpoint[0]- 0 * segmentwidth, startpoint[1]+ 0.75 * segmentheight ]),
+        (Path.CURVE3, [startpoint[0] + 0.25 * segmentwidth, startpoint[1]+ 0.75 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] + 0.62 * segmentwidth, startpoint[1]+ 0.6875 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] + 0.58 * segmentwidth, startpoint[1]+ 0.94 * segmentheight ]),
+        (Path.CURVE3, [startpoint[0] + 0.71 * segmentwidth, startpoint[1]+ 0.98 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] + 0.83 * segmentwidth, startpoint[1]+ 0.94 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] + 0.92 * segmentwidth, startpoint[1]+ 0.625 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0] + 0.75 * segmentwidth, startpoint[1]+ 0.25 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0] + 0.35 * segmentwidth, startpoint[1]+ 0.18 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] + 0.33 * segmentwidth, startpoint[1]+ 0.18 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0] + 0.25 * segmentwidth, startpoint[1]+ 0.12 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0] + 0.09 * segmentwidth, startpoint[1]+ 0.06 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] + 0 * segmentwidth, startpoint[1] + 0.06 * segmentheight ]),
+        (Path.CLOSEPOLY, [startpoint[0] + 0 * segmentwidth, startpoint[1] +0.5 * segmentheight ])
+    ])
 
-def tardigrade_head(startpoint, segmentwidth, segmentheight):
-    
-    Path = mpath.Path
-    eye_radius = 0.1 * segmentwidth
-    
-    headcodes, headverts = zip(*[
-        (Path.MOVETO, [startpoint[0]+0 * segmentwidth, startpoint[1]+0 * segmentheight ]),
-        (Path.LINETO, [startpoint[0]-0.9 * segmentwidth, startpoint[1]+0 * segmentheight ]),
-        (Path.CURVE3, [startpoint[0]-1 * segmentwidth, startpoint[1]+0 * segmentheight ]),
-        (Path.LINETO, [startpoint[0]-1 * segmentwidth, startpoint[1]+0.08 * segmentheight ]),
-        (Path.LINETO, [startpoint[0]-1 * segmentwidth, startpoint[1]+0.56 * segmentheight ]),
-        (Path.CURVE4, [startpoint[0]-0.95 * segmentwidth, startpoint[1]+0.64 * segmentheight ]),
-        (Path.CURVE4, [startpoint[0]-0.65 * segmentwidth, startpoint[1]+0.85 * segmentheight ]),
-        (Path.LINETO, [startpoint[0]-0 * segmentwidth, startpoint[1]+0.90 * segmentheight ]),
-        (Path.CURVE4, [startpoint[0]+0.65 * segmentwidth, startpoint[1]+0.85 * segmentheight ]),
-        (Path.CURVE4, [startpoint[0]+0.95 * segmentwidth, startpoint[1]+0.64 * segmentheight ]),
-        (Path.LINETO, [startpoint[0]+1 * segmentwidth, startpoint[1]+0.56 * segmentheight ]),
-        (Path.LINETO, [startpoint[0]+1 * segmentwidth, startpoint[1]+0.08 * segmentheight ]),
-        (Path.CURVE3, [startpoint[0]+1 * segmentwidth, startpoint[1]+0 * segmentheight ]),
-        (Path.LINETO, [startpoint[0]+0.9 * segmentwidth, startpoint[1]+0 * segmentheight ]),
-        (Path.CLOSEPOLY, [startpoint[0]+0 * segmentwidth, startpoint[1]+0 * segmentheight ]),
-        ])
-    
-    lefteye = mpatches.Circle([startpoint[0] - 0.6 * segmentwidth, startpoint[1] + 0.52 * segmentheight ], eye_radius, color = 'w')
-    
-    righteye = mpatches.Circle([startpoint[0] + 0.6 * segmentwidth, startpoint[1] + 0.52 * segmentheight ], eye_radius, color = 'w')
-    
-    ls_codes, ls_verts = zip(*[
-        (Path.MOVETO, [startpoint[0]-0.1 * segmentwidth, startpoint[1]+0.8 * segmentheight ]),
-        (Path.CURVE3, [startpoint[0]-0.1 * segmentwidth, startpoint[1]+0.24 * segmentheight ]),
-        (Path.LINETO, [startpoint[0]-0.6 * segmentwidth, startpoint[1]+0.12 * segmentheight ]),
-        ])
-    
-    rs_codes, rs_verts = zip(*[
-        (Path.MOVETO, [startpoint[0]+0.1 * segmentwidth, startpoint[1]+0.8 * segmentheight ]),
-        (Path.CURVE3, [startpoint[0]+0.1 * segmentwidth, startpoint[1]+0.24 * segmentheight ]),
-        (Path.LINETO, [startpoint[0]+0.6 * segmentwidth, startpoint[1]+0.12 * segmentheight ]),
-        ])
-        
+    # arm lines
+    larm_codes, larm_verts = zip(*[
+        (Path.MOVETO, [startpoint[0] - 0.62 * segmentwidth, startpoint[1]+ 0.6875 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] - 0.63 * segmentwidth, startpoint[1]+ 0.625 * segmentheight ]),
+        (Path.CURVE3, [startpoint[0] - 0.62 * segmentwidth, startpoint[1]+ 0.52 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] - 0.5 * segmentwidth, startpoint[1]+ 0.5 * segmentheight ])
+    ])
 
-    
-    return headcodes, headverts, lefteye, righteye , ls_codes, ls_verts, rs_codes, rs_verts
-    
+    rarm_codes, rarm_verts = zip(*[
+        (Path.MOVETO, [startpoint[0] + 0.62 * segmentwidth, startpoint[1]+ 0.6875 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] + 0.63 * segmentwidth, startpoint[1]+ 0.625 * segmentheight ]),
+        (Path.CURVE3, [startpoint[0] + 0.62 * segmentwidth, startpoint[1]+ 0.52 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] + 0.5 * segmentwidth, startpoint[1]+ 0.5 * segmentheight ])
+    ])
 
-def cat_head(startpoint, segmentwidth, segmentheight):
-    
-    Path = mpath.Path
-    codes, verts = zip(*[
-        (Path.MOVETO, [startpoint[0],startpoint[1]]),
-        (Path.LINETO, [startpoint[0] - 0.65 * segmentwidth,startpoint[1]]),
-        (Path.CURVE3, [startpoint[0] - 0.88 * segmentwidth,startpoint[1] + 0.04 * segmentheight]),
-        (Path.LINETO, [startpoint[0] - 0.94 * segmentwidth,startpoint[1] + 0.21 * segmentheight]),
-        (Path.CURVE3, [startpoint[0] - 1 * segmentwidth,startpoint[1] + 0.375 * segmentheight]),
-        (Path.LINETO, [startpoint[0] - 0.9 * segmentwidth,startpoint[1] + 0.6 * segmentheight]),
-        (Path.LINETO, [startpoint[0] - 1 * segmentwidth,startpoint[1] + 1 * segmentheight]),
-        (Path.LINETO, [startpoint[0] - 0.4 * segmentwidth,startpoint[1] + 0.79 * segmentheight]),
-        (Path.CURVE3, [startpoint[0] ,startpoint[1] + 0.88 * segmentheight]),
-        (Path.LINETO, [startpoint[0] + 0.4 * segmentwidth,startpoint[1] + 0.79 * segmentheight]),
-        (Path.LINETO, [startpoint[0] + 1 * segmentwidth,startpoint[1] + 1 * segmentheight]),
-        (Path.LINETO, [startpoint[0] + 0.9 * segmentwidth,startpoint[1] + 0.6 * segmentheight]),
-        (Path.CURVE3, [startpoint[0] + 1 * segmentwidth,startpoint[1] + 0.375 * segmentheight]),
-        (Path.LINETO, [startpoint[0] + 0.94 * segmentwidth,startpoint[1] + 0.21 * segmentheight]),
-        (Path.CURVE3, [startpoint[0] + 0.88 * segmentwidth,startpoint[1] + 0.04 * segmentheight]),
-        (Path.LINETO, [startpoint[0] + 0.65 * segmentwidth,startpoint[1]]),
-        (Path.CLOSEPOLY, [startpoint[0],startpoint[1]]),
-        ])
-    
-    return codes, verts
+    # head line
+    head_codes, head_verts = zip(*[
+        (Path.MOVETO, [startpoint[0] - 0.33 * segmentwidth, startpoint[1]+ 0.185 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0] - 0.34 * segmentwidth, startpoint[1]+ 0.25 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0] - 0.33 * segmentwidth, startpoint[1]+ 0.5 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] - 0.22 * segmentwidth, startpoint[1]+ 0.58 * segmentheight ]),
+        (Path.CURVE3, [startpoint[0] - 0.08 * segmentwidth, startpoint[1]+ 0.64 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] - 0 * segmentwidth, startpoint[1]+ 0.643 * segmentheight ]),
+        (Path.CURVE3, [startpoint[0] + 0.08 * segmentwidth, startpoint[1]+ 0.64 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] + 0.22 * segmentwidth, startpoint[1]+ 0.58 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0] + 0.33 * segmentwidth, startpoint[1]+ 0.5 * segmentheight ]),
+        (Path.CURVE4, [startpoint[0] + 0.34 * segmentwidth, startpoint[1]+ 0.25 * segmentheight ]),
+        (Path.LINETO, [startpoint[0] + 0.33 * segmentwidth, startpoint[1]+ 0.185 * segmentheight ])
+    ])
 
-def segment_blob(midright, body_buffer, curve_buffer, segmentheight, segmentwidth):
-    
-    curve_offset = curve_buffer * segmentheight
-    body_offset = body_buffer * segmentwidth
-    midright[0] += body_offset
-    xstart = midright[0]
-    ystart = midright[1]
-    segmentwidth += body_buffer
-    Path = mpath.Path
-    codes, verts = zip(*[
-        (Path.MOVETO, midright), # get to start
-        (Path.LINETO, [xstart, ystart + segmentheight/2 - curve_offset]), 
-        (Path.CURVE3, [xstart, ystart + segmentheight/2]),
-        (Path.LINETO, [xstart - curve_offset, ystart + segmentheight/2]),
-        (Path.LINETO, [xstart - segmentwidth/2, ystart + segmentheight/2]), 
-        (Path.LINETO, [xstart - segmentwidth/2, ystart - segmentheight/2]),
-        (Path.LINETO, [xstart - curve_offset, ystart - segmentheight/2]),
-        (Path.CURVE3, [xstart, ystart - segmentheight/2]),
-        (Path.LINETO, [xstart, ystart - segmentheight/2 + curve_offset]),
-        (Path.CLOSEPOLY, midright) # line to beginning
-        ])
-    
-    return codes, verts
+    return codes, verts, larm_codes, larm_verts, rarm_codes, rarm_verts, head_codes, head_verts
 
-main()
+main()    
