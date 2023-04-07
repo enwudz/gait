@@ -47,7 +47,7 @@ def main():
     out_file = current_directory + '_combined.xlsx'
     
     # get list of excel files and make sure there is an excel for each movie
-    clipstems = get_clips()
+    clipstems = sorted(get_clips())
 
     # make empty dataframes to collect data
     path_summaries_df = pd.DataFrame()
@@ -124,8 +124,22 @@ def main():
         path_stats_dict = gaitFunctions.loadPathStats(movie_file)
         
         # collect scale for this individual for this clip
-        if uniq_id not in clip_scales.keys():
-            clip_scales[uniq_id] = float(path_stats_dict['scale'])
+        if uniq_id in clip_scales.keys():
+            clip_scales[uniq_id] = np.append(clip_scales[uniq_id], float(path_stats_dict['scale']))
+        else:
+            clip_scales[uniq_id] = np.array(float(path_stats_dict['scale']))
+        
+        # collect areas for this individual in this clip
+        if uniq_id in clip_areas.keys():
+            clip_areas[uniq_id] = np.append(clip_areas[uniq_id], float(path_stats_dict['area']))
+        else:
+            clip_areas[uniq_id] = float(path_stats_dict['area'])
+        
+        # collect lengths for this individual in this clip
+        if uniq_id in clip_lengths.keys():
+            clip_lengths[uniq_id] = np.append(clip_lengths[uniq_id], float(path_stats_dict['length']))
+        else:
+            clip_lengths[uniq_id] = float(path_stats_dict['length'])
         
         # collect clip duration for this individual for this clip
         if uniq_id in clip_duration.keys():
@@ -160,19 +174,7 @@ def main():
         #### ===> load tracked data from this clip
         tdf, excel_file = gaitFunctions.loadTrackedPath(movie_file)
         if tdf is not None:
-        
-            # collect areas for this individual in this clip
-            if uniq_id in clip_areas.keys():
-                clip_areas[uniq_id] = np.append(clip_areas[uniq_id], tdf['areas'].values)
-            else:
-                clip_areas[uniq_id] = tdf['areas'].values
-            
-            # collect lengths for this individual in this clip
-            if uniq_id in clip_lengths.keys():
-                clip_lengths[uniq_id] = np.append(clip_lengths[uniq_id], tdf['lengths'].values)
-            else:
-                clip_lengths[uniq_id] = tdf['lengths'].values
-            
+                     
             # collect cruising frames for this individual in this clip
             stop_frames = tdf['stops'].values
             turn_frames = tdf['turns'].values
@@ -411,13 +413,13 @@ def main():
     #### ===> finished collecting data. Build up dataframes to save
     
     #### ==> path_summaries dataframe ... info for each unique individual
-    ids = sorted(clip_duration.keys())
+    ids = sorted(clip_duration.keys())   
     treatments = [x.split('_')[0] for x in ids]
     individuals = [x.split('_')[1] for x in ids]
-    dates = [x.split('_')[2] for x in ids]
-    scales = [clip_scales[x] for x in ids]
-    areas = [np.median(clip_areas[x]) / clip_scales[x]**2 for x in ids]
-    lengths = [np.median(clip_lengths[x]) / clip_scales[x] for x in ids]
+    dates = [x.split('_')[2] for x in ids]  
+    scales = [np.mean(clip_scales[x]) for x in ids]
+    lengths = [np.mean(clip_lengths[x]) for x in ids]
+    areas = [np.mean(clip_areas[x]) for x in ids]
     durations = [np.sum(clip_duration[x]) for x in ids]
     distances = [np.sum(distance_traveled[x]) for x in ids]
     speed_mm = [distance / durations[i] for i, distance in enumerate(distances)]
@@ -566,7 +568,7 @@ def addColtoDF(df, colname, st):
     
 def get_clips():
     
-    mov_files = glob.glob('*.mov')
+    mov_files = gaitFunctions.getFileList(['mov','mp4'])
     mov_filestems = [x.split('.')[0] for x in mov_files]
     excel_files = glob.glob('*.xlsx')
     excel_filestems = [x.split('.')[0] for x in excel_files]

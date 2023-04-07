@@ -217,6 +217,17 @@ def summaryPlots(df, start_data_col):
             makeBoxPlot(df, groupcol, groupnames, groups, selection)
 
 def makeBoxPlot(df,col,groupnames,groups,datacol):
+
+    f,ax = plt.subplots(figsize=(3,4))    
+
+    if 'control' in groupnames:
+        
+        print('Rearranging group so control is first!')
+        ind = groupnames.index('control')
+        control = groupnames.pop(ind)
+        controldata = groups.pop(ind)
+        groupnames.insert(0, control)
+        groups.insert(0,controldata)
     
     # collect data
     data_to_plot = []
@@ -227,17 +238,30 @@ def makeBoxPlot(df,col,groupnames,groups,datacol):
     
     # make boxplot
     bp = plt.boxplot(data_to_plot, patch_artist=True, showfliers=False)
-    bp = gaitFunctions.formatBoxPlots(bp, ['tab:blue'], ['white'], ['lightsteelblue'])
+    # # bp = gaitFunctions.formatBoxPlots(bp, ['tab:blue'], ['white'], ['lightsteelblue']) # boxcolor, mediancolors, fliercolors
+    bp = gaitFunctions.formatBoxPlots(bp, [[0,0,0.384]] , [[ 0.76, 0.86, 0.85 ]],  ['lightsteelblue'])
     
     # add scatter over the boxplot
-    a, sc, sz, ji = gaitFunctions.boxScatterParams()
-    for i, group in enumerate(groups):    
+    a = 1 # alpha
+    sc = 'k' # [ 0.76, 0.86, 0.85 ] # 'k' # color
+    sz = 30 # marker size
+    ji = 0.05 # jitter around midline
+    for i, group in enumerate(groups):   
+        print(data_to_plot[i])
         xScatter = np.random.normal(i+1, ji, size=len(data_to_plot[i]))
-        plt.scatter(xScatter, data_to_plot[i], s=sz, c=sc, alpha = a)
+        print(xScatter)
+        ax.scatter(xScatter, data_to_plot[i], s=sz, c=sc, alpha = a)
+    
+    # do some stats?
+    if len(data_to_plot) == 2:
+        gaitFunctions.statsFromBoxData(data_to_plot, 'kw')
     
     # add axes labels
-    plt.ylabel(datacol)
+    plt.ylabel(datacol, fontsize=12)
     plt.xticks(np.arange(len(groups))+1,groupnames)
+    ax.tick_params(axis='x', labelsize=12)
+    ax.set_facecolor("lightgray")
+    plt.subplots_adjust(left = 0.3)
     
     plt.show()
     

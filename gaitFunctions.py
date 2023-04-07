@@ -10,6 +10,7 @@ import shutil
 import sys
 import cv2
 from scipy.stats import sem
+from scipy import stats
 import re
 import scipy.signal
 
@@ -2756,16 +2757,16 @@ def formatBoxPlots(bp, boxColors=[], medianColors=[], flierColors=[]):
         medianColors = medianColors * len(bp['boxes'])
         flierColors = flierColors * len(bp['boxes'])
         
-    baseWidth = 2
+    baseWidth = 3
     a = 0.5 # alpha
     
     # boxes
     for n,box in enumerate(bp['boxes']):
-        box.set( color=boxColors[n], linewidth=baseWidth, alpha=a)
+        box.set( color=boxColors[n], linewidth=baseWidth) #, alpha=a)
 
     # medians
     for n,med in enumerate(bp['medians']):
-        med.set( color=medianColors[n], linewidth=baseWidth, alpha=a)
+        med.set( color=medianColors[n], linewidth=baseWidth)
 
     bdupes=[]
     for i in boxColors:
@@ -2775,15 +2776,15 @@ def formatBoxPlots(bp, boxColors=[], medianColors=[], flierColors=[]):
     # whiskers
     for n,whisk in enumerate(bp['whiskers']):
         #whisk.set( color=(0.1,0.1,0.1), linewidth=2, alpha = 0.5)
-        whisk.set( color=boxColors[n], linewidth=baseWidth, alpha = a)
+        whisk.set( color=boxColors[n], linewidth=baseWidth) #, alpha = a)
 
     # caps
     for n,cap in enumerate(bp['caps']):
-        cap.set( color=boxColors[n], linewidth=baseWidth, alpha = a)
+        cap.set( color=boxColors[n], linewidth=baseWidth) #, alpha = a)
         
     # fliers
     for n, flier in enumerate(bp['fliers']): 
-        flier.set(marker ='.', color = flierColors[n], alpha = a) 
+        flier.set(marker ='.', color = flierColors[n])# , alpha = a) 
 
     return bp
 
@@ -2826,5 +2827,24 @@ def get_plot_colors(num_colors=9, palette = 'default'):
     
 def needFrameStepper():
     sys.exit('==> Need to track legs with frameStepper.py <== \n')
+    
+# stats from boxplot data
+def statsFromBoxData(boxData,statTest):
+	pvals = []
+
+	for i in range(len(boxData)):
+		for j in range(i+1,len(boxData)):
+			if statTest in ['k','kruskal','kruskalwallis','kw']:
+				_,p = stats.kruskal(boxData[i],boxData[j])
+				print('%i vs. %i: %1.3f by Kruskal-Wallis' % (i+1,j+1,p))
+				pvals.append(p)
+			if statTest in ['t','tt','ttest']:
+				_,p = stats.ttest_ind(boxData[i],boxData[j])
+				print('%i vs. %i: %1.3f by ttest-ind' % (i+1,j+1,p))
+				pvals.append(p)
+			# MORE STAT TESTS?
+	print('')
+
+	return pvals
     
     
