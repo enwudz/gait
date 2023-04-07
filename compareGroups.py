@@ -239,18 +239,18 @@ def makeBoxPlot(df,col,groupnames,groups,datacol):
     # make boxplot
     bp = plt.boxplot(data_to_plot, patch_artist=True, showfliers=False)
     # # bp = gaitFunctions.formatBoxPlots(bp, ['tab:blue'], ['white'], ['lightsteelblue']) # boxcolor, mediancolors, fliercolors
-    bp = gaitFunctions.formatBoxPlots(bp, [[0,0,0.384]] , [[ 0.76, 0.86, 0.85 ]],  ['lightsteelblue'])
+    bp = gaitFunctions.formatBoxPlots(bp, [[0,0,0.384]] , ['lightgrey'],  ['lightsteelblue'])
     
     # add scatter over the boxplot
     a = 1 # alpha
-    sc = 'k' # [ 0.76, 0.86, 0.85 ] # 'k' # color
+    sc = 'w' # [ 0.76, 0.86, 0.85 ] # 'k' # color
     sz = 30 # marker size
     ji = 0.05 # jitter around midline
     for i, group in enumerate(groups):   
         print(data_to_plot[i])
         xScatter = np.random.normal(i+1, ji, size=len(data_to_plot[i]))
         print(xScatter)
-        ax.scatter(xScatter, data_to_plot[i], s=sz, c=sc, alpha = a)
+        ax.scatter(xScatter, data_to_plot[i], s=sz, facecolors=sc, edgecolors='k' , alpha = a, zorder = 2)
     
     # do some stats?
     if len(data_to_plot) == 2:
@@ -260,7 +260,7 @@ def makeBoxPlot(df,col,groupnames,groups,datacol):
     plt.ylabel(datacol, fontsize=12)
     plt.xticks(np.arange(len(groups))+1,groupnames)
     ax.tick_params(axis='x', labelsize=12)
-    ax.set_facecolor("lightgray")
+    ax.set_facecolor([ 0.76, 0.86, 0.85 ])
     plt.subplots_adjust(left = 0.3)
     
     plt.show()

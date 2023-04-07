@@ -2757,12 +2757,12 @@ def formatBoxPlots(bp, boxColors=[], medianColors=[], flierColors=[]):
         medianColors = medianColors * len(bp['boxes'])
         flierColors = flierColors * len(bp['boxes'])
         
-    baseWidth = 3
-    a = 0.5 # alpha
+    baseWidth = 2
+    a = 1 # alpha
     
     # boxes
     for n,box in enumerate(bp['boxes']):
-        box.set( color=boxColors[n], linewidth=baseWidth) #, alpha=a)
+        box.set( color=boxColors[n], linewidth=baseWidth, alpha=a)
 
     # medians
     for n,med in enumerate(bp['medians']):
@@ -2776,15 +2776,15 @@ def formatBoxPlots(bp, boxColors=[], medianColors=[], flierColors=[]):
     # whiskers
     for n,whisk in enumerate(bp['whiskers']):
         #whisk.set( color=(0.1,0.1,0.1), linewidth=2, alpha = 0.5)
-        whisk.set( color=boxColors[n], linewidth=baseWidth) #, alpha = a)
+        whisk.set( color=boxColors[n], linewidth=baseWidth, alpha = a)
 
     # caps
     for n,cap in enumerate(bp['caps']):
-        cap.set( color=boxColors[n], linewidth=baseWidth) #, alpha = a)
+        cap.set( color=boxColors[n], linewidth=baseWidth, alpha = a)
         
     # fliers
     for n, flier in enumerate(bp['fliers']): 
-        flier.set(marker ='.', color = flierColors[n])# , alpha = a) 
+        flier.set(marker ='.', color = flierColors[n], alpha = a) 
 
     return bp
 
