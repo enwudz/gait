@@ -104,20 +104,20 @@ def main(movie_file):
         frame  = addCoordinatesToFrame(frame, xcoords[:frame_number+1], ycoords[:frame_number+1], dot_colors, marker_size)
                 
         # add text for turns (fade in before and out after by text alpha)
-        # if turn_alphas[frame_number] == 1:
-        #     cv2.putText(frame, 'Turn', turn_position, font, text_size, turn_color, 4, cv2.LINE_8)
-        # elif turn_alphas[frame_number] > 0:
-        #     overlay = frame.copy()
-        #     cv2.putText(overlay, 'Turn', turn_position, font, text_size, turn_color, 4, cv2.LINE_8)
-        #     frame = cv2.addWeighted(overlay, turn_alphas[frame_number], frame, 1 - turn_alphas[frame_number], 0) 
+        if turn_alphas[frame_number] == 1:
+            cv2.putText(frame, 'Turn', turn_position, font, text_size, turn_color, 4, cv2.LINE_8)
+        elif turn_alphas[frame_number] > 0:
+            overlay = frame.copy()
+            cv2.putText(overlay, 'Turn', turn_position, font, text_size, turn_color, 4, cv2.LINE_8)
+            frame = cv2.addWeighted(overlay, turn_alphas[frame_number], frame, 1 - turn_alphas[frame_number], 0) 
         
         # add text for stops
-        # if stop_alphas[frame_number] == 1:
-        #     cv2.putText(frame, 'Stop', stop_position, font, text_size, stop_color, 4, cv2.LINE_8)
-        # elif stop_alphas[frame_number] > 0:
-        #     overlay = frame.copy()
-        #     cv2.putText(overlay, 'Stop', stop_position, font, text_size, stop_color, 4, cv2.LINE_8)
-        #     frame = cv2.addWeighted(overlay, stop_alphas[frame_number], frame, 1 - stop_alphas[frame_number], 0) 
+        if stop_alphas[frame_number] == 1:
+            cv2.putText(frame, 'Stop', stop_position, font, text_size, stop_color, 4, cv2.LINE_8)
+        elif stop_alphas[frame_number] > 0:
+            overlay = frame.copy()
+            cv2.putText(overlay, 'Stop', stop_position, font, text_size, stop_color, 4, cv2.LINE_8)
+            frame = cv2.addWeighted(overlay, stop_alphas[frame_number], frame, 1 - stop_alphas[frame_number], 0) 
         
         # show the frame
         cv2.imshow('press (q) to quit', frame) # frame or binary_frame

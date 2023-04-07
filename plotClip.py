@@ -39,8 +39,12 @@ def main(movie_file, plot_style = ''): # track or speed or steps
     except:
         import analyzeTrack
         analyzeTrack.main(movie_file)
+<<<<<<< Updated upstream
         path_stats = gaitFunctions.loadPathStats(movie_file)
         
+=======
+    
+>>>>>>> Stashed changes
     # collect data for path_stats
     # median_area = round(path_stats['area'],4)
     scale = float(path_stats['scale'])
@@ -380,8 +384,8 @@ def getDataLabel(unit, length, distance, vid_length, angle_space = 0, discrete_t
     # convert from pixels?
     speed = np.around(distance/vid_length, decimals = 3)
     if length > 0:
-        data_label += 'Length : ' + str(length) + ' ' + unit + ' ,'
-    data_label += 'Distance : ' + str(distance) + ' ' + unit
+        data_label += 'Length: ' + str(length) + ' ' + unit
+    data_label += ', Distance: ' + str(distance) + ' ' + unit
     data_label += ', Time: ' + str(vid_length) + ' sec'
     data_label += ', Speed: ' + str(speed) + ' ' + unit + '/sec'
     data_label += '\nStops: ' + str(int(num_stops))
