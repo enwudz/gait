@@ -39,12 +39,8 @@ def main(movie_file, plot_style = ''): # track or speed or steps
     except:
         import analyzeTrack
         analyzeTrack.main(movie_file)
-<<<<<<< Updated upstream
         path_stats = gaitFunctions.loadPathStats(movie_file)
-        
-=======
-    
->>>>>>> Stashed changes
+
     # collect data for path_stats
     # median_area = round(path_stats['area'],4)
     scale = float(path_stats['scale'])
