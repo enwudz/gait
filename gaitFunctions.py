@@ -325,7 +325,7 @@ def getTrackingConfidence(problem_frames, difference_threshold, printme = False)
     if printme:
         print('Tracking confidence at a pixel threshold of ' + str(difference_threshold) + ' is ' + str(tracking_confidence) + '%')
         if tracking_confidence < 90:
-            print('... you might want to try running trackCritter again with a different pixel threshold')
+            print('... you might want to try running autoTracker again with a different pixel threshold')
             if difference_threshold < 15:
                 new_threshold = 25
             else:
@@ -1333,7 +1333,7 @@ def gaitStyleProportionsPlot(ax, excel_files, leg_set = 'lateral'):
     return ax
 
 def need_tracking():
-    print('\n ==> Need to run trackCritter.py before analyzing the path!\n')
+    print('\n ==> Need to run autoTracker.py before analyzing the path!\n')
 
 def loadPathStats(movie_file):
     excel_file = movie_file.split('.')[0] + '.xlsx'
@@ -1456,7 +1456,7 @@ def loadStepData(movie_file, excel_filename = ''):
 
 def loadTrackedPath(movie_file):
     '''
-    From pathtracking tab, produced by trackCritter (and analyzePath)
+    From pathtracking tab, produced by autoTracker (and analyzePath)
     frametimes, coordinates, per-frame speed, distance, bearings . . . 
 
     Parameters
@@ -1476,7 +1476,7 @@ def loadTrackedPath(movie_file):
     
     if excel_file_exists:
     
-        # load the tracked data from trackCritter
+        # load the tracked data from autoTracker
         tracked_df = pd.read_excel(excel_filename, sheet_name = 'pathtracking')
         if 'xcoords' not in tracked_df.columns:
             need_tracking()
