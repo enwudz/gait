@@ -42,15 +42,15 @@ def main():
     legstates, legangles = get_leg_swings(up_down_times, frame_times)
 
     ## ==> make basic animation
-    basic_animation(legangles, legstates, critter, animation_fps, False) # True to save the animation      
+    basic_animation(legangles, legstates, critter, animation_fps, True) # True to save the animation      
 
 def load_simulated_steps(num_legs):
     ## define step parameters
     simulation = {}
     simulation['num_legs'] = num_legs
-    simulation['num_cycles'] = 10
-    simulation['gait_cycle'] = 1 # in seconds
-    simulation['duty_factor'] = 0.5 # in fraction of gait cycle
+    simulation['num_cycles'] = 5
+    simulation['gait_cycle'] = 1.5 # in seconds
+    simulation['duty_factor'] = 0.62 # in fraction of gait cycle
     simulation['opposite_offset'] = 0.5 # in fraction of gait cycle
     simulation['anterior_offset'] = 0.5 # in fraction of gait cycle
     simulation['fps'] = 30
