@@ -20,6 +20,7 @@ It tries to extract info from the filename
 import sys
 import gaitFunctions
 import pandas as pd
+import numpy as np
 import re
 
 def main(movie_file, printme = True):
@@ -77,7 +78,10 @@ def main(movie_file, printme = True):
         print('\nHere is info we have:')
         printed = []
         for thing in print_order:
-            print(' ' + thing + ': ' + str(info[thing]))
+            if thing in info.keys():
+                print(' ' + thing + ': ' + str(info[thing]))
+            else:
+                print(' ' + thing + ': unknown')
             printed.append(thing)
             
         # what if there are things in the excel file that are not in print_order?
@@ -96,83 +100,141 @@ def make_identity_sheet(excel_filename, info):
     with pd.ExcelWriter(excel_filename, if_sheet_exists='replace', engine='openpyxl', mode='a') as writer:
         df.to_excel(writer, index=False, sheet_name='identity')
 
-def getAnimalList():
-    animal_list = ['tardigrade','cat','human','dog','mouse']
-    leg_list = [8,4,2,4,4]
-    return animal_list, leg_list
 
-def guess_the_thing(thing):
-    ''' what is this thing?
-    choices are: initials, date, treatment, individualID, time_range '''
+def guessTreatment(s):
     
-    month_abbreviations = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
-    month_names = ['january','february','march','april','may','june','july','august','september','october','november','december']
-    all_months = month_abbreviations + month_names
+    s = s.lower()
     
-    animal_list, leg_list = getAnimalList()
+    drugs = ['control', 'caffeine', 'alcohol', 'nicotine', 'disulfiram', 'lead', 'simvastatin']
+    conditions = ['control', 'wildtype', 'embryo']
     
-    # is the thing initials?
-    if len(thing) == 2 or len(thing) == 3:
-        if thing == 'wt':
-            return 'treatment'
-        else:
-            return 'initials'
+    treatment = 'unknown'
     
-    elif '-' in thing:
-        return 'time_range'
+    for drug in drugs:
+        if drug in s:
+            treatment = drug
+            
+    for condition in conditions:
+        if condition in s:
+            treatment = condition
+            
+    if 'day' in s:
+        daypos = s.find('day')
+        daynumber = s[daypos+3:daypos+4]
+        if len(re.findall('[0-9]', daynumber)) > 0:
+            treatment = 'day' + daynumber
+            
+    return treatment
+
+def guessIdentity(s):
     
-    # is the thing a treatment?
-    elif 'control' in thing or 'wildtype' in thing:
-        return 'treatment'
+    s = s.lower()
+    initials = 'unknown'
     
-    # is the thing an individual?
-    elif 'sample' in thing:
-        return 'individualID'
+    if '_' in s:
+        things = s.split('_')
+        for thing in things:
+            if len(thing) == 2 and len(re.findall('[a-z]{2}', thing)) > 0:
+                return thing
+    return initials
+           
+def guessSpecies(s):
     
+    s = s.lower()
+    
+    critters = ['human','tardigrade','cat','dog','insect','tetrapod','hexapod']
+    num_legs = [2, 8, 4, 4, 6, 4, 6]
+    individual_number = 'unknown'
+    
+    species_legs = dict(zip(critters,num_legs))
+    
+    species = 'unknown'
+    individual_number = 'unknown'
+    legs = 8
+    
+    for critter in critters:
+        if critter in s:
+            species = critter
+            
+            # get the individual number
+            if '#' in s:
+                s=s.replace('#','')
+            
+            havecritternumber = False
+            for i in np.arange(3,0,-1):
+                if havecritternumber == False:
+                    numsearch = critter + '[0-9]' * i
+                    print(numsearch)
+                    numfound = re.findall(numsearch,s)
+                    if len(numfound) > 0:
+                        individual_number = numfound[0].replace(critter,'')
+                        havecritternumber = True
+                      
+            # get the number of legs
+            legs = species_legs[critter]
+            
+    return species, legs, individual_number
+    
+def guessTimeRange(s):
+    
+    if '-' in s:
+        for i in np.arange(5,0,-1):
+            numsearch = '[0-9]' * i + '-' + '[0-9]' * i
+            foundnum = re.findall(numsearch, s)
+            if len(foundnum) > 0:
+                return foundnum[0]
     else:
-        # is the thing a date?
-        # are there any numbers in the thing? If so, remove them
-        checked = re.findall('[0-9]+', thing)
-        if len(checked) > 0:
-            for num in checked:
-                thing = thing.replace(num,'').lower()
-            if thing.lower() in all_months:
-                return 'date'
-            if thing.lower() in animal_list:
-                return 'individualID'
-        else:
-            return 'treatment'
+        return 'unknown'
+    
+def guessDate(s):
+    mon = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
+    fullmonths = ['january','february','march','april','may','june','july','august','september','october','december']
+    allmonths = fullmonths + mon 
+
+    s = s.lower()
+    
+    month = 'unknown'
+    for m in allmonths:
+        date = 'unknown'
+        if m in s:
+            month = m
+            for i in np.arange(2,0,-1):
+                datesearch = '[0-9]' * i + m
+                founddate = re.findall(datesearch, s)
+                if len(founddate) > 0:
+                    date = founddate[0].replace(m,'')
+                    return month, date
+                else:
+                    datesearch = m + '[0-9]' * i
+                    founddate = re.findall(datesearch, s)
+                    if len(founddate) > 0:
+                        date = founddate[0].replace(m,'')
+                        return month, date
+    return month, date
     
 def extract_info(movie_file):
-    
     file_stem = movie_file.split('.')[0]
     info = {}
-    info['date'] = ''
-    info['treatment'] = ''
-    info['initials'] = ''
-    info['individualID'] = ''
-    info['time_range'] = ''
+    
+    treatment = guessTreatment(file_stem)
+    initials = guessIdentity(file_stem)
+    species, legs, individual_number = guessSpecies(file_stem)
+    timerange = guessTimeRange(file_stem)
+    month, date = guessDate(file_stem)
+    
+    info['month'] = month
+    info['date'] = date
+    info['treatment'] = treatment
+    info['initials'] = initials
+    info['individualID'] = individual_number
+    info['time_range'] = timerange
     info['file_stem'] = file_stem
-    info['species'] = ''
-    info['num_legs'] = ''
+    info['species'] = species
+    info['num_legs'] = legs
     
-    animal_list, leg_list = getAnimalList()
-    for i,animal in enumerate(animal_list):
-        if animal in file_stem.lower():
-            info['species']=animal
-            info['num_legs']=leg_list[i]
-    
-    stuff = file_stem.split('_')
-    if len(stuff) > 0:
-        for thing in stuff:
-            best_guess = guess_the_thing(thing)
-            if best_guess in info.keys():
-                if len(info[best_guess]) > 0:
-                    info[best_guess] += '_' + thing
-                else:
-                    info[best_guess] = thing
-                    
     return info
+    
+    
     
 if __name__== "__main__":
 

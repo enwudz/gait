@@ -907,7 +907,7 @@ def selectFile(filetypes = ['mov','mp4']):
     return selected_file
 
 def identity_print_order():
-    return ['file_stem','date','species','num_legs','treatment','individualID','time_range',
+    return ['file_stem','month','date','species','num_legs','treatment','individualID','time_range',
             'initials','#frames','fps','width','height','duration']
 
 def selectOneFromList(li):
