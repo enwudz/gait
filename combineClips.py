@@ -116,8 +116,8 @@ def main():
         #### ===> load identity info from this clip
         identity_info = gaitFunctions.loadIdentityInfo(movie_file, excel_file)
         treatment = identity_info['treatment']
-        individual = identity_info['individualID']
-        date = identity_info['date']
+        individual = str(identity_info['individualID'])
+        date = str(identity_info['date'])
         # print(treatment, individual, date)
         uniq_id = '_'.join([treatment, individual, date])
         

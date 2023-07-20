@@ -288,8 +288,7 @@ def selectPlotOption(option_list):
         to_plot = option_list[0]
         
     return to_plot
-    
-    
+        
 
 def getSheets(excel_file):
     
