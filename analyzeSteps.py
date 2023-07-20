@@ -401,6 +401,8 @@ def getSpeedForStep(step_data_df, pathtracking_df):
     distances = pathtracking_df.distance.values
     stops = pathtracking_df.stops.values
     turns = pathtracking_df.turns.values
+    areas = pathtracking_df.areas.values
+    lengths = pathtracking_df.lengths.values
     
     # extract data from steptracking dataframe
     downs = step_data_df.DownTime.values
@@ -409,6 +411,10 @@ def getSpeedForStep(step_data_df, pathtracking_df):
     # make empty vectors for step_speed and step_distance
     step_speed = np.zeros(len(downs))
     step_distance = np.zeros(len(downs))
+    
+    # make empty vectors for areas and lengths
+    step_tardiareas = np.zeros(len(downs))
+    step_tardilengths = np.zeros(len(downs))
     
     # make empty vector for cruising (i.e. not turning, not stopping)
     step_cruising = np.empty(len(downs), dtype=bool)
@@ -453,11 +459,21 @@ def getSpeedForStep(step_data_df, pathtracking_df):
             step_cruising[i] = False
         else:
             step_cruising[i] = True
+            
+        # calculate the average area measured for this step
+        step_tardiareas[i] = np.mean(areas[start_time_index:end_time_index])
+        
+        # calculate the average length measured for this step
+        step_tardilengths[i] = np.mean(lengths[start_time_index:end_time_index])
     
     # update step_data_df with the new columns for speed and distance and cruising
     step_data_df['speed_during_step'] = step_speed
     step_data_df['distance_during_step'] = step_distance
     step_data_df['cruising_during_step'] = step_cruising
+    
+    # update step_data_df with new columns for areas and lengths
+    step_data_df['average_tardigrade_area'] = step_tardiareas
+    step_data_df['average_tardigrade_length'] = step_tardilengths
     
     return step_data_df
 
