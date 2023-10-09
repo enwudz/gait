@@ -164,7 +164,7 @@ def guessSpecies(s):
             for i in np.arange(3,0,-1):
                 if havecritternumber == False:
                     numsearch = critter + '[0-9]' * i
-                    print(numsearch)
+                    # print(numsearch) # testing
                     numfound = re.findall(numsearch,s)
                     if len(numfound) > 0:
                         individual_number = numfound[0].replace(critter,'')

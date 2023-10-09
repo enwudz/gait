@@ -57,13 +57,10 @@ def main(movie_file):
         lengths = np.zeros(len(frametimes))
         uncertainties = np.zeros(len(frametimes))
         uncertainty_col = 'uncertainty'
-        
+    
+    # get coordinates of centroids at every frame    
     xcoords = tracked_data.xcoords.values
     ycoords = tracked_data.ycoords.values
-    
-    # get medians for critter size: area and length
-    median_area = np.median(areas) / scale**2
-    median_length = np.median(lengths) / scale
     
     # smooth the coordinates!
     smoothedx = gaitFunctions.smoothFiltfilt(xcoords,3,0.05)
@@ -79,6 +76,10 @@ def main(movie_file):
     # get % cruising
     non_cruising_proportion = np.count_nonzero(stops + turns) / len(stops)
     cruising_proportion = np.round( ( 1 - non_cruising_proportion ) * 100, 2)
+    
+    # get medians for critter size: area and length
+    median_area = np.median(areas) / scale**2
+    median_length = np.median(lengths) / scale
     
     # add all tracking vectors to the excel file, 'pathtracking' tab
     d = {'times':frametimes, 'xcoords':xcoords, 'ycoords':ycoords, 'areas':areas, 'lengths':lengths,
@@ -154,7 +155,7 @@ def stopsTurns(times, speed, bearing_changes, bearings, increment, length):
     bearing_changes : numpy array
         from distanceSpeedBearings, vector of bearing change in each video frame
     increment : float
-        increment duration (in seconds) to bin video frame bins
+        increment duration (in seconds) ... window duration to call stops and turns
     length : float
         length of critter in mm
 
@@ -175,7 +176,7 @@ def stopsTurns(times, speed, bearing_changes, bearings, increment, length):
     # video_length = times[-1]
     
     # define speed threshold for stop
-    # if mean speed in a time window is below this threshold, it is a STOP!
+    # if mean speed in a time window (increment) is below this threshold, it is a STOP!
     threshold_distance = 0.15 * length # expressed as fraction of length of critter
     stop_threshold = threshold_distance * increment # STOP is below this speed
     
