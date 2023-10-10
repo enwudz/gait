@@ -21,7 +21,12 @@ if no length, prompt to measure it
 
 def main(movie_file):
     
-    # tracking data is from autoTracker.py, and is in an excel file for this clip
+    # tracking data is from autoTracker.py, and is in an excel file for each clip
+    
+    # things we can adjust ... see also turn_threshold = 28 in stopsturns function
+    time_increment = 0.3 # in seconds ... over what time duration should we look for stops and turns
+    turn_threshold = 28 # in degrees ... minimum angle to be called a 'turn' within time increment
+    cruise_bout_threshold = 3 # in seconds ... what is minimum time to count as a 'cruise'?
     
     # load tracked path stats for this clip (if available)
     path_stats = gaitFunctions.loadPathStats(movie_file)
@@ -29,7 +34,7 @@ def main(movie_file):
     # get scale (conversion between pixels and real distance)
     scale, unit = getScale(path_stats, movie_file)
 
-    # load the tracked data
+    # load the excel file with tracked data ==> pandas dataframe
     tracked_data, excel_filename = gaitFunctions.loadTrackedPath(movie_file)
     if tracked_data is None:
         print('No path tracking data yet - run trackCritter.py')
@@ -44,7 +49,7 @@ def main(movie_file):
             except:
                 pixel_threshold = 100
 
-    # read in tracking data
+    # collect relevant tracking data from dataframe
     frametimes = tracked_data.times.values
     
     try:
@@ -70,8 +75,7 @@ def main(movie_file):
     distance, speed, cumulative_distance, bearings, bearing_changes = distanceSpeedBearings(frametimes, smoothedx, smoothedy)
     
     # get vectors for stops and turns
-    time_increment = 0.3 # in seconds ... over what time duration should we look for stops and turns
-    stops, turns = stopsTurns(frametimes, speed, bearing_changes, bearings, time_increment, np.median(lengths))
+    stops, turns = stopsTurns(frametimes, speed, bearing_changes, bearings, time_increment, np.median(lengths), turn_threshold)
     
     # get % cruising
     non_cruising_proportion = np.count_nonzero(stops + turns) / len(stops)
@@ -81,7 +85,7 @@ def main(movie_file):
     median_area = np.median(areas) / scale**2
     median_length = np.median(lengths) / scale
     
-    # add all tracking vectors to the excel file, 'pathtracking' tab
+    ### add all tracking vectors to the excel file, 'pathtracking' tab
     d = {'times':frametimes, 'xcoords':xcoords, 'ycoords':ycoords, 'areas':areas, 'lengths':lengths,
          'smoothed_x':smoothedx, 'smoothed_y':smoothedy, 'distance':distance,
          'speed':speed, 'cumulative_distance':cumulative_distance, 'bearings': bearings,
@@ -90,26 +94,47 @@ def main(movie_file):
     with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
         df.to_excel(writer, index=False, sheet_name='pathtracking')
     
-    # add path tracking summary values to 'path_stats' tab
-    # area, distance, average speed, num turns, num stops, bearings, time_increment for turns & stops
-    parameters = ['scale','unit','area','length','clip duration','total distance','average speed',
-                  '# turns','# stops', '% cruising', 'cumulative bearings','bin duration',
-                  'pixel threshold','tracking confidence']
-    
+    ### add path tracking summary values to 'path_stats' tab
+
+    # calculate summary values
     clip_duration = frametimes[-1]
     total_distance = np.sum(distance) / scale
 
     average_speed = np.mean(speed[:-1]) / scale
     num_turns = len(gaitFunctions.one_runs(turns))
     num_stops = len(gaitFunctions.one_runs(stops))
-    cumulative_bearings = np.sum(bearing_changes)
+    cumulative_bearings = np.sum(np.abs(bearing_changes))
     try:
         tracking_confidence = gaitFunctions.getTrackingConfidence(uncertainties, pixel_threshold)
     except:
         tracking_confidence = 100
         pixel_threshold = 100
+        
+    # add cruise bout data
+    cruise_bouts = cruiseBouts(turns,stops)
+    cruise_bout_timing = []
+    cruise_bout_durations = 0
+    for bout in cruise_bouts:
+        bout_start = frametimes[bout[0]]
+        if bout[1] >= len(frametimes):
+            bout_end = frametimes[-1]
+        else:
+            bout_end = frametimes[bout[1]]
+        bout_length = np.round(bout_end-bout_start,3)
+        if bout_length >= cruise_bout_threshold:
+            cruise_bout_timing.append(str(bout_length) + ' seconds: ' + str(bout_start) + '-' + str(bout_end))
+            cruise_bout_durations += bout_length
+    cruise_bout_summary = '; '.join(cruise_bout_timing)
+    num_cruise_bouts = len(cruise_bout_timing)
+    print('\n# cruising bouts: ' + str(num_cruise_bouts) + ', total seconds cruising: ' + str(cruise_bout_durations))
+    print(cruise_bout_summary + '\n')
+            
+        
+    parameters = ['scale','unit','area','length','clip duration','total distance','average speed',
+                  '# turns','# stops', '% cruising', '# cruise bouts', 'cruise bout timing','cumulative bearings','bin duration',
+                  'pixel threshold','tracking confidence']
     vals = [scale, unit, median_area, median_length, clip_duration, total_distance, 
-            average_speed, num_turns, num_stops, cruising_proportion, cumulative_bearings, 
+            average_speed, num_turns, num_stops, cruising_proportion, num_cruise_bouts, cruise_bout_summary, cumulative_bearings, 
             time_increment, pixel_threshold, tracking_confidence]
     
     path_stats = zip(parameters, vals)
@@ -121,8 +146,12 @@ def main(movie_file):
         
     return df, df2
 
+def cruiseBouts(turns, stops):
+    cruising = turns + stops
+    cruise_bouts = gaitFunctions.zero_runs(cruising)
+    return cruise_bouts
 
-def stopsTurns(times, speed, bearing_changes, bearings, increment, length):    
+def stopsTurns(times, speed, bearing_changes, bearings, increment, length, turn_threshold):    
     
     '''
     From vectors of speed and bearings ...
@@ -165,10 +194,6 @@ def stopsTurns(times, speed, bearing_changes, bearings, increment, length):
     threshold_distance = 0.15 * length # expressed as fraction of length of critter
     stop_threshold = threshold_distance * increment # STOP is below this speed
     
-    # define turn threshold
-    # if change in bearing in a bin is greater than this threshold, it is a TURN!
-    turn_threshold = 28 # in degrees
-    
     # bin_number = 0
     
     time_of_last_batch = times[-1] - increment
@@ -194,7 +219,7 @@ def stopsTurns(times, speed, bearing_changes, bearings, increment, length):
         # # if ABOVE a threshold (eg 28 degrees)? = a TURN
         # # in TURNS, set all frames of this bin to 1
         # # this is a bit wonky if stopped or exploring very slowly
-        if np.sum(bearing_changes[start_bin:end_bin]) >= turn_threshold:
+        if np.sum(np.abs(bearing_changes[start_bin:end_bin])) >= turn_threshold:
             turns[start_bin:end_bin] = 1
   
     return stops, turns
