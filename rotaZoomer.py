@@ -12,7 +12,7 @@ to make movie, run:
     python makeMovieFromImages.py searchterm fps outfile
     
 WISHLIST
-
+ set initial bearing as average of first X seconds (2?)
     
 """
 
@@ -120,17 +120,20 @@ def main(movie_file, zoom_percent = 300, direction = 'up'):
         bearings[turn_range[0]:turn_range[1]] = np.linspace(before_turn, after_turn, turn_length)
    
     # smooth out the bearing changes, not so much movement
-    pole = 3 # integer; lower = more smooth
-    freq = 0.02 # float: lower = more smooth
-    b, a = scipy.signal.butter(pole, freq)
-    smoothed_bearings = scipy.signal.filtfilt(b,a,bearings)
-
+    # but this causes problems if moving 'north' around 0 and 360
+    # pole = 3 # integer; lower = more smooth
+    # freq = 0.02 # float: lower = more smooth
+    # b, a = scipy.signal.butter(pole, freq)
+    # smoothed_bearings = scipy.signal.filtfilt(b,a,bearings)
+    
+    smoothed_bearings = bearings
+    
     ## Quality control: compare bearings vs. smoothed bearings    
     # plt.plot(bearings,'r')
     # plt.plot(smoothed_bearings,'k')
     # plt.show()
     
-    ''' Crop video window according to critter size ... so we need LENGTH '''
+    ''' Crop video window according to critter size ... so we need LENGTH of critter '''
     ## Get XY coordinates and tardigrade size
     smoothed_x = tracked_df.smoothed_x.values
     smoothed_y = tracked_df.smoothed_y.values

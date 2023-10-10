@@ -21,7 +21,7 @@ if no length, prompt to measure it
 
 def main(movie_file):
     
-    # tracking data is from trackCritter.py, and is in an excel file for this clip
+    # tracking data is from autoTracker.py, and is in an excel file for this clip
     
     # load tracked path stats for this clip (if available)
     path_stats = gaitFunctions.loadPathStats(movie_file)
@@ -315,8 +315,9 @@ def getScale(path_stats, movie_file):
         print(' ... no micrometer image and no scale file ... ')
         
         print('\nOptions: ')
-        print('   1. measure a distance on the first frame')
-        print('   2. just set scale to 1 (i.e. ignore scale')
+        print('   1. enter a known scale (e.g. 1000 pix per mm)')
+        print('   2. measure a distance on the first frame')
+        print('   3. just set scale to 1 (i.e. ignore scale')
         print()
         selection = input('Which option? ')
         
@@ -324,8 +325,17 @@ def getScale(path_stats, movie_file):
             val = int(selection)
         except:
             sys.exit('Please choose a valid selection!')
-            
+        
         if val == 1:
+            pixperunit = input('\nEnter number of pixels for a measured distance: ')
+            
+            try:
+                scale = float(pixperunit)
+            except:
+                sys.exit('Please enter a number!')
+            unit = input('\nEnter unit of measurement (e.g. inch or cm or mm): ')
+
+        elif val == 2:
             firstframe = gaitFunctions.getFirstFrame(movie_file)
             imfile = movie_file.split('.')[0] + '_first.png'
             

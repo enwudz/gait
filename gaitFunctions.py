@@ -402,7 +402,6 @@ def labelTimes(frametimes, labeltimes, buffer):
     
     return alphas 
 
-
 def zero_runs(a):
     '''
     
