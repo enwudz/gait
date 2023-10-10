@@ -1514,6 +1514,23 @@ def loadIdentityInfo(movie_file, excel_file = ''):
         
     return identity_info
 
+def change_in_bearing(bearing1, bearing2):
+    # need some care:  if successive bearings cross north (i.e. 0/360) ...
+    # both will be near (e.g. within ~20 degrees) of 0 or 360
+    # and so we need to adjust how we calculate difference in bearing
+    
+    buffer = 80
+    
+    # changd on 10Oct23 to allow delta_bearing to be negative if going LEFT
+    if bearing1 > 360-buffer and bearing2 < buffer: # the path crossed North from left to right
+        delta_bearing = bearing2 + 360 - bearing1
+    elif bearing2 > 360-buffer and bearing1 < buffer: # the path crossed North from right to left
+        delta_bearing = bearing2 - (360 + bearing1)
+    else:
+        delta_bearing = bearing2 - bearing1
+    
+    return delta_bearing
+
 
 def displayFrame(frame):
     # show the frame

@@ -26,12 +26,13 @@ import scipy.signal
 
 def main(movie_file, zoom_percent = 300, direction = 'up'):
     
+    # report selections
     print('Movie is ' + movie_file)
     print('Zoom is ' + str(zoom_percent) + ' percent')
     
     save_cropped_frames = False
       
-    # labeling stuff to adjust
+    # Can adjust these paramaters for labels
     font = cv2.FONT_HERSHEY_DUPLEX # cv2.FONT_HERSHEY_SCRIPT_COMPLEX 
     add_labels = True
     text_size = 1
@@ -73,21 +74,20 @@ def main(movie_file, zoom_percent = 300, direction = 'up'):
     turns = tracked_df.turns.values
     stops = tracked_df.stops.values
 
-    # pad boundaries of bearings
-    if bearings[-1] == 0:
-        bearings[-1] = bearings[-2]
-    if bearings[0] == 0:
-        bearings[0] = bearings[1]
+    # pad boundaries of bearings abnd delta_bearings
+    bearings = padBoundaries(bearings)
     
     # determine if there is a consistent direction of travel
     if np.var(bearings) < 45:
-        # see if this is a tardigrade
+        
+        # see if this is a tardigrade ... if so, direction does not matter
         identity_info = gaitFunctions.loadIdentityInfo(movie_file)
         try:
             species = [identity_info['species']]
         except:
             species = 'tardigrade'
         
+        # if not a tardigrade, it is probably going fast in a particular direction
         if species != 'tardigrade':
             wiggle_room = 30
             mean_bearings = np.mean(bearings)
@@ -118,21 +118,24 @@ def main(movie_file, zoom_percent = 300, direction = 'up'):
             
         turn_length = turn_range[1] - turn_range[0]
         bearings[turn_range[0]:turn_range[1]] = np.linspace(before_turn, after_turn, turn_length)
-   
-    ### smooth out the bearing changes, not so much movement
-    ### ==> but this causes problems if moving 'north' around 0 and 360
-        # sin convert or something?
-    # pole = 3 # integer; lower = more smooth
-    # freq = 0.02 # float: lower = more smooth
-    # b, a = scipy.signal.butter(pole, freq)
-    # smoothed_bearings = scipy.signal.filtfilt(b,a,bearings)
+
+    # convert bearings to bearing changes
+    delta_bearings = np.zeros(len(bearings))
+    for i, b in enumerate(bearings[:-1]):
+        delta_bearings[i+1] = gaitFunctions.change_in_bearing(b, bearings[i+1])
     
-    smoothed_bearings = bearings
+    ## smooth out the bearing changes, not so much movement
+    pole = 10 # integer; lower = more smooth ... but 'freq' has more effect?
+    freq = 0.06 # float: lower = more smooth ... has more effect than 'pole'?
+    b, a = scipy.signal.butter(pole, freq)
+    smoothed_deltabearings = scipy.signal.filtfilt(b,a,delta_bearings)
     
-    ## Quality control: compare bearings vs. smoothed bearings    
-    # plt.plot(bearings,'r')
-    # plt.plot(smoothed_bearings,'k')
+    ## Quality control for smoothing: compare bearings vs. smoothed bearings    
+    # import matplotlib.pyplot as plt
+    # plt.plot(delta_bearings,'r')
+    # plt.plot(smoothed_deltabearings,'k')
     # plt.show()
+    # exit()
     
     ''' Crop video window according to critter size ... so we need LENGTH of critter '''
     ## Get XY coordinates and tardigrade size
@@ -151,7 +154,7 @@ def main(movie_file, zoom_percent = 300, direction = 'up'):
     else:
         critter_length = mean_length
     
-    print('Cropping frames based on length of ' + str(critter_length) + ' pixels')
+    print('Cropping frames based on length of ' + str(np.round(critter_length,1)) + ' pixels')
     
     ## set size of crop window
     if direction in ['up','down']:
@@ -192,16 +195,18 @@ def main(movie_file, zoom_percent = 300, direction = 'up'):
     flipToRight = False
     
     if direction == 'down':
-        bearing_offset = 180
+        initial_direction = 180
     elif direction == 'left':
-        bearing_offset = -90
+        initial_direction = -90
         flipToRight = True
         print('We will flip this to the right!')
     elif direction == 'right':
-        bearing_offset = 90
+        initial_direction = 90
     else:
-        bearing_offset = 0
-    print('bearing_offset',bearing_offset) 
+        initial_direction = 0
+    print('Initial heading is ', initial_direction) 
+    
+    rotate_angle = initial_direction
     
     i = 0
     while (vid.isOpened()):
@@ -213,8 +218,7 @@ def main(movie_file, zoom_percent = 300, direction = 'up'):
             # found a frame
         
             # get data for this frame
-            bearing = smoothed_bearings[i]
-            rotate_angle = bearing - bearing_offset
+            rotate_angle += smoothed_deltabearings[i]
             x = smoothed_x[i]
             y = smoothed_y[i]
             
@@ -315,7 +319,14 @@ def main(movie_file, zoom_percent = 300, direction = 'up'):
                 os.remove(frame)
     
     return cropped_folder
-    
+ 
+def padBoundaries(a):
+    # replace leading and trailing zeros with inner values
+    if a[0] == 0:
+        a[0] = a[1]
+    if a[-1] == 0:
+        a[-1] = a[-2]
+    return a
     
 def showFrames(frame_folder):
     frame_files = sorted(glob.glob(os.path.join(frame_folder, '*.png')))   

@@ -121,21 +121,6 @@ def main(movie_file):
         
     return df, df2
 
-def change_in_bearing(bearing1, bearing2):
-    # need some care:  if successive bearings cross north (i.e. 0/360) ...
-    # both will be near (e.g. within ~20 degrees) of 0 or 360
-    # and so we need to adjust how we calculate difference in bearing
-    
-    buffer = 80
-    
-    if bearing1 > 360-buffer and bearing2 < buffer: # the path crossed North
-        delta_bearing = bearing2 + 360 - bearing1
-    elif bearing2 > 360-buffer and bearing1 < buffer: # the path crossed North
-        delta_bearing = 360 - bearing2 + bearing1
-    else:
-        delta_bearing = np.abs(bearing1 - bearing2)
-    
-    return delta_bearing
 
 def stopsTurns(times, speed, bearing_changes, bearings, increment, length):    
     
@@ -273,7 +258,7 @@ def distanceSpeedBearings(times, xcoords, ycoords):
             bearing_changes[i] = 0
         else:
             cumulative_distance[i] = cumulative_distance[i-1] +  distance_in_frame
-            delta_bearing = change_in_bearing(bearings[i], bearings[i-1])
+            delta_bearing = gaitFunctions.change_in_bearing(bearings[i], bearings[i-1])
             bearing_changes[i] = delta_bearing
     
     return distance, speed, cumulative_distance, bearings, bearing_changes
