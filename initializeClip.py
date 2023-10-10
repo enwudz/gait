@@ -107,6 +107,7 @@ def guessTreatment(s):
     
     drugs = ['control', 'caffeine', 'alcohol', 'nicotine', 'disulfiram', 'lead', 'simvastatin']
     conditions = ['control', 'wildtype', 'embryo']
+    species = ['exemplaris', 'ramazzottius']
     
     treatment = 'unknown'
     
@@ -117,6 +118,10 @@ def guessTreatment(s):
     for condition in conditions:
         if condition in s:
             treatment = condition
+                       
+    for sp in species:
+        if sp in s:
+            treatment = sp
             
     if 'day' in s:
         daypos = s.find('day')
@@ -136,6 +141,12 @@ def guessIdentity(s):
         for thing in things:
             if len(thing) == 2 and len(re.findall('[a-z]{2}', thing)) > 0:
                 return thing
+            
+        # sometimes initials are 3 characters long!
+        for thing in things:
+            if len(thing) == 3 and len(re.findall('[a-z]{3}', thing)) > 0:
+                return thing
+        
     return initials
            
 def guessSpecies(s):
