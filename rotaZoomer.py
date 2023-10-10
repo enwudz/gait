@@ -119,8 +119,9 @@ def main(movie_file, zoom_percent = 300, direction = 'up'):
         turn_length = turn_range[1] - turn_range[0]
         bearings[turn_range[0]:turn_range[1]] = np.linspace(before_turn, after_turn, turn_length)
    
-    # smooth out the bearing changes, not so much movement
-    # but this causes problems if moving 'north' around 0 and 360
+    ### smooth out the bearing changes, not so much movement
+    ### ==> but this causes problems if moving 'north' around 0 and 360
+        # sin convert or something?
     # pole = 3 # integer; lower = more smooth
     # freq = 0.02 # float: lower = more smooth
     # b, a = scipy.signal.butter(pole, freq)
