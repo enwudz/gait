@@ -16,23 +16,14 @@ import pandas as pd
 '''
 WISH LIST
 
-if tracking good, offer option to save ROTATED/CROPPED/ZOOMED frames (with critterZoomer.py)
 '''
-
-# from a movie file
-# look for folders of frames from this movie file
-# if no folders, ask to make some
-# find the excel file, and load the path_stats page
-# get the cruising bouts from the path_stats page
-#     will need to adjust saveFrames and rotaZoomer to accept times as part of input
-# ask to select which folder to find the frames to work on
-# do framestepper
-
 
 def main(movie_file, resize=100):
     
-    #### first, need to find the frames folder(s) for this movie
-    # or make these folders if they do not exist yet
+    ''' ******************* 
+    first, need to find the frames folder(s) for this movie
+      or make these folders if they do not exist yet
+    ******************* '''
 
     have_frame_folders = False
 
@@ -132,13 +123,30 @@ def main(movie_file, resize=100):
                 gaitFunctions.saveFrames(movie_file)
             frame_folder_list = [frame_folder]
 
-    ### if more than one folder available, select which one we want to track
     
-    # save time_strings above to use here
-    print(frame_folder_list)
+    ''' *******************
+    OK now we have the frames in folders
+       if more than one folder of frames available, select which one we want to track
+    ******************* '''
+    
+    steptracking = 'steptracking'
+    if len(frame_folder_list) > 1:
+        print('Select a folder of frames to track:')
+        selection = gaitFunctions.selectOneFromList(frame_folder_list)
+        steptracking += '_' + selection.split('_')[-2]
+    else:
+        selection = frame_folder_list[0]
+    print(selection)
+    print(steptracking)
     exit()
+    
+    ''' *******************
+    OK, now we have the single folder frames we want to track, 
+      now get the step data dictionary and dataframe from the excel file
+      if more than one folder of frames, then each folder will need (or already have) 
+      a steptracking sheet in the excel file: steptracking_time-range
+    ******************* '''
 
-    ### OK, have the frames, now get step data dictionary and dataframe
     foot_data, foot_data_df, excel_filename = get_foot_data(movie_file)
     
     # get number of feet
