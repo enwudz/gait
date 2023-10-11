@@ -19,24 +19,92 @@ WISH LIST
 if tracking good, offer option to save ROTATED/CROPPED/ZOOMED frames (with critterZoomer.py)
 '''
 
+# from a movie file
+# look for folders of frames from this movie file
+# if no folders, ask to make some
+# find the excel file, and load the path_stats page
+# get the cruising bouts from the path_stats page
+#     will need to adjust saveFrames and rotaZoomer to accept times as part of input
+# ask to select which folder to find the frames to work on
+# do framestepper
+
+
 def main(movie_file, resize=100):
     
-    # get step data dictionary and dataframe
-    foot_data, foot_data_df, excel_filename = get_foot_data(movie_file)
-    
-    # get number of feet
-    num_feet = gaitFunctions.get_num_feet(movie_file)
+    #### first, need to find the frames folder(s) for this movie
+    # or make these folders if they do not exist yet
 
-    # look for rotated frames folder for this movie
+    have_frame_folders = False
+
+    # look for rotated frames folder(s) for this movie
     base_name = movie_file.split('.')[0]
-    rotated_frames = base_name + '_rotacrop'
+    looking = '\n... Looking for rotated frames for ' + movie_file
+    frame_folder_names = base_name + '*_rotacrop'
+    frame_folder_list = glob.glob(frame_folder_names)
+    if len(frame_folder_list) > 0:
+        print(looking + ' ... found some!')
+        have_frame_folders = True
+    else:
+        print(looking + ' ... none found!')
+    
+    # if no rotated frames folders, look for regular frames folder(s)
+    if have_frame_folders == False:
+        looking = '\n... Looking for unprocessed frames for ' + movie_file
+        frame_folder_names = base_name + '*_frames'
+        frame_folder_list = glob.glob(frame_folder_names)
+        if len(frame_folder_list) > 0:
+            print(looking + ' ... found some!')
+            have_frame_folders = True
+        else:
+            print(looking + ' ... none found!')
+    
+    # if no regular frames folder(s) ... need to save some frames
+    if have_frame_folders == False:
+        
+        print('\nWe need to save some frames to track from ' + movie_file)
+        
+        # find the excel file, and load the path_stats page
+        path_stats = gaitFunctions.loadPathStats(movie_file)
+        
+        # if no path_stats, prompt to run analyzeTrack, and exit
+        if len(path_stats) == 0:
+            exit('No path found for this movie, run autoTracker.py and analyzeTrack.py')
+            
+        # print informmation about cruising bouts for this movie
+        print('...this clip has ' + str(path_stats['# cruise bouts']) + ' bouts of cruising:')
+
+        cruise_bouts = path_stats['cruise bout timing'].split('; ')
+        for bout in cruise_bouts:
+            print('   ' + bout)
+            
+        # ask if want to save frames for whole movie, or for the individual bouts
+        bout_decision = input('\nMake frames from (w)hole movie, or from the (c)ruising bouts only? ').rstrip().lower()
+        frames_decision = input('\nSave (r)otated and cropped frames, or (u)nprocssed frames? ').rstrip().lower()
+        
+        if bout_decision == 'c':
+            bout_text = 'each bout'
+            save_bouts = True
+        else:
+            bout_text = 'the whole movie'
+            save_bouts = False
+            
+        if frames_decision == 'r':
+            frames_text = 'rotated and cropped'
+            rotated_frames = True
+        else:
+            frames_text = ''
+            rotated_frames = False
+        
+        print('... OK, making a folder of ' + frames_text + ' frames for ' + bout_text)
+        
+    exit()
     
     # check to see if rotated frames available ... if not, ask if we want to make them
     if len(glob.glob(rotated_frames)) > 0:
         print('... found saved rotated frames for ' + movie_file + '!')
         frame_folder = rotated_frames
     else:
-    # if no rotated frames, or if we don't want to make them, then just save raw frames
+    # if no rotated frames, or if we don't want to make them, then just save unprocessed frames
         print(' ... no frames saved for ' + movie_file )
         decision = input(' ... should we use rotaZoomer to make rotated & cropped frames? (y) or (n) : ')
         
@@ -52,7 +120,15 @@ def main(movie_file, resize=100):
             print(' ... OK, we will use the frames from the original clip')                   
             frame_folder = gaitFunctions.saveFrames(frame_folder, movie_file)
 
-    # start tracking
+    ### if more than one folder available, select which one we want to track
+
+    ### OK, have the frames, now get step data dictionary and dataframe
+    foot_data, foot_data_df, excel_filename = get_foot_data(movie_file)
+    
+    # get number of feet
+    num_feet = gaitFunctions.get_num_feet(movie_file)
+
+    ### ready to start tracking
     tracking = True
     all_feet = getAllFeet(num_feet)
     
