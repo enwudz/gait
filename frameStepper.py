@@ -97,28 +97,26 @@ def main(movie_file, resize=100):
         
         print('... OK, making a folder of ' + frames_text + ' frames for ' + bout_text)
         
+        # ready to save some frames!
+        if save_bouts:
+            frame_folder_list = []
+            for bout in cruise_bouts:
+                bout_timing = bout.split(':')[1]
+                print(bout_timing)
+        else: # saving whole movie
+            if rotated_frames:
+                import rotaZoomer
+                frame_folder = base_name + '_rotacrop'
+                print('Saving rotated and cropped frames to ' + frame_folder)
+                frame_folder_list = [frame_folder]
+                # rotaZoomer.main(movie_file, resize)
+            else:
+                frame_folder = base_name + '_frames'
+                print('Saving frames to ' + frame_folder)
+                # gaitFunctions.saveFrames(frame_folder, movie_file)
+                
     exit()
     
-    # check to see if rotated frames available ... if not, ask if we want to make them
-    if len(glob.glob(rotated_frames)) > 0:
-        print('... found saved rotated frames for ' + movie_file + '!')
-        frame_folder = rotated_frames
-    else:
-    # if no rotated frames, or if we don't want to make them, then just save unprocessed frames
-        print(' ... no frames saved for ' + movie_file )
-        decision = input(' ... should we use rotaZoomer to make rotated & cropped frames? (y) or (n) : ')
-        
-        if decision == 'y':
-            import rotaZoomer
-            rotaZoomer.main(movie_file, resize)
-            frame_folder = rotated_frames
-            
-        else: 
-            # look for frame folder for this movie
-            # if none there, create one and save frames
-            frame_folder = base_name+ '_frames'
-            print(' ... OK, we will use the frames from the original clip')                   
-            frame_folder = gaitFunctions.saveFrames(frame_folder, movie_file)
 
     ### if more than one folder available, select which one we want to track
 
