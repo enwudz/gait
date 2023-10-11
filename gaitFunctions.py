@@ -821,7 +821,7 @@ def check_for_excel(movie_file):
         excel_file_exists = False
     return excel_file_exists, excel_filename
 
-def saveFrames(frame_folder, movie_file, add_timestamp = True):
+def saveFrames(frame_folder, movie_file, add_timestamp = True, starttime = 0, endtime = 100000):
     
     # check to see if frames folder exists; if not, make a folder
     flist = glob.glob(frame_folder)
@@ -854,19 +854,22 @@ def saveFrames(frame_folder, movie_file, add_timestamp = True):
             # frameTime = int(vid.get(cv2.CAP_PROP_POS_MSEC))
             frameTime = round(float(frame_number)/fps,4)
             
-            if add_timestamp == True:
-      
-                # put the time variable on the video frame
-                frame = cv2.putText(frame, str(frameTime),
-                                    (100, 100),
-                                    font, 1,
-                                    (55, 55, 55),
-                                    4, cv2.LINE_8)
-
-            # save frame to file, with frameTime
-            if frameTime > 0: # cv2 sometimes(?) assigns the last frame of the movie to time 0            
-                file_name = base_name + '_' + str(int(frameTime*1000)).zfill(6) + '.png'
-                cv2.imwrite(os.path.join(frame_folder, file_name), frame)
+            # here is where I can decide whether to save this frame
+            if frameTime >= starttime and frameTime <= endtime:
+            
+                if add_timestamp == True:
+          
+                    # put the time variable on the video frame
+                    frame = cv2.putText(frame, str(frameTime),
+                                        (100, 100),
+                                        font, 1,
+                                        (55, 55, 55),
+                                        4, cv2.LINE_8)
+    
+                # save frame to file, with frameTime
+                if frameTime > 0: # cv2 sometimes(?) assigns the last frame of the movie to time 0            
+                    file_name = base_name + '_' + str(int(frameTime*1000)).zfill(6) + '.png'
+                    cv2.imwrite(os.path.join(frame_folder, file_name), frame)
             
         else: # no frame here
             break

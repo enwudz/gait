@@ -42,18 +42,18 @@ def main(movie_file, resize=100):
     frame_folder_names = base_name + '*_rotacrop'
     frame_folder_list = glob.glob(frame_folder_names)
     if len(frame_folder_list) > 0:
-        print(looking + ' ... found some!')
+        print(looking + ' ... found!')
         have_frame_folders = True
     else:
         print(looking + ' ... none found!')
     
     # if no rotated frames folders, look for regular frames folder(s)
     if have_frame_folders == False:
-        looking = '\n... Looking for unprocessed frames for ' + movie_file
+        looking = '... Looking for unprocessed frames for ' + movie_file
         frame_folder_names = base_name + '*_frames'
         frame_folder_list = glob.glob(frame_folder_names)
         if len(frame_folder_list) > 0:
-            print(looking + ' ... found some!')
+            print(looking + ' ... found!')
             have_frame_folders = True
         else:
             print(looking + ' ... none found!')
@@ -91,34 +91,52 @@ def main(movie_file, resize=100):
         if frames_decision == 'r':
             frames_text = 'rotated and cropped'
             rotated_frames = True
+            import rotaZoomer
         else:
             frames_text = ''
             rotated_frames = False
         
         print('... OK, making a folder of ' + frames_text + ' frames for ' + bout_text)
         
-        # ready to save some frames!
-        if save_bouts:
+        ### ready to save some frames!
+        if save_bouts: # save multiple bouts
             frame_folder_list = []
             for bout in cruise_bouts:
                 bout_timing = bout.split(':')[1]
-                print(bout_timing)
+                boutstart = float(bout_timing.split('-')[0].replace(' ',''))
+                boutend = float(bout_timing.split('-')[1].replace(' ',''))
+                time_string = str(int(boutstart)) + '-' + str(int(boutend))
+                
+                if rotated_frames:
+                    movie_clip_file = base_name + '_' + time_string
+                    frame_folder = movie_clip_file + '_rotacrop'
+                    rotaZoomer.main(frame_folder, movie_file, resize, 'up', boutstart, boutend)
+                    print('Saving rotated and cropped frames to ' + frame_folder)
+                    
+                else:
+                    movie_clip_file = base_name + '_' + time_string   
+                    frame_folder = movie_clip_file + '_frames'
+                    gaitFunctions.saveFrames(frame_folder, movie_file, True, boutstart, boutend)
+                    print('Saving unprocessed frames to ' + frame_folder)
+                    
+                frame_folder_list.append(frame_folder)
+                
         else: # saving whole movie
             if rotated_frames:
-                import rotaZoomer
                 frame_folder = base_name + '_rotacrop'
                 print('Saving rotated and cropped frames to ' + frame_folder)
-                frame_folder_list = [frame_folder]
-                # rotaZoomer.main(movie_file, resize)
+                rotaZoomer.main(frame_folder, movie_file, resize)
             else:
                 frame_folder = base_name + '_frames'
                 print('Saving frames to ' + frame_folder)
-                # gaitFunctions.saveFrames(frame_folder, movie_file)
-                
-    exit()
-    
+                gaitFunctions.saveFrames(movie_file)
+            frame_folder_list = [frame_folder]
 
     ### if more than one folder available, select which one we want to track
+    
+    # save time_strings above to use here
+    print(frame_folder_list)
+    exit()
 
     ### OK, have the frames, now get step data dictionary and dataframe
     foot_data, foot_data_df, excel_filename = get_foot_data(movie_file)
