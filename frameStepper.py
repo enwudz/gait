@@ -89,7 +89,9 @@ def main(movie_file, resize=100):
         
         print('... OK, making a folder of ' + frames_text + ' frames for ' + bout_text)
         
-        ### ready to save some frames!
+        ''' *******************
+        NOW we are ready to save some frames!
+        ******************* '''
         if save_bouts: # save multiple bouts
             frame_folder_list = []
             for bout in cruise_bouts:
@@ -126,7 +128,7 @@ def main(movie_file, resize=100):
     
     ''' *******************
     OK now we have the frames in folders
-       if more than one folder of frames available, select which one we want to track
+       if more than one folder of frames available, select the ONE we want to track
     ******************* '''
     
     steptracking = 'steptracking'
@@ -138,10 +140,10 @@ def main(movie_file, resize=100):
         selection = frame_folder_list[0]
     print(selection)
     print(steptracking)
-    exit()
+    exit() # <======= here
     
     ''' *******************
-    OK, now we have the single folder frames we want to track, 
+    OK, now we have the single folder of frames we want to track, 
       now get the step data dictionary and dataframe from the excel file
       if more than one folder of frames, then each folder will need (or already have) 
       a steptracking sheet in the excel file: steptracking_time-range
