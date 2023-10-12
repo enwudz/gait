@@ -1708,53 +1708,71 @@ def getGaits(movie_file, leg_set = 'lateral'):
     # ... and save it 
     
     if need_gait_styles:
-        
+               
         print(' ... getting gait style at each frame ...')
         
-        # Get frame times for this movie ... WITHOUT tracked path!
+        # Get frame times for this movie 
         frame_times = getFrameTimes(movie_file)
         
-        # Get up_down_times for this movie
-        mov_data, excel_filename = loadUpDownData(movie_file)
-        up_down_times, latest_event = getUpDownTimes(mov_data)
-        legs = list(up_down_times.keys())
-
-        # trim frame_times to only include frames up to last recorded event
-        last_event_frame = np.min(np.where(frame_times >= latest_event))
-        if last_event_frame < len(frame_times):
-            frame_times_with_events = frame_times[:last_event_frame+1]
-        else:
-            frame_times_with_events = frame_times[:last_event_frame]
+        ## collect the steptracking sheets from this excel file    
+        xl = pd.ExcelFile(excel_filename)
+        sheets = xl.sheet_names
+        steptracking_sheets = sorted([x for x in sheets if 'steptracking' in x ])
         
-        if len(legs) == 2:
-            all_combos, combo_colors = get_gait_combo_colors('rear')
-        elif len(legs) == 4:
-            all_combos, combo_colors = get_gait_combo_colors('four')
-        else: 
-            all_combos, combo_colors = get_gait_combo_colors('lateral')
+        ## get frame_times for this steptracking bout
         
-        # get leg matrix
-        leg_matrix = make_leg_matrix(legs, up_down_times, frame_times_with_events)
-        legs = np.array(legs)
-
-        gait_styles = []
-        up_legs = []
+        for steptracking_sheet in steptracking_sheets:
+            
+            # get the frame times measured within this steptracking sheet
+            
+            # Get up_down_times for this steptracking dataset
+            mov_data, excel_filename = loadUpDownData(movie_file, steptracking_sheet) 
+            up_down_times, latest_event = getUpDownTimes(mov_data) # <<==== ALSO NEED EARLIEST EVENT? WORKING
+            legs = list(up_down_times.keys())
     
-        # go through each column of leg matrix and determine which legs are swinging
-        for col_ind in np.arange(np.shape(leg_matrix)[1]):
-            one_indices = np.where(leg_matrix[:, col_ind] == 1)
-            swinging_legs = legs[one_indices]
-            swinging_leg_combo = '_'.join(sorted(swinging_legs))
-            up_legs.append(swinging_leg_combo)
+            # trim frame_times to only include frames up to last recorded event <<==== OR FRAMES WITH EVENTS?? WORKING
+            last_event_frame = np.min(np.where(frame_times >= latest_event))
+            if last_event_frame < len(frame_times):
+                frame_times_with_events = frame_times[:last_event_frame+1]
+            else:
+                frame_times_with_events = frame_times[:last_event_frame]
             
-            # this is where I can adjust gait style categories
-            gait_styles.append(get_swing_categories(swinging_leg_combo, leg_set))
+            if len(legs) == 2:
+                all_combos, combo_colors = get_gait_combo_colors('rear')
+            elif len(legs) == 4:
+                all_combos, combo_colors = get_gait_combo_colors('four')
+            else: 
+                all_combos, combo_colors = get_gait_combo_colors('lateral')
             
-        # append the last swinging_leg_combo and gait_style to make the size same as frame_times
-        extra_frames = len(frame_times)-len(gait_styles)
-        gait_styles.extend([gait_styles[-1]] * extra_frames)
-        up_legs.extend([up_legs[-1]] * extra_frames)
+            # get leg matrix
+            leg_matrix = make_leg_matrix(legs, up_down_times, frame_times_with_events)
+            legs = np.array(legs)
+        
+            print(len(frame_times))
+            print(np.shape(leg_matrix))
+            exit()
+        
+            # go through each column of leg matrix and determine which legs are swinging
+            ### WOORKING - instead of col_ind in whole matrix, just do the indices of the frametimes needed
+            for col_ind in np.arange(np.shape(leg_matrix)[1]):
+                one_indices = np.where(leg_matrix[:, col_ind] == 1)
+                swinging_legs = legs[one_indices]
+                swinging_leg_combo = '_'.join(sorted(swinging_legs))
+                up_legs.append(swinging_leg_combo)
+                
+                # this is where I can adjust gait style categories
+                gait_styles.append(get_swing_categories(swinging_leg_combo, leg_set))
+                
+            # append the last swinging_leg_combo and gait_style to make the size same as frame_times
+            extra_frames = len(frame_times)-len(gait_styles)
+            gait_styles.extend([gait_styles[-1]] * extra_frames)
+            up_legs.extend([up_legs[-1]] * extra_frames)
 
+    ## WORKING ... LOOKS LIKE if 2 steptracking tabs WE HAVE 2x FRAME TIMES because we go through them twice . . . 
+    print(frame_times)
+    print('frame times', len(frame_times))
+    print('gait styles', len(gait_styles))
+    print('up legs', len(up_legs))
     return frame_times, gait_styles, up_legs
 
 def getFeetFromSpecies(species='tardigrade'):
@@ -2208,8 +2226,8 @@ def up_down_times_to_binary(downs, ups, frame_times):
         # ... fill in last up to end with 1's
         # print('dududu ... filling in start frames with ones, end frames with ones, and omitting first down and last up')
 
-        leg_vector[np.where(frame_times < downs[0])] = 1
-        leg_vector[np.where(frame_times > ups[-1])] = 1
+        leg_vector[np.where(frame_times < downs[0])] = 1 
+        leg_vector[np.where(frame_times > ups[-1])] = 1 
 
         downs = downs[1:]
         ups = ups[:-1]
@@ -2235,7 +2253,7 @@ def up_down_times_to_binary(downs, ups, frame_times):
         # print('ududud ... go ahead and find swings')
         pass
     else:
-        print('uh oh no pattern match')
+        print('data for this leg does not follow up-down pattern')
         sys.exit()
 
     # convert each swing interval to 1's
@@ -2268,13 +2286,13 @@ def make_leg_matrix(legs, up_down_times, frame_times):
     # make empty matrix
     leg_matrix = np.zeros([len(legs), len(frame_times)])
 
-    # fill up each row with leg data
+    # fill up each row with data for one leg
     for i, leg in enumerate(legs):
         # print(leg)
         ups = np.array(up_down_times[leg]['u'])
         downs = np.array(up_down_times[leg]['d'])
         leg_vector = up_down_times_to_binary(downs, ups, frame_times)
-        leg_matrix[i, :] = leg_vector
+        leg_matrix[i, :] = leg_vector # instead of :, do frame_time indices WORKING
 
     return leg_matrix
 

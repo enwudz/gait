@@ -24,63 +24,80 @@ def main(movie_file):
     num_feet = gaitFunctions.get_num_feet(movie_file)
     legs = gaitFunctions.get_leg_list(num_feet)
 
-    # load mov_data = a dictionary of UP and DOWN times for each leg ... or complain that this data is not available
-    excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file.split('.')[0]) 
-    mov_data, excel_filename = gaitFunctions.loadUpDownData(excel_filename)
-
-    # collect step data from mov_data
-    up_down_times, last_event = gaitFunctions.getUpDownTimes(mov_data)
-
     '''
+    Make Header and container for step data
     For each step of each leg, we are going to collect this info: 
     legID DownTime UpTime stance swing gait duty midSwingTime
     '''
-    header = 'legID,DownTime,UpTime,stance,swing,gait,duty,midSwingTime'
-
-    #### go through all legs, collect data for each step, and save all information in a list of lines
     data_for_steps = []
-    for ref_leg in legs: 
-
-        # ref_leg is just a single leg ... we look at one leg at a time.
-        # it is called ref_leg because we are going to timing of swings (e.g. mid, initiation) 
-        # for ALL other legs that swing during the gait cycle of this ref_leg
-        # these times are expressed as the FRACTION of the gait cycle for each step of the ref_leg
-
-        if ref_leg not in up_down_times.keys():
-            print('No data for ' + ref_leg)
-            continue
-
-        # get timing and step characteristics for all gait cycles for this leg
-        downs = up_down_times[ref_leg]['d']
-        ups = up_down_times[ref_leg]['u']
-        
-        downs, ups, stance_times, swing_times, gait_cycles, duty_factors, mid_swings = gaitFunctions.getStepSummary(downs,ups)
-        
-        # if leg down the whole time, then downs = [0] and ups = [length_of_clip] 
-        if len(downs) == 1 and len(ups) == 1:
-            i=0
-            data_for_steps.append(','.join(str(x) for x in [ref_leg,downs[0],ups[i],stance_times[i],swing_times[i],
-                                                   gait_cycles[i],duty_factors[i],mid_swings[i]]))
-        
-        # if many steps, want to go through each down step (aside from the last one)
-        else: 
-
-            # go through each down step for this leg
-            for i,step in enumerate(downs[:-1]): 
-                
-                # there needs to be one more down than up because we want the timing of COMPLETE gait cycles
-                # in other words ... #downs = #ups + 1
-                # and the order needs to be corect
-                # e.g. down-up down-up down-up down
+    header = 'legID,DownTime,UpTime,stance,swing,gait,duty,midSwingTime'
     
-                # get and print information for this step
-                step_stats = ','.join(str(x) for x in [ref_leg,step,ups[i],stance_times[i],swing_times[i],
-                                                    gait_cycles[i],duty_factors[i],mid_swings[i]])
-                data_for_steps.append(step_stats)
-
-    if add_swing is True: # do we want the mid-swing information for all other legs?
+    if add_swing is True: # if we are getting mid-swing data, we need more columns in header
         print('Saving mid-swing times to step_timing sheet ... ')
+        # add appropriate info to header
         data_for_steps_with_swings = []
+        for leg in legs:
+            header += ',' + leg + '_mid_swings'
+        header += ',anterior_swing_start,contralateral_swing_start'
+
+    # load excel file for this movie file        
+    excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file.split('.')[0]) 
+    
+    # find steptracking sheets in this excel file
+    xl = pd.ExcelFile(excel_filename)
+    sheets = xl.sheet_names
+    steptracking_sheets = sorted([x for x in sheets if 'steptracking' in x ])
+
+    for steptracking_sheet in steptracking_sheets:
+        print('... getting steps from ' + steptracking_sheet)
+        # load mov_data = a dictionary of UP and DOWN times for each leg ... or complain that this data is not available
+        mov_data, excel_filename = gaitFunctions.loadUpDownData(excel_filename, steptracking_sheet)
+    
+        # collect step data from mov_data
+        up_down_times, last_event = gaitFunctions.getUpDownTimes(mov_data)
+    
+        #### go through all legs, collect data for each step, and save all information in a list of lines
+        for ref_leg in legs: 
+    
+            # ref_leg is just a single leg ... we look at one leg at a time.
+            # it is called ref_leg because we are going to timing of swings (e.g. mid, initiation) 
+            # for ALL other legs that swing during the gait cycle of this ref_leg
+            # these times are expressed as the FRACTION of the gait cycle for each step of the ref_leg
+    
+            if ref_leg not in up_down_times.keys():
+                print('No data for ' + ref_leg)
+                continue
+    
+            # get timing and step characteristics for all gait cycles for this leg
+            downs = up_down_times[ref_leg]['d']
+            ups = up_down_times[ref_leg]['u']
+            
+            downs, ups, stance_times, swing_times, gait_cycles, duty_factors, mid_swings = gaitFunctions.getStepSummary(downs,ups)
+            
+            # if leg down the whole time, then downs = [0] and ups = [length_of_clip] 
+            if len(downs) == 1 and len(ups) == 1:
+                i=0
+                data_for_steps.append(','.join(str(x) for x in [ref_leg,downs[0],ups[i],stance_times[i],swing_times[i],
+                                                       gait_cycles[i],duty_factors[i],mid_swings[i]]))
+            
+            # if many steps, want to go through each down step (aside from the last one)
+            else: 
+    
+                # go through each down step for this leg
+                for i,step in enumerate(downs[:-1]): 
+                    
+                    # there needs to be one more down than up because we want the timing of COMPLETE gait cycles
+                    # in other words ... #downs = #ups + 1
+                    # and the order needs to be corect
+                    # e.g. down-up down-up down-up down
+        
+                    # get and print information for this step
+                    step_stats = ','.join(str(x) for x in [ref_leg,step,ups[i],stance_times[i],swing_times[i],
+                                                        gait_cycles[i],duty_factors[i],mid_swings[i]])
+                    data_for_steps.append(step_stats)
+
+    ### FINISHED COLLECTING DATA FOR STEPS ... now, do we want to also collect mid-swing times?
+    if add_swing is True: # do we want the mid-swing information for all other legs?
 
         # have output list (data_for_steps) from the code above
 
@@ -111,15 +128,9 @@ def main(movie_file):
 
         # for each step, add mid_swing data for all other legs
         # ------> mid_swing data is scaled as a FRACTION of the gait_cycle <------
-        # add appropriate info to header
-        for leg in legs:
-            header += ',' + leg + '_mid_swings'
 
         # for each step, add start_swing data for the ANTERIOR leg and for the CONTRALATERAL leg
         # ------> start_swing data is scaled as a FRACTION of the gait_cycle <------
-        
-        # add appropriate info to header
-        header += ',anterior_swing_start,contralateral_swing_start'
 
         # for each step (defining a gait cycle), get mid-swing timing of all other legs
         # where timing is defined as when the mid-swing occurs during the gait cycle of the reference leg
@@ -209,9 +220,9 @@ def main(movie_file):
         # print(header)
         # for step in data_for_steps_with_swings:
         #     print(step)
-            
-        ## can convert the data into a pandas dataframe!
-        columns = header.split(',')
+        
+        # can convert the data into a pandas dataframe!
+        columns = header.split(',')        
         step_data_df = pd.DataFrame([line.split(',') for line in data_for_steps_with_swings], columns=columns)
         
         # if we have data for speed at each frame, determine speed for each step of each leg
@@ -219,7 +230,8 @@ def main(movie_file):
         pathtracking_df = pd.read_excel(excel_filename, sheet_name='pathtracking', index_col=None)
         if 'speed' in pathtracking_df.columns:
             step_data_df = getSpeedForStep(step_data_df, pathtracking_df)
-            
+        
+        
         # swing offsets and metachronal lag for lateral legs
         anterior_offsets, contralateral_offsets, metachronal_lag = getOffsets(step_data_df)
         # add these to the step_data dataframe
@@ -230,18 +242,19 @@ def main(movie_file):
         ## Save the dataframe to the excel file, in the step_timing sheet
         with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
             step_data_df.to_excel(writer, index=False, sheet_name='step_timing')
-            
+        
         ## Calculate average step parameters for each leg, and write to the step_stats sheet of the excel file
         saveStepStats(legs, step_data_df, excel_filename)
 
+        ### WORKING HERE ... gaitFunctions getGaits (and then saveGaits)
         # get and save gait styles for every frame (to the gait_styles sheet)
         gaitFunctions.saveGaits(movie_file)
             
-        # clean up!
-        gaitFunctions.removeFramesFolder(movie_file)
-        gaitFunctions.cleanUpTrash(movie_file)
+        # # clean up!
+        # gaitFunctions.removeFramesFolder(movie_file)
+        # gaitFunctions.cleanUpTrash(movie_file)
         
-        return step_data_df
+        # return step_data_df
 
 
 def getOffsets(step_df):
