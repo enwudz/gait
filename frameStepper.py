@@ -131,16 +131,15 @@ def main(movie_file, resize=100):
        if more than one folder of frames available, select the ONE we want to track
     ******************* '''
     
-    steptracking = 'steptracking'
+    steptracking_sheet = 'steptracking'
     if len(frame_folder_list) > 1:
         print('Select a folder of frames to track:')
-        selection = gaitFunctions.selectOneFromList(frame_folder_list)
-        steptracking += '_' + selection.split('_')[-2]
+        frame_folder = gaitFunctions.selectOneFromList(frame_folder_list)
+        steptracking_sheet += '_' + frame_folder.split('_')[-2]
     else:
-        selection = frame_folder_list[0]
-    print(selection)
-    print(steptracking)
-    exit() # <======= here
+        frame_folder = frame_folder_list[0]
+    print(frame_folder)
+    print(steptracking_sheet)
     
     ''' *******************
     OK, now we have the single folder of frames we want to track, 
@@ -149,7 +148,7 @@ def main(movie_file, resize=100):
       a steptracking sheet in the excel file: steptracking_time-range
     ******************* '''
 
-    foot_data, foot_data_df, excel_filename = get_foot_data(movie_file)
+    foot_data, foot_data_df, excel_filename = get_foot_data(movie_file, steptracking_sheet)
     
     # get number of feet
     num_feet = gaitFunctions.get_num_feet(movie_file)
@@ -206,7 +205,7 @@ def main(movie_file, resize=100):
         foot_data[foot+'_up'] = data[1]
 
         # all done with this foot, save data!
-        saveData(excel_filename, foot_data, num_feet)
+        saveData(excel_filename, steptracking_sheet, foot_data, num_feet)
 
     # all done tracking this foot. Check if we have data for all feet.
     feet_to_do = getFeetToDo(foot_data, num_feet)
@@ -216,12 +215,13 @@ def main(movie_file, resize=100):
         for foot in all_feet:
             print_foot_data(foot_data, foot)
         
-        selection = input('\n ... all feet are tracked, (r)un analyzeSteps.py? ')
-        if selection == 'y' or selection == 'r':
-            import analyzeSteps
-            analyzeSteps.main(movie_file)
-        else:
-            print('OK - done for now.')
+        ### ask if we should run analyzeSteps
+        # selection = input('\n ... all feet are tracked, (r)un analyzeSteps.py? ')
+        # if selection == 'y' or selection == 'r':
+        #     import analyzeSteps
+        #     analyzeSteps.main(movie_file)
+        # else:
+        #     print('OK - done for now.')
            
     else:
         
@@ -263,7 +263,7 @@ def select_a_foot(foot_list):
     
     return selection
         
-def get_foot_data(movie_file):
+def get_foot_data(movie_file, steptracking_sheet):
     
     ## make a dictionary to keep leg-up and leg-down times for each leg
     # keys = leg_state (like 'L1_up')
@@ -277,7 +277,7 @@ def get_foot_data(movie_file):
         
         # check if there is any step data already; load if so
         try:
-            foot_data_df = pd.read_excel(excel_filename, sheet_name='steptracking', index_col=None)
+            foot_data_df = pd.read_excel(excel_filename, sheet_name=steptracking_sheet, index_col=None)
         
         # if no step data, make an empty data frame to store the step data
         except:
@@ -305,7 +305,7 @@ def get_foot_data(movie_file):
     
     return foot_data, foot_data_df, excel_filename
 
-def saveData(excel_filename, foot_data, num_feet, printme = False):
+def saveData(excel_filename, steptracking_sheet, foot_data, num_feet, printme = False):
           
     # print out foot dictionary    
     good_keys = []
@@ -334,7 +334,7 @@ def saveData(excel_filename, foot_data, num_feet, printme = False):
     df = pd.DataFrame(d)
     
     with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
-        df.to_excel(writer, index=False, sheet_name='steptracking')
+        df.to_excel(writer, index=False, sheet_name=steptracking_sheet)
 
     return
 
