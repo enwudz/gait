@@ -970,8 +970,6 @@ def selectMultipleFromList(li):
             print('\nYou chose them all\n')
             return li
 
-
-
 def getVideoData(movie_file, printOut = True):
     if len(glob.glob(movie_file)) == 0:
         exit('Cannot find ' + movie_file)
@@ -1299,7 +1297,7 @@ def gaitStyleProportionsPlot(ax, excel_files, leg_set = 'lateral'):
         all_combos, combo_colors = get_gait_combo_colors('four')
     elif leg_set in ['lateral','insect','six']:
         all_combos, combo_colors = get_gait_combo_colors('lateral')
-    print(combo_colors)
+    # print(combo_colors) # test OK
 
     exp_names = []
     for i, gait_styles_vec in enumerate(gait_style_vectors):
@@ -1313,7 +1311,7 @@ def gaitStyleProportionsPlot(ax, excel_files, leg_set = 'lateral'):
 
             if i == 0: # first dataset ... plot everything at 0 value to make labels for legend
                 ax.bar(i, 0, bottom = bottom, color = combo_colors[combo],
-                           edgecolor='white', width=barWidth, label=combo.replace('_',' '))
+                       edgecolor='white', width=barWidth, label=combo.replace('_',' '))
 
             if combo in gait_styles_vec:
 
@@ -1915,7 +1913,8 @@ def frameSwings(movie_file):
     if gait_df is not None:
     
         frametimes = gait_df['frametimes'].values
-        frames_swinging = {k:[] for k in frametimes}     
+        frames_swinging = {k:[] for k in frametimes}    
+        frames_nodata = {}
         
         cols = gait_df.columns.values
         for col in cols:
@@ -1930,11 +1929,13 @@ def frameSwings(movie_file):
                     except:
                         swings = []
                     
-                    # working ... also collect no data?
+                    # Also collect frames with no data
+                    if swing_vals[i] == 'no data':
+                        frames_nodata[frame] = 'no data'
                         
                     frames_swinging[frame] = frames_swinging[frame] + swings
             
-        return frames_swinging
+        return frames_swinging, frames_nodata
     
     else:
         
@@ -1962,7 +1963,7 @@ def plotLegSet(ax, movie_file, legs_to_plot = 'all'):
         now containing plotted steps for list in legs_to_plot (or all legs)
     '''
     
-    frames_swinging = frameSwings(movie_file)
+    frames_swinging, frames_nodata = frameSwings(movie_file)
     if frames_swinging is None: # nothing here
         print(' ... need data from frameStepper.py!')
         return ax
@@ -1987,8 +1988,8 @@ def plotLegSet(ax, movie_file, legs_to_plot = 'all'):
             bar_width = frame_times[i+1] - frame_times[i]
             if leg in frames_swinging[frame_time]:
                 bar_color = swing_color
-            
-            # working here ... also check for no data (will need to return from frameswings)
+            elif frame_time in frames_nodata.keys():
+                bar_color = 'white'
             else:
                 bar_color = stance_color
             ax.barh(i+1, bar_width, height=1, left = j*bar_width,
