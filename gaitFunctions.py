@@ -1251,7 +1251,10 @@ def get_gait_combo_colors(leg_set = 'lateral'):
                 'tripod_canonical','tripod_other','other']
         plot_colors = get_plot_colors(len(all_combos))
     
+    all_combos.append('no data')
+    plot_colors = np.append(plot_colors,'white')
     combo_colors = dict(zip(all_combos, plot_colors))
+
     return all_combos, combo_colors
 
 def gaitStyleProportionsPlot(ax, excel_files, leg_set = 'lateral'):
@@ -1296,6 +1299,7 @@ def gaitStyleProportionsPlot(ax, excel_files, leg_set = 'lateral'):
         all_combos, combo_colors = get_gait_combo_colors('four')
     elif leg_set in ['lateral','insect','six']:
         all_combos, combo_colors = get_gait_combo_colors('lateral')
+    print(combo_colors)
 
     exp_names = []
     for i, gait_styles_vec in enumerate(gait_style_vectors):
@@ -1771,7 +1775,6 @@ def getGaits(movie_file, leg_set = 'lateral'):
             frame_indices_with_events = np.arange(bout_start_frame,last_event_frame+1) 
             # print(len(frame_indices_with_events), frame_indices_with_events[0], frame_indices_with_events[-1]) # test OK
             
-            ### WORKING here ... need to update fill_leg_matrix
             # update leg matrix
             leg_matrix = fill_leg_matrix(leg_matrix, legs, up_down_times, frame_times, frame_indices_with_events)
             #print(last_event_frame, bout_end_frame) # test OK
@@ -1926,6 +1929,8 @@ def frameSwings(movie_file):
                         swings = swing_vals[i].split('_')
                     except:
                         swings = []
+                    
+                    # working ... also collect no data?
                         
                     frames_swinging[frame] = frames_swinging[frame] + swings
             
@@ -1982,6 +1987,8 @@ def plotLegSet(ax, movie_file, legs_to_plot = 'all'):
             bar_width = frame_times[i+1] - frame_times[i]
             if leg in frames_swinging[frame_time]:
                 bar_color = swing_color
+            
+            # working here ... also check for no data (will need to return from frameswings)
             else:
                 bar_color = stance_color
             ax.barh(i+1, bar_width, height=1, left = j*bar_width,

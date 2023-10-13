@@ -301,7 +301,8 @@ def cruisingProportionPlot(ax, tracked_df):
 def timeRibbonPlot(a4, tracked_df):
     cmap_name = 'plasma'
     times = tracked_df.times.values
-    cmap = mpl.colormaps.get_cmap(cmap_name)
+    # cmap = mpl.colormaps.get_cmap(cmap_name)
+    cmap = mpl.cm.get_cmap(cmap_name)
     cols = cmap(np.linspace(0,1,len(times[:-1])))
     a4.scatter(times[:-1],np.ones(len(times[:-1])),c=cols,s=10) # color-coded time!
     return a4
