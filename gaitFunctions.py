@@ -1709,9 +1709,8 @@ def getGaits(movie_file, leg_set = 'lateral'):
     
     if need_gait_styles:
                
-        print(' ... getting gait style at each frame ...')
+        print(' ... getting gait style at each frame for ' + leg_set + ' legs ...')
         
-        # WORKING
         if leg_set in ['quad', 'four', 'tetrapod', 'cat', 'dog']:
             legs = get_leg_combos()[0]['pair 1'] + get_leg_combos()[0]['pair 2']
         elif leg_set in ['rear']:
@@ -1766,7 +1765,7 @@ def getGaits(movie_file, leg_set = 'lateral'):
             # print(np.shape(leg_matrix)) # test OK
             # print(leg_matrix) # test OK
             
-            # trim frame_times to only include frames up to last recorded event <<==== OR FRAMES WITH EVENTS?? WORKING
+            # trim frame_times to only include frames up to last recorded event <<==== OR FRAMES WITH EVENTS??
             last_event_frame = np.min(np.where(frame_times >= latest_event))
             # print(steptracking_sheet, last_event_frame, bout_end_frame, bout_start_time, bout_end_time) # test OK
             frame_indices_with_events = np.arange(bout_start_frame,last_event_frame+1) 
@@ -1775,8 +1774,14 @@ def getGaits(movie_file, leg_set = 'lateral'):
             ### WORKING here ... need to update fill_leg_matrix
             # update leg matrix
             leg_matrix = fill_leg_matrix(leg_matrix, legs, up_down_times, frame_times, frame_indices_with_events)
+            #print(last_event_frame, bout_end_frame) # test OK
+            if last_event_frame < bout_end_frame:
             
-            # if latest event index < bout end index, fill in to end of bout with last known state WORKING!
+                last_leg_state = np.array([leg_matrix[:,last_event_frame]])
+                frame_diff = bout_end_frame - last_event_frame + 1
+                to_fill = np.tile(last_leg_state.transpose(),(1,frame_diff))
+                
+                leg_matrix[:,last_event_frame:last_event_frame+frame_diff] = to_fill
             
             # QUALITY CONTROL for leg_matrix ... looks OK
             # print(legs)
@@ -1811,7 +1816,7 @@ def getGaits(movie_file, leg_set = 'lateral'):
             else:
                 up_legs.append('no data')
                 gait_styles.append('no data')
-            
+
         # # append the last swinging_leg_combo and gait_style to make the size same as frame_times
         # extra_frames = len(frame_times)-len(gait_styles)
         # gait_styles.extend([gait_styles[-1]] * extra_frames)
