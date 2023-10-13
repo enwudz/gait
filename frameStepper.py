@@ -64,7 +64,7 @@ def main(movie_file, resize=100):
         # print informmation about cruising bouts for this movie
         print('...this clip has ' + str(path_stats['# cruise bouts']) + ' bouts of cruising:')
 
-        cruise_bouts = path_stats['cruise bout timing'].split('; ')
+        cruise_bouts = path_stats['cruise bout timing'].split(';')
         for bout in cruise_bouts:
             print('   ' + bout)
             
@@ -95,9 +95,8 @@ def main(movie_file, resize=100):
         if save_bouts: # save multiple bouts
             frame_folder_list = []
             for bout in cruise_bouts:
-                bout_timing = bout.split(':')[1]
-                boutstart = float(bout_timing.split('-')[0].replace(' ',''))
-                boutend = float(bout_timing.split('-')[1].replace(' ',''))
+                boutstart = float(bout.split('-')[0].replace(' ',''))
+                boutend = float(bout.split('-')[1].replace(' ',''))
                 time_string = str(int(boutstart)) + '-' + str(int(boutend))
                 
                 if rotated_frames:
@@ -135,11 +134,12 @@ def main(movie_file, resize=100):
     if len(frame_folder_list) > 1:
         print('Select a folder of frames to track:')
         frame_folder = gaitFunctions.selectOneFromList(frame_folder_list)
-        steptracking_sheet += '_' + frame_folder.split('_')[-2]
+        time_int = frame_folder.split('_')[-2]
+        steptracking_sheet += '_' + time_int
     else:
         frame_folder = frame_folder_list[0]
-    print(frame_folder)
-    print(steptracking_sheet)
+    # print(frame_folder)
+    # print(steptracking_sheet)
     
     ''' *******************
     OK, now we have the single folder of frames we want to track, 
@@ -509,10 +509,10 @@ if __name__== "__main__":
         try:
             resize = int(sys.argv[2])
         except:
-            resize = 100
+            resize = 300
     else:
         movie_file = gaitFunctions.selectFile(['mp4','mov'])
-        resize = 100
+        resize = 300
 
     print('Resizing to ' + str(resize) + '%')
     main(movie_file, resize)

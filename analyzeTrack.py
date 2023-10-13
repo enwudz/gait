@@ -113,28 +113,32 @@ def main(movie_file):
     # add cruise bout data
     cruise_bouts = cruiseBouts(turns,stops)
     cruise_bout_timing = []
-    cruise_bout_durations = 0
+    cruise_bout_durations = []
+    cruise_bout_total_duration = 0
     for bout in cruise_bouts:
         bout_start = frametimes[bout[0]]
         if bout[1] >= len(frametimes):
             bout_end = frametimes[-1]
         else:
             bout_end = frametimes[bout[1]]
-        bout_length = np.round(bout_end-bout_start,3)
-        if bout_length >= cruise_bout_threshold:
-            cruise_bout_timing.append(str(bout_length) + ' seconds: ' + str(bout_start) + '-' + str(bout_end))
-            cruise_bout_durations += bout_length
-    cruise_bout_summary = '; '.join(cruise_bout_timing)
+        bout_duration = np.round(bout_end-bout_start,3)
+        if bout_duration >= cruise_bout_threshold:
+            cruise_bout_timing.append(str(bout_start) + '-' + str(bout_end))
+            cruise_bout_durations.append(bout_duration)
+            cruise_bout_total_duration += bout_duration
+
     num_cruise_bouts = len(cruise_bout_timing)
-    print('\n# cruising bouts: ' + str(num_cruise_bouts) + ', total seconds cruising: ' + str(cruise_bout_durations))
-    print(cruise_bout_summary + '\n')
+    print('\n# cruising bouts: ' + str(num_cruise_bouts) + ', total seconds cruising: ' + str(cruise_bout_total_duration))
+    timing_string = ';'.join(cruise_bout_timing)
+    print('timing: ', timing_string)
+    durations_string = ';'.join([str(x) for x in cruise_bout_durations])
+    print('durations: ', durations_string)
             
-        
     parameters = ['scale','unit','area','length','clip duration','total distance','average speed',
-                  '# turns','# stops', '% cruising', '# cruise bouts', 'cruise bout timing','cumulative bearings','bin duration',
+                  '# turns','# stops', '% cruising', '# cruise bouts', 'cruise bout durations', 'cruise bout timing','cumulative bearings','bin duration',
                   'pixel threshold','tracking confidence']
     vals = [scale, unit, median_area, median_length, clip_duration, total_distance, 
-            average_speed, num_turns, num_stops, cruising_proportion, num_cruise_bouts, cruise_bout_summary, cumulative_bearings, 
+            average_speed, num_turns, num_stops, cruising_proportion, num_cruise_bouts, durations_string, timing_string, cumulative_bearings, 
             time_increment, pixel_threshold, tracking_confidence]
     
     path_stats = zip(parameters, vals)
