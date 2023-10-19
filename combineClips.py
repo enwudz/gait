@@ -118,8 +118,11 @@ def main():
         treatment = identity_info['treatment']
         individual = str(identity_info['individualID'])
         date = str(identity_info['date'])
+        month = identity_info['month']
+        initials = identity_info['initials']
+        species = identity_info['species']
         # print(treatment, individual, date)
-        uniq_id = '_'.join([treatment, individual, date])
+        uniq_id = '_'.join([initials, date+month, species+individual, treatment])
         
         #### ===> load path_stats from this clip
         path_stats_dict = gaitFunctions.loadPathStats(movie_file)
@@ -415,9 +418,9 @@ def main():
     
     #### ==> path_summaries dataframe ... info for each unique individual
     ids = sorted(clip_duration.keys())   
-    treatments = [x.split('_')[0] for x in ids]
-    individuals = [x.split('_')[1] for x in ids]
-    dates = [x.split('_')[2] for x in ids]  
+    treatments = [x.split('_')[3] for x in ids]
+    individuals = [x.split('_')[2] for x in ids]
+    dates = [x.split('_')[1] for x in ids]  
     scales = [np.mean(clip_scales[x]) for x in ids]
     lengths = [np.mean(clip_lengths[x]) for x in ids]
     areas = [np.mean(clip_areas[x]) for x in ids]

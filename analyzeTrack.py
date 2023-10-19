@@ -128,7 +128,7 @@ def main(movie_file):
             cruise_bout_total_duration += bout_duration
 
     num_cruise_bouts = len(cruise_bout_timing)
-    print('\n# cruising bouts: ' + str(num_cruise_bouts) + ', total seconds cruising: ' + str(cruise_bout_total_duration))
+    print('\n# cruising bouts: ' + str(num_cruise_bouts) + ', total seconds cruising: ' + str(np.round(cruise_bout_total_duration,1)))
     timing_string = ';'.join(cruise_bout_timing)
     print('timing: ', timing_string)
     durations_string = ';'.join([str(x) for x in cruise_bout_durations])
