@@ -55,6 +55,9 @@ def main():
     step_summaries_df = pd.DataFrame()
     gait_summaries_df = pd.DataFrame()
     
+    # make empty dictionary to keep track of cruise bouts for each individual
+    cruise_bouts = {}
+    
     # make empty dictionaries to collect path data, keyed by unique individual
     clip_scales = {}
     clip_areas = {} 
@@ -124,6 +127,14 @@ def main():
         # print(treatment, individual, date)
         uniq_id = '_'.join([initials, date+month, species+individual, treatment])
         
+        # if no cruise bout information collected yet for this individual,
+        # add this individual to the cruise_bout dictionary and set up empty lists
+        if uniq_id not in cruise_bouts.keys():
+            cruise_bouts[uniq_id] = {}
+            cruise_bouts[uniq_id]['bout durations'] = []
+            cruise_bouts[uniq_id]['clip names'] = []
+            cruise_bouts[uniq_id]['bout windows'] = []
+        
         #### ===> load path_stats from this clip
         path_stats_dict = gaitFunctions.loadPathStats(movie_file)
         
@@ -174,6 +185,8 @@ def main():
             distance_traveled[uniq_id] = np.append(distance_traveled[uniq_id], float(path_stats_dict['total distance']))
         else:
             distance_traveled[uniq_id] = np.array(float(path_stats_dict['total distance']))
+            
+        ## working here - collect bout timing data
         
         #### ===> load tracked data from this clip
         tdf, excel_file = gaitFunctions.loadTrackedPath(movie_file)
@@ -484,7 +497,6 @@ def main():
     opposite_offsets_rear = [np.mean(clip_opposite_offset_rear[x]) for x in ids] 
     opposite_offsets_rear_normalized = [np.mean(clip_opposite_offset_rear_normalized[x]) for x in ids] 
         
-    # WORKING HERE
     step_summaries_dict = {'Identifier':ids,
                            'treatment':treatments,
                            'individual':individuals,
@@ -549,7 +561,7 @@ def main():
                            }
     
     gait_summaries_df = pd.DataFrame(gait_summaries_dict)
-    
+
     # save dataframes to output file
     print('\nCombining data from all clips into ' + out_file)
     with pd.ExcelWriter(out_file, engine='openpyxl') as writer: 
@@ -561,6 +573,8 @@ def main():
             step_summaries_df.to_excel(writer, index=False, sheet_name='step_summaries')
         if len(gait_summaries_df) > 0:
             gait_summaries_df.to_excel(writer, index=False, sheet_name='gait_summaries')
+            
+    ## working here - save cruise bout information to output file
 
 
 def addColtoDF(df, colname, st):

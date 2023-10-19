@@ -30,7 +30,7 @@ def main(movie_file):
     analyzeTrack.main(movie_file) # when finished with autoTracker
 
     ## show plots
-    plotClip.main(movie_file)
+    # plotClip.main(movie_file)
 
     
     ## step-by-step timing
