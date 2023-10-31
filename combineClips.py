@@ -489,7 +489,6 @@ def main():
     #### ==> step_summaries dataframe ... info for each unique individual
     
     ids = sorted(clip_stance_lateral.keys())
-    print(ids)
     treatments = [x.split('_')[3] for x in ids]
     individuals = [x.split('_')[2] for x in ids]
     dates = [x.split('_')[1] for x in ids]
@@ -497,21 +496,13 @@ def main():
     swing_duration_lateral = [np.mean(clip_swing_lateral[x]) for x in ids]
     gait_cycle_lateral = [np.mean(clip_gait_lateral[x]) for x in ids]
     duty_factor_lateral = [np.mean(clip_duty_lateral[x]) for x in ids]
-    
-    
-    ## WORK THIS
-    distance_per_step_lateral = [np.mean(np.mean(clip_pixels_per_step_lateral[x]) / clip_scales[x]) for x in ids]
-    print(distance_per_step_lateral)
-    
+    distance_per_step_lateral = [np.mean(np.mean(clip_pixels_per_step_lateral[x]) / clip_scales[x]) for x in ids]    
     bodylength_per_step_lateral = [np.mean(clip_pixels_per_step_lateral[x]) / np.median(clip_body_lengths_pixels[x]) for x in ids]
     stance_duration_rear = [np.mean(clip_stance_rear[x]) for x in ids]
     swing_duration_rear = [np.mean(clip_swing_rear[x]) for x in ids]
     gait_cycle_rear = [np.mean(clip_gait_rear[x]) for x in ids]
     duty_factor_rear = [np.mean(clip_duty_rear[x]) for x in ids]
-    
-    ## WORK THIS
     distance_per_step_rear = [np.mean(np.mean(clip_pixels_per_step_rear[x]) / clip_scales[x]) for x in ids]
-
     bodylength_per_step_rear = [np.mean(clip_pixels_per_step_rear[x]) / np.median(clip_body_lengths_pixels[x]) for x in ids]
     anterior_offsets = [np.mean(clip_anterior_offset[x]) for x in ids]
     normalized_anterior_offsets = [np.mean(clip_anterior_offset_normalized[x]) for x in ids]
@@ -551,9 +542,9 @@ def main():
    
     #### ==> gait_summaries dataframe ... info for each unique individual
     ids = sorted(clip_total_frames.keys())
-    treatments = [x.split('_')[0] for x in ids]
-    individuals = [x.split('_')[1] for x in ids]
-    dates = [x.split('_')[2] for x in ids]
+    treatments = [x.split('_')[3] for x in ids]
+    individuals = [x.split('_')[2] for x in ids]
+    dates = [x.split('_')[1] for x in ids]
     num_frames = [np.sum(clip_total_frames[x]) for x in ids]
     frames_standing_lateral = [np.sum(clip_stand_lateral[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
     frames_pentapod = [np.sum(clip_pentapod[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
