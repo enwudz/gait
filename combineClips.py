@@ -60,8 +60,10 @@ def main():
     
     # make empty dictionaries to collect path data, keyed by unique individual
     clip_scales = {}
-    clip_areas = {} 
-    clip_lengths = {}
+    clip_body_areas_pixels = {} 
+    clip_body_lengths_pixels = {}
+    clip_body_areas_scaled = {} 
+    clip_body_lengths_scaled = {}
     clip_cruising = {}
     clip_duration = {}
     num_stops = {}
@@ -144,17 +146,29 @@ def main():
         else:
             clip_scales[uniq_id] = np.array(float(path_stats_dict['scale']))
         
-        # collect areas for this individual in this clip
-        if uniq_id in clip_areas.keys():
-            clip_areas[uniq_id] = np.append(clip_areas[uniq_id], float(path_stats_dict['area']))
+        # collect body areas in pixels for this individual in this clip
+        if uniq_id in clip_body_areas_pixels.keys():
+            clip_body_areas_pixels[uniq_id] = np.append(clip_body_areas_pixels[uniq_id], float(path_stats_dict['body area (pixels^2)']))
         else:
-            clip_areas[uniq_id] = float(path_stats_dict['area'])
+            clip_body_areas_pixels[uniq_id] = float(path_stats_dict['body area (pixels^2)'])
         
-        # collect lengths for this individual in this clip
-        if uniq_id in clip_lengths.keys():
-            clip_lengths[uniq_id] = np.append(clip_lengths[uniq_id], float(path_stats_dict['length']))
+        # collected body lengths in pixels for this individual in this clip
+        if uniq_id in clip_body_lengths_pixels.keys():
+            clip_body_lengths_pixels[uniq_id] = np.append(clip_body_lengths_pixels[uniq_id], float(path_stats_dict['body length (pixels)']))
         else:
-            clip_lengths[uniq_id] = float(path_stats_dict['length'])
+            clip_body_lengths_pixels[uniq_id] = float(path_stats_dict['body length (pixels)'])
+        
+        # collect scaled areas for this individual in this clip
+        if uniq_id in clip_body_areas_scaled.keys():
+            clip_body_areas_scaled[uniq_id] = np.append(clip_body_areas_scaled[uniq_id], float(path_stats_dict['body area (scaled)']))
+        else:
+            clip_body_areas_scaled[uniq_id] = float(path_stats_dict['body area (scaled)'])
+        
+        # collect scaled lengths for this individual in this clip
+        if uniq_id in clip_body_lengths_scaled.keys():
+            clip_body_lengths_scaled[uniq_id] = np.append(clip_body_lengths_scaled[uniq_id], float(path_stats_dict['body length (scaled)']))
+        else:
+            clip_body_lengths_scaled[uniq_id] = float(path_stats_dict['body length (scaled)'])
         
         # collect clip duration for this individual for this clip
         if uniq_id in clip_duration.keys():
@@ -211,8 +225,8 @@ def main():
             sdf = addColtoDF(sdf, 'clip', clip) # add clip name
             sdf = addColtoDF(sdf, 'treatment', treatment) # add treatment type
             sdf = addColtoDF(sdf, 'individual', individual) # add individual name
-            sdf = addColtoDF(sdf, 'date', date) # add date
-            sdf = addColtoDF(sdf, 'uniq_id', treatment + '_' + individual + '_' + date)
+            sdf = addColtoDF(sdf, 'date', date+month) # add date
+            sdf = addColtoDF(sdf, 'uniq_id', uniq_id)
             step_timing_combined_df = pd.concat([step_timing_combined_df, sdf])
             
         #### ===> make new summary sheet for step parameters = step_summaries
@@ -349,6 +363,8 @@ def main():
         gdf = gaitFunctions.loadGaitData(movie_file, excel_file)
         
         if gdf is not None:
+
+            gdf = gdf[gdf['gaits_lateral'] != 'no data'] # only include frames with gait data
             
             lateral_gaits = gdf['gaits_lateral'].values
             rear_gaits = gdf['gaits_rear'].values
@@ -435,8 +451,8 @@ def main():
     individuals = [x.split('_')[2] for x in ids]
     dates = [x.split('_')[1] for x in ids]  
     scales = [np.mean(clip_scales[x]) for x in ids]
-    lengths = [np.mean(clip_lengths[x]) for x in ids]
-    areas = [np.mean(clip_areas[x]) for x in ids]
+    lengths = [np.mean(clip_body_lengths_scaled[x]) for x in ids]
+    areas = [np.mean(clip_body_areas_scaled[x]) for x in ids]
     durations = [np.sum(clip_duration[x]) for x in ids]
     distances = [np.sum(distance_traveled[x]) for x in ids]
     speed_mm = [distance / durations[i] for i, distance in enumerate(distances)]
@@ -473,21 +489,30 @@ def main():
     #### ==> step_summaries dataframe ... info for each unique individual
     
     ids = sorted(clip_stance_lateral.keys())
-    treatments = [x.split('_')[0] for x in ids]
-    individuals = [x.split('_')[1] for x in ids]
-    dates = [x.split('_')[2] for x in ids]
+    print(ids)
+    treatments = [x.split('_')[3] for x in ids]
+    individuals = [x.split('_')[2] for x in ids]
+    dates = [x.split('_')[1] for x in ids]
     stance_duration_lateral = [np.mean(clip_stance_lateral[x]) for x in ids]
     swing_duration_lateral = [np.mean(clip_swing_lateral[x]) for x in ids]
     gait_cycle_lateral = [np.mean(clip_gait_lateral[x]) for x in ids]
     duty_factor_lateral = [np.mean(clip_duty_lateral[x]) for x in ids]
-    distance_per_step_lateral = [np.mean(clip_pixels_per_step_lateral[x]) / clip_scales[x] for x in ids]
-    bodylength_per_step_lateral = [np.mean(clip_pixels_per_step_lateral[x]) / np.median(clip_lengths[x]) for x in ids]
+    
+    
+    ## WORK THIS
+    distance_per_step_lateral = [np.mean(np.mean(clip_pixels_per_step_lateral[x]) / clip_scales[x]) for x in ids]
+    print(distance_per_step_lateral)
+    
+    bodylength_per_step_lateral = [np.mean(clip_pixels_per_step_lateral[x]) / np.median(clip_body_lengths_pixels[x]) for x in ids]
     stance_duration_rear = [np.mean(clip_stance_rear[x]) for x in ids]
     swing_duration_rear = [np.mean(clip_swing_rear[x]) for x in ids]
     gait_cycle_rear = [np.mean(clip_gait_rear[x]) for x in ids]
     duty_factor_rear = [np.mean(clip_duty_rear[x]) for x in ids]
-    distance_per_step_rear = [np.mean(clip_pixels_per_step_rear[x]) / clip_scales[x] for x in ids]
-    bodylength_per_step_rear = [np.mean(clip_pixels_per_step_rear[x]) / np.median(clip_lengths[x]) for x in ids]
+    
+    ## WORK THIS
+    distance_per_step_rear = [np.mean(np.mean(clip_pixels_per_step_rear[x]) / clip_scales[x]) for x in ids]
+
+    bodylength_per_step_rear = [np.mean(clip_pixels_per_step_rear[x]) / np.median(clip_body_lengths_pixels[x]) for x in ids]
     anterior_offsets = [np.mean(clip_anterior_offset[x]) for x in ids]
     normalized_anterior_offsets = [np.mean(clip_anterior_offset_normalized[x]) for x in ids]
     opposite_offsets_lateral = [np.mean(clip_opposite_offset_lateral[x]) for x in ids]

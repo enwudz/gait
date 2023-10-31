@@ -38,7 +38,9 @@ def main(movie_file):
     tracked_data, excel_filename = gaitFunctions.loadTrackedPath(movie_file)
     if tracked_data is None:
         print('No path tracking data yet - run trackCritter.py')
-        return    
+        return
+    else:
+        print('\nAnalyzing tracked path from ' + movie_file)
     
     cols = tracked_data.columns.values
     for c in cols:
@@ -82,8 +84,10 @@ def main(movie_file):
     cruising_proportion = np.round( ( 1 - non_cruising_proportion ) * 100, 2)
     
     # get medians for critter size: area and length
-    median_area = np.median(areas) / scale**2
-    median_length = np.median(lengths) / scale
+    median_area_pixels = np.median(areas)
+    median_length_pixels = np.median(lengths)
+    median_area_scaled = np.median(areas) / scale**2
+    median_length_scaled = np.median(lengths) / scale
     
     ### add all tracking vectors to the excel file, 'pathtracking' tab
     d = {'times':frametimes, 'xcoords':xcoords, 'ycoords':ycoords, 'areas':areas, 'lengths':lengths,
@@ -128,16 +132,16 @@ def main(movie_file):
             cruise_bout_total_duration += bout_duration
 
     num_cruise_bouts = len(cruise_bout_timing)
-    print('\n# cruising bouts: ' + str(num_cruise_bouts) + ', total seconds cruising: ' + str(np.round(cruise_bout_total_duration,1)))
+    print('# cruising bouts: ' + str(num_cruise_bouts) + ', total seconds cruising: ' + str(np.round(cruise_bout_total_duration,1)))
     timing_string = ';'.join(cruise_bout_timing)
     print('timing: ', timing_string)
     durations_string = ';'.join([str(x) for x in cruise_bout_durations])
     print('durations: ', durations_string)
             
-    parameters = ['scale','unit','area','length','clip duration','total distance','average speed',
+    parameters = ['scale','unit','body area (pixels^2)','body length (pixels)', 'body area (scaled)','body length (scaled)','clip duration','total distance','average speed',
                   '# turns','# stops', '% cruising', '# cruise bouts', 'cruise bout durations', 'cruise bout timing','cumulative bearings','bin duration',
                   'pixel threshold','tracking confidence']
-    vals = [scale, unit, median_area, median_length, clip_duration, total_distance, 
+    vals = [scale, unit, median_area_pixels, median_length_pixels, median_area_scaled, median_length_scaled, clip_duration, total_distance, 
             average_speed, num_turns, num_stops, cruising_proportion, num_cruise_bouts, durations_string, timing_string, cumulative_bearings, 
             time_increment, pixel_threshold, tracking_confidence]
     

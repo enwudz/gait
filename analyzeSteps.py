@@ -18,6 +18,20 @@ import pandas as pd
 
 def main(movie_file):
 
+    # load excel file for this movie file        
+    excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file.split('.')[0]) 
+    
+    # find steptracking sheets in this excel file
+    xl = pd.ExcelFile(excel_filename)
+    sheets = xl.sheet_names
+    steptracking_sheets = sorted([x for x in sheets if 'steptracking' in x ])
+    
+    if len(steptracking_sheets) == 0:
+        print('No step tracking data for ' + movie_file)
+        return
+    else:
+        print('\nAnalyzing step data for ' + movie_file)
+
     add_swing = True # do we want to collect mid-swing times for all other legs for each step?
 
     # get legs
@@ -40,13 +54,7 @@ def main(movie_file):
             header += ',' + leg + '_mid_swings'
         header += ',anterior_swing_start,contralateral_swing_start'
 
-    # load excel file for this movie file        
-    excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file.split('.')[0]) 
-    
-    # find steptracking sheets in this excel file
-    xl = pd.ExcelFile(excel_filename)
-    sheets = xl.sheet_names
-    steptracking_sheets = sorted([x for x in sheets if 'steptracking' in x ])
+
 
     for steptracking_sheet in steptracking_sheets:
         print('... getting steps from ' + steptracking_sheet)
