@@ -239,7 +239,8 @@ def makeBoxPlot(df,col,groupnames,groups,datacol):
     # make boxplot
     bp = plt.boxplot(data_to_plot, patch_artist=True, showfliers=False)
     # # bp = gaitFunctions.formatBoxPlots(bp, ['tab:blue'], ['white'], ['lightsteelblue']) # boxcolor, mediancolors, fliercolors
-    bp = gaitFunctions.formatBoxPlots(bp, [[0,0,0.384]] , ['lightgrey'],  ['lightsteelblue'])
+    # bp = gaitFunctions.formatBoxPlots(bp, [[0,0,0.384]] , ['lightgrey'],  ['lightsteelblue'])
+    bp = gaitFunctions.formatBoxPlots(bp, ['forestgreen'],['whitesmoke'], ['yellowgreen'])
     
     # add scatter over the boxplot
     a = 1 # alpha
@@ -260,7 +261,8 @@ def makeBoxPlot(df,col,groupnames,groups,datacol):
     plt.ylabel(datacol, fontsize=12)
     plt.xticks(np.arange(len(groups))+1,groupnames)
     ax.tick_params(axis='x', labelsize=12)
-    ax.set_facecolor([ 0.76, 0.86, 0.85 ])
+    # ax.set_facecolor([ 0.76, 0.86, 0.85 ])
+    ax.set_facecolor('lightgray')
     plt.subplots_adjust(left = 0.3)
     
     plt.show()

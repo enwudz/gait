@@ -44,7 +44,7 @@ def main(movie_file, plot_style = ''): # track or speed or steps
     # collect data for path_stats
     # median_area = round(path_stats['area'],4)
     scale = float(path_stats['scale'])
-    median_length = round(path_stats['length'],4)
+    median_length = round(path_stats['body length (scaled)'],4)
     clip_duration = round(path_stats['clip duration'],2)
     distance = round(path_stats['total distance'],3)
     angle_space = round(path_stats['cumulative bearings'],3)

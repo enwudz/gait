@@ -470,8 +470,8 @@ def main():
                            'individual':individuals,
                            'date':dates,
                            'Scale (pixels in 1mm)':scales,
-                           'Size (mm^2)':areas,
-                           'Length (mm)':lengths,
+                           'Body Size (mm^2)':areas,
+                           'Body Length (mm)':lengths,
                            'Duration analyzed (sec)':durations,
                            'Distance traveled (mm)':distances,
                            'Speed (mm/s)':speed_mm,
@@ -535,7 +535,7 @@ def main():
                            'Opposite swing offsets (lateral legs)':opposite_offsets_lateral,
                            'Opposite swing offsets (normalized, lateral legs)':opposite_offsets_lateral_normalized,
                            'Opposite swing offsets (rear legs)':opposite_offsets_rear,
-                           'Opposite swing offsets (rear, lateral legs)':opposite_offsets_rear_normalized
+                           'Opposite swing offsets (normalized, rear legs)':opposite_offsets_rear_normalized
                            }
     
     step_summaries_df = pd.DataFrame(step_summaries_dict)
