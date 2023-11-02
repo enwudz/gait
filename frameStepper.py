@@ -70,7 +70,7 @@ def main(movie_file, resize=100):
             
         # ask if want to save frames for whole movie, or for the individual bouts
         bout_decision = input('\nMake frames from (w)hole movie, or from the (c)ruising bouts only? ').rstrip().lower()
-        frames_decision = input('\nSave (r)otated and cropped frames, or (u)nprocssed frames? ').rstrip().lower()
+        frames_decision = input('\nSave (r)otated and cropped frames, or (u)nprocessed frames? ').rstrip().lower()
         
         if bout_decision == 'c':
             bout_text = 'each bout'
