@@ -1277,7 +1277,7 @@ def gaitStyleProportionsPlot(ax, excel_files, leg_set = 'lateral'):
     
     barWidth = 0.5
 
-    # get the gait vectors for the selected movie fiels
+    # get the gait vectors for the selected movie files
     gait_style_vectors = []
     exp_names = []
     
@@ -2318,11 +2318,12 @@ def up_down_times_to_binary(downs, ups, frame_times):
 
     return leg_vector
 
-def fill_leg_matrix(leg_matrix, legs, up_down_times, frame_times, indices):
+def fill_leg_matrix(leg_matrix, legs, up_down_times, frame_times, indices=[]):
     ''' 
 
     Parameters
     ----------
+    leg_matrix : numpy array of rows = legs, columns = frame_times
     legs : list or numpy array
         a list of leg names (e.g. ['R1','L1','R2','L2',... ])
         the order of this list will be the order of rows in the output matrix
@@ -2339,6 +2340,11 @@ def fill_leg_matrix(leg_matrix, legs, up_down_times, frame_times, indices):
         columns = each frame of video clip.
 
     '''
+    
+    # WORKING
+    # set to all columns if no input given
+    if len(indices) == 0:
+        indices = np.arange(0,len(frame_times))
 
     # fill up each row of leg matrix with data for each leg
     for i, leg in enumerate(legs):

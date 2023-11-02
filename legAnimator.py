@@ -9,6 +9,9 @@ animation of legs
 
 (option to) add animated step plot along with critter?
 
+crop area of movie: https://ezgif.com/crop-video
+make a gif: https://ezgif.com/video-to-gif
+
 """
 
 import numpy as np
@@ -46,14 +49,27 @@ def main():
 
 def load_simulated_steps(num_legs):
     ## define step parameters
+    num_cycles = 4
+    gait_cycle = 2 # in seconds
+    duty_factor =     0.7 # in fraction of gait cycle
+    anterior_offset = 0.66 # in fraction of gait cycle
+    opposite_offset = 0.5 # in fraction of gait cycle
+    fps = 30 # frames per second
+    
     simulation = {}
     simulation['num_legs'] = num_legs
-    simulation['num_cycles'] = 10
-    simulation['gait_cycle'] = 2 # in seconds
-    simulation['duty_factor'] = 0.695 # in fraction of gait cycle
-    simulation['opposite_offset'] = 0.45 # in fraction of gait cycle
-    simulation['anterior_offset'] = 0.35 # in fraction of gait cycle
-    simulation['fps'] = 30
+    simulation['num_cycles'] = num_cycles
+    simulation['gait_cycle'] = gait_cycle # in seconds
+    simulation['duty_factor'] = duty_factor
+    simulation['opposite_offset'] = opposite_offset
+    simulation['anterior_offset'] = anterior_offset
+    simulation['fps'] = fps
+    
+    max_time = int(num_cycles * gait_cycle)
+    frame_times = np.linspace(0,max_time,max_time*fps)
+    simulation['frame_times'] = frame_times[1:]
+    simulation['max_time'] = max_time
+    
     up_down_times, frame_times = simulate_steps(simulation)
     return up_down_times, frame_times
 
@@ -158,8 +174,9 @@ def get_leg_swings(up_down_times, frame_times):
     legs = gaitFunctions.get_leg_list(num_legs)
     legs = [x for x in legs if x in up_down_times.keys()]
     
-    ## get leg matrix
-    leg_matrix = gaitFunctions.make_leg_matrix(legs, up_down_times, frame_times)
+    # get leg matrix
+    leg_matrix = np.zeros([len(legs), len(frame_times)])
+    leg_matrix = gaitFunctions.fill_leg_matrix(leg_matrix, legs, up_down_times, frame_times)
     
     ## get leg states (up or down) and leg angles (forward or backward extent) from leg_matrix
     legstates = {}
@@ -606,12 +623,10 @@ def simulate_steps(simulation):
     duty_factor = simulation['duty_factor'] # in fraction of gait cycle
     opposite_offset = simulation['opposite_offset'] # in fraction of gait cycle
     anterior_offset = simulation['anterior_offset'] # in fraction of gait cycle
-    fps = simulation['fps']
+    max_time = simulation['max_time']
+    frame_times = simulation['frame_times']
     
     # figure out some parameters of timing
-    max_time = int(num_cycles * gait_cycle)
-    frame_times = np.linspace(0,max_time,max_time*fps)
-    frame_times = frame_times[1:]
     seconds_per_stance = duty_factor * gait_cycle
     opposite_offset_seconds = opposite_offset * gait_cycle
     anterior_offset_seconds = anterior_offset * gait_cycle

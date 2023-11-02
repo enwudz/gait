@@ -40,7 +40,9 @@ def main(datafile):
     if len(data_dfs.keys()) == 1:
         selected_dataset = list(data_dfs.keys())[0]
     elif len(data_dfs.keys()) > 1:   
-        datatype_options = [datatype + ': ' + data_descriptions[datatype] for i, datatype in enumerate(data_dfs.keys())]
+        datatype_options = [datatype.replace('_',' ') + ': ' + data_descriptions[datatype] for i, datatype in enumerate(data_dfs.keys())]
+        if 'gait_summaries' in data_dfs.keys(): # include option to plot stacked bars for gait styles
+            datatype_options.append('gait proportions: proportion of time spent in all gaits')
         selection = gaitFunctions.selectOneFromList(datatype_options)
         selected_dataset = selection.split(':')[0] # klugey
     else:
@@ -55,8 +57,32 @@ def main(datafile):
         summaryPlots(data_dfs['step_summaries'], 3)
     if selected_dataset == 'gait_summaries':
         summaryPlots(data_dfs['gait_summaries'], 5)
+    if selected_dataset == 'gait proportions':
+        gaitProportionPlots(data_dfs['gait_summaries'])
 
     # while plotting, show plot options. When finished, exit.    
+
+def gaitProportionPlots(gait_df):
+    
+    # define a list of groups to compare
+    
+    # if control or wildtype is in the groups, put that one first in the list
+    
+    # get gait styles and colors
+    
+    # set up plot, with width scaled to number of groups
+    
+    # for each group
+    
+    # for each gait style
+    
+    # get proportion and add to plot
+    
+    # add the group labels
+    
+    # add the gait style legend
+    
+    return
 
 def stepTimingPlots(step_df):
     '''
@@ -296,10 +322,10 @@ def getSheets(excel_file):
     
     all_datatypes = np.array(['path_summaries', 'step_timing', 'step_summaries', 'gait_summaries'])
     
-    all_descriptions = np.array(['path tracking data from trackCritter.py and analyzeTrack.py',
-                         '   individual step data from frameStepper.py and analyzeSteps.py',
-                         'step parameter averages from frameStepper.py and analyzeSteps.py',
-                         'gait style averages from frameStepper.py and analyzeSteps.py'])
+    all_descriptions = np.array(['  path tracking data from trackCritter.py and analyzeTrack.py',
+                         '     individual step data from frameStepper.py and analyzeSteps.py',
+                         '  step parameter averages from frameStepper.py and analyzeSteps.py',
+                         '  gait style averages from frameStepper.py and analyzeSteps.py'])
 
     all_dataframes = np.empty(4, dtype = object)
     

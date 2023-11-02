@@ -18,7 +18,7 @@ WISH LIST
 
 '''
 
-def main(movie_file, resize=100):
+def main(movie_file, resize=20):
     
     ''' ******************* 
     first, need to find the frames folder(s) for this movie
