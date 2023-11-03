@@ -85,14 +85,35 @@ def gaitProportionPlots(gait_df):
     leg_set = 'lateral'
     
     # get gait styles and colors
-    
+    if leg_set in ['rear','two','human']:
+        all_combos, combo_colors = gaitFunctions.get_gait_combo_colors('rear')
+    elif leg_set in ['four','cat','dog','tetrapod']:
+        all_combos, combo_colors = gaitFunctions.get_gait_combo_colors('four')
+    elif leg_set in ['lateral','insect','six']:
+        all_combos, combo_colors = gaitFunctions.get_gait_combo_colors('lateral')
+    try:
+        all_combos.remove('no data')
+    except:
+        None
+    # from gait style combos, get correct column names from the gait_df ... klugey
+    gait_columns = ['% ' + gait_style + ' (' + leg_set + ' legs)' for gait_style in all_combos]
+    gait_columns = [x.replace('_',' ') for x in gait_columns]
+
     # set up plot, with width scaled to number of groups
+    # figsize = (4, 1.2*len(groups))
+    # barWidth = 0.5
+    # f = plt.subplots(1, figsize=figsize)
     
     # for each group
+    for j, group in enumerate(groups):
     
-    # for each gait style
+        # for each gait style
+        for i, gait_style in enumerate(all_combos):
+            print(group, gait_style)
     
-    # get proportion and add to plot
+        # get mean proportion from this group and add to plot
+        groupData = gait_df[gait_df.treatment == group]
+        # gaitStyleData = groupData[groupData.]
     
     # add the group labels
     
