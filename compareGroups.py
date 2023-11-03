@@ -40,7 +40,7 @@ def main(datafile):
     if len(data_dfs.keys()) == 1:
         selected_dataset = list(data_dfs.keys())[0]
     elif len(data_dfs.keys()) > 1:   
-        datatype_options = [datatype.replace('_',' ') + ': ' + data_descriptions[datatype] for i, datatype in enumerate(data_dfs.keys())]
+        datatype_options = [datatype + ': ' + data_descriptions[datatype] for i, datatype in enumerate(data_dfs.keys())]
         if 'gait_summaries' in data_dfs.keys(): # include option to plot stacked bars for gait styles
             datatype_options.append('gait proportions: proportion of time spent in all gaits')
         selection = gaitFunctions.selectOneFromList(datatype_options)
