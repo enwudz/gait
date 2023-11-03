@@ -112,7 +112,7 @@ def main():
     clip_step = {}
     
     
-    # go through clips and collect data
+    # go through clips and collect data ... each individual gets a unique id (uniq_id)
     for clip in clipstems:
         movie_file = clip + '.mov'
         excel_file = clip + '.xlsx'
@@ -199,8 +199,6 @@ def main():
             distance_traveled[uniq_id] = np.append(distance_traveled[uniq_id], float(path_stats_dict['total distance']))
         else:
             distance_traveled[uniq_id] = np.array(float(path_stats_dict['total distance']))
-            
-        ## working here - collect bout timing data
         
         #### ===> load tracked data from this clip
         tdf, excel_file = gaitFunctions.loadTrackedPath(movie_file)
@@ -446,7 +444,7 @@ def main():
     #### ===> finished collecting data. Build up dataframes to save
     
     #### ==> path_summaries dataframe ... info for each unique individual
-    ids = sorted(clip_duration.keys())   
+    ids = sorted(clip_scales.keys())   
     treatments = [x.split('_')[3] for x in ids]
     individuals = [x.split('_')[2] for x in ids]
     dates = [x.split('_')[1] for x in ids]  
@@ -487,8 +485,7 @@ def main():
     path_summaries_df = pd.DataFrame(path_summaries_dict)
     
     #### ==> step_summaries dataframe ... info for each unique individual
-    
-    ids = sorted(clip_stance_lateral.keys())
+    ids = sorted(clip_stance_lateral.keys())    
     treatments = [x.split('_')[3] for x in ids]
     individuals = [x.split('_')[2] for x in ids]
     dates = [x.split('_')[1] for x in ids]
@@ -589,9 +586,6 @@ def main():
             step_summaries_df.to_excel(writer, index=False, sheet_name='step_summaries')
         if len(gait_summaries_df) > 0:
             gait_summaries_df.to_excel(writer, index=False, sheet_name='gait_summaries')
-            
-    ## working here - save cruise bout information to output file
-
 
 def addColtoDF(df, colname, st):
     st_stem = st.split('.')[0]
