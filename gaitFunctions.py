@@ -1271,7 +1271,7 @@ def gaitStyleProportionsPlot(ax, excel_files, leg_set = 'lateral'):
     Returns
     -------
     ax : matplotlib axis object
-        now filled with the gait style plot!
+        now filled with the stacked bar gait style plot!
 
     '''
     

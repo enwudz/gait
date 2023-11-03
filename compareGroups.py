@@ -64,9 +64,25 @@ def main(datafile):
 
 def gaitProportionPlots(gait_df):
     
-    # define a list of groups to compare
+    # define the list of groups to compare
+    groups = sorted(np.unique(gait_df.treatment.values))
     
     # if control or wildtype is in the groups, put that one first in the list
+    for thing in ['wildtype','control']:
+        if thing in groups:
+            groups.remove(thing)
+            groups = [thing] + groups
+    
+    # choose which set of legs to plot
+    # need species
+    # if human, leg_set is 'rear'
+    # if tetrapod or cat or dog or horse, leg_set is 'four'
+    # if tardigrade, need to choose lateral or rear
+    # if lateral, leg_set is 'lateral'
+    # if rear, leg_set is rear
+    
+    # working - need to implement stuff above
+    leg_set = 'lateral'
     
     # get gait styles and colors
     
