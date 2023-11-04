@@ -74,15 +74,27 @@ def gaitProportionPlots(gait_df):
             groups = [thing] + groups
     
     # choose which set of legs to plot
-    # need species
-    # if human, leg_set is 'rear'
-    # if tetrapod or cat or dog or horse, leg_set is 'four'
-    # if tardigrade, need to choose lateral or rear
-    # if lateral, leg_set is 'lateral'
-    # if rear, leg_set is rear
+    # try to get species from 'individuals' column
+    individuals = gait_df.individual.values
+    individuals = np.unique(np.array([''.join([i for i in x if not i.isdigit()]) for x in individuals]))
+
+    if 'tardigrade' in individuals:
+        # need to choose lateral or rear
+        print('These are tardigrades! Which legs do you want to plot? ')
+        possibilities = ['lateral legs', 'rear legs']
+        selection = gaitFunctions.selectOneFromList(possibilities)
+        if selection == 'rear legs':
+            leg_set = 'rear'
+        else:
+            leg_set = 'lateral'
+        
+    elif 'human' in individuals:
+        leg_set = 'rear'
+    elif 'tetrapod' in individuals or 'cat' in individuals or 'dog' in individuals or 'horse' in individuals:
+        leg_set = 'four'
+    else:
+        leg_set = 'lateral' # hoping for the best!
     
-    # working - need to implement stuff above
-    leg_set = 'lateral'
     
     # get gait styles and colors
     if leg_set in ['rear','two','human']:
@@ -99,25 +111,62 @@ def gaitProportionPlots(gait_df):
     gait_columns = ['% ' + gait_style + ' (' + leg_set + ' legs)' for gait_style in all_combos]
     gait_columns = [x.replace('_',' ') for x in gait_columns]
 
-    # set up plot, with width scaled to number of groups
-    # figsize = (4, 1.2*len(groups))
-    # barWidth = 0.5
-    # f = plt.subplots(1, figsize=figsize)
+    # get the gait data for each group and store in a dictionary
+    group_data = {}
+
+    for group in groups:
     
-    # for each group
-    for j, group in enumerate(groups):
+        group_data[group] = {}
+
+        for i, gait_style in enumerate(gait_columns):
+
+            # get mean proportion from this group
+            groupData = gait_df[gait_df.treatment == group]
+            gaitStyleData = groupData[gait_style].values
+            group_data[group][gait_style] = np.mean(gaitStyleData)
     
-        # for each gait style
-        for i, gait_style in enumerate(all_combos):
-            print(group, gait_style)
     
-        # get mean proportion from this group and add to plot
-        groupData = gait_df[gait_df.treatment == group]
-        # gaitStyleData = groupData[groupData.]
+    # finished collecting the data
+    # set up a plot, with width scaled to number of groups
+    f,ax = plt.subplots(1, figsize=(4,1.2*len(groups)))
+    barWidth = 0.5
+
+    # print(all_combos)
+    # print(gait_columns)
+    # plot the data!
+    for i, group in enumerate(groups):
+        
+        for j, combo in enumerate(all_combos):
+            
+            if j == 0:
+                bottom = 0
+                
+            if i == 0: # first dataset ... plot everything at 0 value to make labels for legend
+                ax.bar(i, 0, bottom = bottom, color = combo_colors[combo],
+                       edgecolor='white', width=barWidth, label=combo.replace('_',' '))
+
+            amt = group_data[group][gait_columns[j]]
+            ax.bar(i, amt, bottom = bottom, color = combo_colors[combo],
+                edgecolor='white', width=barWidth)
+
+            bottom += amt
+        
+            
     
     # add the group labels
+    ax.set_xticks(np.arange(len(groups))) 
+    ax.set_xticklabels(groups, fontsize=16)
     
     # add the gait style legend
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(reversed(handles), reversed(labels), loc='upper left',
+              bbox_to_anchor=(1,1), ncol=1, fontsize=12)
+
+    ax.set_ylabel(leg_set + ' gait styles', fontsize = 16)
+    ax.set_ylim([0,100])
+    
+    # show the plot
+    plt.show()
     
     return
 
