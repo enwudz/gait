@@ -27,12 +27,12 @@ def main():
     
     animation_fps = 30
     
-    ## ==> get simulated data based on step parameters
-    critter = 'cat'
+    ## ==> get SIMULATED data based on step parameters
+    critter = 'tardigrade'
     num_legs = gaitFunctions.getFeetFromSpecies(critter)
     up_down_times, frame_times = load_simulated_steps(num_legs)
     
-    ## ==> OR get up / down times for legs from an experiment
+    ## ==> OR get MEASURED up / down times for legs from an experiment
     # up_down_times, frame_times = load_movie_steps()
     
     # print(up_down_times)
@@ -51,8 +51,8 @@ def load_simulated_steps(num_legs):
     ## define step parameters
     num_cycles = 4
     gait_cycle = 2 # in seconds
-    duty_factor =     0.45 # in fraction of gait cycle
-    anterior_offset = 0.5 # in fraction of gait cycle
+    duty_factor =     0.67 # in fraction of gait cycle
+    anterior_offset = 0.33 # in fraction of gait cycle
     opposite_offset = 0.5 # in fraction of gait cycle
     fps = 30 # frames per second
     
