@@ -26,12 +26,15 @@ from matplotlib.animation import FuncAnimation
 def main():
     
     animation_fps = 30
+    critter = 'tardigrade'
+    save_animation = True # true or false
+    make_excel = True # true or false
     
     ## ==> get SIMULATED data based on step parameters
-    critter = 'tardigrade'
+    
     num_legs = gaitFunctions.getFeetFromSpecies(critter)
     up_down_times, frame_times = load_simulated_steps(num_legs)
-    
+
     ## ==> OR get MEASURED up / down times for legs from an experiment
     # up_down_times, frame_times = load_movie_steps()
     
@@ -45,11 +48,15 @@ def main():
     legstates, legangles = get_leg_swings(up_down_times, frame_times)
 
     ## ==> make basic animation
-    basic_animation(legangles, legstates, critter, animation_fps, True) # True to save the animation      
+    fname = basic_animation(legangles, legstates, critter, animation_fps, save_animation) # True to save the animation      
+
+    ## ==> make excel file from simulated steps
+    if len(fname) > 0 and make_excel:
+        makeExcelFromSimulatedSteps(fname, critter, up_down_times)
 
 def load_simulated_steps(num_legs):
     ## define step parameters
-    num_cycles = 4
+    num_cycles = 2
     gait_cycle = 2 # in seconds
     duty_factor =     0.67 # in fraction of gait cycle
     anterior_offset = 0.33 # in fraction of gait cycle
@@ -73,6 +80,67 @@ def load_simulated_steps(num_legs):
     up_down_times, frame_times = simulate_steps(simulation)
     return up_down_times, frame_times
 
+def makeExcelFromSimulatedSteps(fname, critter, up_down_times):
+    
+    # make identity tab
+    from datetime import date 
+    import calendar
+    import pandas as pd
+    info = {}
+    todays_date = date.today() 
+    fstem = fname.split('.')[0]
+    excel_filename = fstem + '.xlsx'
+ 
+    info['file_stem'] = fname.split('.')[0]
+    info['month'] = calendar.month_abbr[todays_date.month].lower()
+    info['date'] = todays_date.day
+    info['species'] = critter
+    species = ['human','tardigrade','cat','dog','insect','tetrapod','hexapod']
+    num_legs = [2, 8, 4, 4, 6, 4, 6]
+    species_legs = dict(zip(species,num_legs))
+    info['num_legs'] = 6 # guessing
+    for thing in species:
+        if thing in critter:
+            info['num_legs'] = species_legs[thing]
+    info['treatment'] = 'simulation'
+    info['individualID'] = 1
+    info['initials'] = 'ani'
+    info['width'], info['height'], info['fps'], info['#frames'], info['duration'] = gaitFunctions.getVideoData(fname, False)
+    info['time_range'] ='0-' + str(info['duration'])
+
+    print_order = gaitFunctions.identity_print_order()
+    vals = [info[x] for x in print_order if x in print_order]
+    d = {'Parameter':print_order,'Value':vals}
+    df = pd.DataFrame(d)
+    with pd.ExcelWriter(excel_filename) as writer:
+        df.to_excel(writer, index=False, sheet_name='identity')
+            
+    # make pathtracking tab
+    pathtracking = {}
+    frame_times = gaitFunctions.getFrameTimes(fname)
+    pathtracking['times'] = frame_times
+    pathtracking['xcoords'] = np.linspace(0,900,len(frame_times))
+    pathtracking['ycoords'] = 100 * np.ones(len(frame_times))
+    pathtracking['areas'] = 1000 * np.ones(len(frame_times))
+    pathtracking['lengths'] = 100 * np.ones(len(frame_times))
+    pathtracking['tracking_uncertainty_25'] = np.array(['FALSE'] * len(frame_times))
+    path_df = pd.DataFrame(pathtracking)
+    with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
+        path_df.to_excel(writer, index=False, sheet_name='pathtracking')   
+    
+    # make path_stats tab
+    import analyzeTrack
+    analyzeTrack.main(fname)
+    
+    # make steptracking tab
+    
+    # run analyzeSteps to make remaining tabs
+    
+    
+    
+    
+    
+
 def basic_animation(legangles, legstates, critter, fps=30, save_animation=False):    
     
     frame_interval = int((1 / fps) * 1000)
@@ -82,8 +150,12 @@ def basic_animation(legangles, legstates, critter, fps=30, save_animation=False)
                         interval=frame_interval, repeat=False, fargs=[ax, legangles, legstates, critter]) 
     
     if save_animation:
-        ani.save('animation.mp4')
+        fname = 'ani_' + critter + '_' + str(fps) + '.mp4'
+        ani.save(fname)
+    else:
+        fname = ''
     plt.show()
+    return fname
 
 def animate_steps(i, ax, legangles, legstates, critter = 'tardigrade'):
         

@@ -100,7 +100,6 @@ def make_identity_sheet(excel_filename, info):
     with pd.ExcelWriter(excel_filename, if_sheet_exists='replace', engine='openpyxl', mode='a') as writer:
         df.to_excel(writer, index=False, sheet_name='identity')
 
-
 def guessTreatment(s):
     
     s = s.lower()

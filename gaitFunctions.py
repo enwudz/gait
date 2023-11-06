@@ -1952,7 +1952,7 @@ def plotLegSet(ax, movie_file, legs_to_plot = 'all'):
     ax : matplotlib axis object
     
     movie_file : string
-        file name of a movie (.mov).
+        file name of a movie (.mov or .mp4).
     
     legs_to_plot : list (or the string 'all')
         which list of legs do we want to look at ... or 'all'

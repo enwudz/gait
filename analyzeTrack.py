@@ -37,7 +37,7 @@ def main(movie_file):
     # load the excel file with tracked data ==> pandas dataframe
     tracked_data, excel_filename = gaitFunctions.loadTrackedPath(movie_file)
     if tracked_data is None:
-        print('No path tracking data yet - run trackCritter.py')
+        print('No path tracking data yet - run autoTracker.py or clickerTracker.py')
         return
     else:
         print('\nAnalyzing tracked path from ' + movie_file)
