@@ -64,7 +64,9 @@ def main(movie_file, difference_threshold = 25, showTracking = True):
     
     # report on tracking confidence
     gaitFunctions.getTrackingConfidence(problem_frames, difference_threshold, True)
-    
+
+    # save data
+    print('Saving tracking data for ' + movie_file)
     df = pd.DataFrame(d)
     with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
         df.to_excel(writer, index=False, sheet_name='pathtracking')
@@ -496,7 +498,7 @@ if __name__== "__main__":
     try:
         difference_threshold = int(sys.argv[2])
     except:
-        difference_threshold = 25
+        difference_threshold = 12
         
     try:
         show_track = sys.argv[3].lower()
