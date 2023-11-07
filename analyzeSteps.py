@@ -54,8 +54,6 @@ def main(movie_file):
             header += ',' + leg + '_mid_swings'
         header += ',anterior_swing_start,contralateral_swing_start'
 
-
-
     for steptracking_sheet in steptracking_sheets:
         print('... getting steps from ' + steptracking_sheet)
         # load mov_data = a dictionary of UP and DOWN times for each leg ... or complain that this data is not available
@@ -272,6 +270,9 @@ def getOffsets(step_df):
     So ... this is geared only for six legs
     
     Offsets are only recorded for legs while animal is 'cruising'
+    
+    Contralateral (opposite) offsets are only obtained for LEFT legs
+    (time between left down and right down)
 
     Parameters
     ----------
@@ -326,12 +327,13 @@ def getOffsets(step_df):
         
         swing_time = float(swing_start_array[i])
         
-        # for all legs, enter time of next swing of opposite leg (if available)
-        opposite_leg = opposite_dict[leg]
-        opposite_swings = swing_starts[opposite_leg]
-        next_opposite_swing = get_next_event(swing_time, opposite_swings)
-        if next_opposite_swing > 0:
-            contralateral_offsets[i] = next_opposite_swing - swing_time
+        # for all LEFT legs, enter time of next swing of opposite leg (if available)
+        if 'L' in leg:
+            opposite_leg = opposite_dict[leg]
+            opposite_swings = swing_starts[opposite_leg]
+            next_opposite_swing = get_next_event(swing_time, opposite_swings)
+            if next_opposite_swing > 0:
+                contralateral_offsets[i] = next_opposite_swing - swing_time
             
         # for 2nd pair and 3rd pair, enter time of next swing of adjacent anterior leg 
         if '2' in leg or '3' in leg:

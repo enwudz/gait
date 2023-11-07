@@ -12,7 +12,7 @@ to make movie, run:
     python makeMovieFromImages.py searchterm fps outfile
     
 WISHLIST
- set initial bearing as average of first X seconds (2?)
+ set initial bearing as average of first X seconds (1? 2?)
     
 """
 
@@ -38,13 +38,11 @@ def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', start
     text_size = 1
     turn_color = (0,0,0) # (155, 155, 0)
     stop_color = (0,0,0) # (15, 0, 100)
-    time_x, time_y = [0.05, 0.05] # where should we put the time label?
+    time_x, time_y = [0.15, 0.15] # where should we put the time label?
     turn_x, turn_y = [0.05, 0.99] # where should we put the turn label?
     stop_x, stop_y = [0.5, 0.99] # where should we put the stop label?
     
     ''' check to see if rotated frames folder exists; if not, make a folder '''
-    # base_name = movie_file.split('.')[0]
-    # cropped_folder = base_name + '_rotacrop'
     flist = glob.glob(cropped_folder)
     
     if len(flist) == 1:
@@ -74,7 +72,7 @@ def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', start
     turns = tracked_df.turns.values
     stops = tracked_df.stops.values
 
-    # pad boundaries of bearings abnd delta_bearings
+    # pad boundaries of bearings and delta_bearings
     bearings = padBoundaries(bearings)
     
     # determine if there is a consistent direction of travel
@@ -98,10 +96,9 @@ def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', start
             else:
                 direction = 'up'
                 
-    print('Direction of travel is ' + direction)
+    print('Direction of travel is ' + direction)   
     
-    
-    # smooth out bearing changes for abrupt turns and stops
+    # for abrupt turns and stops, smooth out bearing changes 
     turn_ranges = gaitFunctions.one_runs(turns)
     for turn_range in turn_ranges:
         # get bearing before turn
@@ -124,13 +121,16 @@ def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', start
     for i, b in enumerate(bearings[:-1]):
         delta_bearings[i+1] = gaitFunctions.change_in_bearing(b, bearings[i+1])
     
+    ## force first bit of delta_bearings to be constant, to establish direction?
+    # delta_bearings[:15] = 0
+    
     ## smooth out the bearing changes, not so much movement
     pole = 10 # integer; lower = more smooth ... but 'freq' has more effect?
-    freq = 0.06 # float: lower = more smooth ... has more effect than 'pole'?
+    freq = 0.04 # float: lower = more smooth ... has more effect than 'pole'?
     b, a = scipy.signal.butter(pole, freq)
     smoothed_deltabearings = scipy.signal.filtfilt(b,a,delta_bearings)
-    
-    ## Quality control for smoothing: compare bearings vs. smoothed bearings    
+
+    # Quality control for smoothing: compare bearings vs. smoothed bearings    
     # import matplotlib.pyplot as plt
     # plt.plot(delta_bearings,'r')
     # plt.plot(smoothed_deltabearings,'k')
@@ -203,7 +203,7 @@ def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', start
     elif direction == 'right':
         initial_direction = 90
     else:
-        initial_direction = 0
+        initial_direction = bearings[0]
     print('Initial heading is ', initial_direction) 
     
     rotate_angle = initial_direction
@@ -379,19 +379,28 @@ def padImage(image, pad_percentage):
     padded[y_center:y_center+old_image_height, x_center:x_center+old_image_width] = image
     
     return padded
-    
+ 
+def getCroppedFolder(movie_file):
+    base_name = movie_file.split('.')[0]
+    cropped_folder = base_name + '_rotacrop'
+    return cropped_folder
 
 if __name__== "__main__":
-
-    if len(sys.argv) == 4:
+    
+    zoom_percent = 100
+    direction = 'up'
+    
+    if len(sys.argv) == 1:
+        movie_file = gaitFunctions.selectFile(['mp4','mov'])     
+    if len(sys.argv) > 1:
         movie_file = sys.argv[1]
-        zoom_percent = sys.argv[2]
+    if len(sys.argv) > 2:
+        zoom_percent = int(sys.argv[2])
+    if len(sys.argv) > 3:
         direction = sys.argv[3]
-        main(movie_file, zoom_percent, direction)
-    else:
-        movie_file = gaitFunctions.selectFile(['mp4','mov'])
-        main(movie_file)
 
+    cropped_folder = getCroppedFolder(movie_file)
+    main(cropped_folder, movie_file, zoom_percent, direction)
     
     
     

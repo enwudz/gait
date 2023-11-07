@@ -27,18 +27,16 @@ def main():
     
     animation_fps = 30
     critter = 'tardigrade'
-    save_animation = True # true or false
     make_excel = True # true or false
+    fname = 'tetrapod_synchronous123_fast.mp4' # '' if do not want to save animation
     
     ## ==> get SIMULATED data based on step parameters
     
     num_legs = gaitFunctions.getFeetFromSpecies(critter)
     up_down_times, frame_times = load_simulated_steps(num_legs)
-
+    
     ## ==> OR get MEASURED up / down times for legs from an experiment
     # up_down_times, frame_times = load_movie_steps()
-    
-    # print(up_down_times)
     
     ## ==> make 2 dictionaries:
     ## legstates = a dictionary of leg states (up or down)
@@ -48,19 +46,19 @@ def main():
     legstates, legangles = get_leg_swings(up_down_times, frame_times)
 
     ## ==> make basic animation
-    fname = basic_animation(legangles, legstates, critter, animation_fps, save_animation) # True to save the animation      
+    fname = basic_animation(legangles, legstates, critter, animation_fps, fname) # True to save the animation      
 
     ## ==> make excel file from simulated steps
     if len(fname) > 0 and make_excel:
-        makeExcelFromSimulatedSteps(fname, critter, up_down_times)
+        makeExcelFromSimulatedSteps(fname, critter, up_down_times, frame_times)
 
 def load_simulated_steps(num_legs):
     ## define step parameters
-    num_cycles = 2
-    gait_cycle = 2 # in seconds
+    num_cycles = 8
+    gait_cycle = 1 # in seconds
     duty_factor =     0.67 # in fraction of gait cycle
-    anterior_offset = 0.33 # in fraction of gait cycle
-    opposite_offset = 0.5 # in fraction of gait cycle
+    anterior_offset = 0.67 # in fraction of gait cycle
+    opposite_offset = 0.33 # in fraction of gait cycle
     fps = 30 # frames per second
     
     simulation = {}
@@ -80,7 +78,33 @@ def load_simulated_steps(num_legs):
     up_down_times, frame_times = simulate_steps(simulation)
     return up_down_times, frame_times
 
-def makeExcelFromSimulatedSteps(fname, critter, up_down_times):
+def upDownTimesToSteps(up_down_times, critter):
+
+    leg_state = []
+    times = []
+    
+    for k in up_down_times.keys():
+        for ud in up_down_times[k].keys():
+            if ud == 'd':
+                leg_state.append(k+ '_' + 'down')
+            else:
+                leg_state.append(k + '_' + 'up')
+            times.append( ' '.join([str(x) for x in up_down_times[k][ud]]))
+    if 'R4' not in up_down_times.keys() and critter == 'tardigrade': # if no data for rear legs, just copy leg3 legs
+        leg_state.append('R4_down')
+        times.append( ' '.join([str(x) for x in up_down_times['R3']['d']]))
+        leg_state.append('R4_up')
+        times.append( ' '.join([str(x) for x in up_down_times['R3']['u']]))
+    if 'L4' not in up_down_times.keys() and critter == 'tardigrade':
+        leg_state.append('L4_down')
+        times.append( ' '.join([str(x) for x in up_down_times['L3']['d']]))
+        leg_state.append('L4_up')
+        times.append( ' '.join([str(x) for x in up_down_times['L3']['u']]))
+
+    steps = {'leg_state': leg_state, 'times': times}
+    return steps
+
+def makeExcelFromSimulatedSteps(fname, critter, up_down_times, frame_times):
     
     # make identity tab
     from datetime import date 
@@ -117,7 +141,6 @@ def makeExcelFromSimulatedSteps(fname, critter, up_down_times):
             
     # make pathtracking tab
     pathtracking = {}
-    frame_times = gaitFunctions.getFrameTimes(fname)
     pathtracking['times'] = frame_times
     pathtracking['xcoords'] = np.linspace(0,900,len(frame_times))
     pathtracking['ycoords'] = 100 * np.ones(len(frame_times))
@@ -133,15 +156,17 @@ def makeExcelFromSimulatedSteps(fname, critter, up_down_times):
     analyzeTrack.main(fname)
     
     # make steptracking tab
+    steps = upDownTimesToSteps(up_down_times, critter)
+    steps_df = pd.DataFrame(steps)
+    
+    with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
+        steps_df.to_excel(writer, index=False, sheet_name='steptracking')  
     
     # run analyzeSteps to make remaining tabs
-    
-    
-    
-    
-    
+    import analyzeSteps
+    analyzeSteps.main(fname)
 
-def basic_animation(legangles, legstates, critter, fps=30, save_animation=False):    
+def basic_animation(legangles, legstates, critter, fps, fname):    
     
     frame_interval = int((1 / fps) * 1000)
     
@@ -149,11 +174,8 @@ def basic_animation(legangles, legstates, critter, fps=30, save_animation=False)
     ani = FuncAnimation(fig, animate_steps, frames=len(legangles['L1']), 
                         interval=frame_interval, repeat=False, fargs=[ax, legangles, legstates, critter]) 
     
-    if save_animation:
-        fname = 'ani_' + critter + '_' + str(fps) + '.mp4'
+    if len(fname) > 0:
         ani.save(fname)
-    else:
-        fname = ''
     plt.show()
     return fname
 

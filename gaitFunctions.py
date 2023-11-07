@@ -1768,7 +1768,10 @@ def getGaits(movie_file, leg_set = 'lateral'):
             # print(leg_matrix) # test OK
             
             # trim frame_times to only include frames up to last recorded event <<==== OR FRAMES WITH EVENTS??
-            last_event_frame = np.min(np.where(frame_times >= latest_event))
+            if frame_times[-1] >= latest_event:
+                last_event_frame = np.min(np.where(frame_times >= latest_event))
+            else:
+                last_event_frame = len(frame_times)-1
             # print(steptracking_sheet, last_event_frame, bout_end_frame, bout_start_time, bout_end_time) # test OK
             frame_indices_with_events = np.arange(bout_start_frame,last_event_frame+1) 
             # print(len(frame_indices_with_events), frame_indices_with_events[0], frame_indices_with_events[-1]) # test OK
@@ -2340,12 +2343,11 @@ def fill_leg_matrix(leg_matrix, legs, up_down_times, frame_times, indices=[]):
         columns = each frame of video clip.
 
     '''
-    
-    # WORKING
+
     # set to all columns if no input given
     if len(indices) == 0:
         indices = np.arange(0,len(frame_times))
-
+    
     # fill up each row of leg matrix with data for each leg
     for i, leg in enumerate(legs):
         # print(leg)

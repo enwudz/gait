@@ -249,8 +249,8 @@ def main(movie_file, plot_style = ''): # track or speed or steps
         
         elif plot_style == 'metachronal lag':
             print('Here is a plot of the metachronal lag')
-            print('This is the amount of time elapsed between the swing of the third leg')
-            print('and the swing of the first leg')
+            print('This is the amount of time elapsed between the swing of the rear-most leg')
+            print('and the swing of the front-most leg')
             print(' ... close the plot window to proceed')
 
             f, axes = plt.subplots(1,2, figsize = (8,3), constrained_layout=True)

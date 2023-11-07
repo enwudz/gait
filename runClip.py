@@ -26,7 +26,7 @@ def main(movie_file):
     # 
     ## automated path tracking, including speed, turns, stops
     # if tracking wonky at 12, try 25 or 40 or ...  eg: (movie_file, 25, True) 
-    autoTracker.main(movie_file, 25, True) # True is show tracking
+    # autoTracker.main(movie_file, 25, True) # True is show tracking
     # analyzeTrack.main(movie_file) # when finished with autoTracker
 
     ## show plots
@@ -35,7 +35,7 @@ def main(movie_file):
     
     ## step-by-step timing
     # frameStepper.main(movie_file)
-    # analyzeSteps.main(movie_file) # when finished with frameStepper
+    analyzeSteps.main(movie_file) # when finished with frameStepper
     # plotClip.main(movie_file)
 
 
