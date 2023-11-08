@@ -38,6 +38,12 @@ def main(movie_file):
     num_feet = gaitFunctions.get_num_feet(movie_file)
     legs = gaitFunctions.get_leg_list(num_feet)
 
+    # get pathtracking_df for this movie
+    pathtracking_df = pd.read_excel(excel_filename, sheet_name='pathtracking', index_col=None)
+    
+    # get pathstats_df for this movie
+    pathstats_df = pd.read_excel(excel_filename, sheet_name='path_stats', index_col=None)
+    
     '''
     Make Header and container for step data
     For each step of each leg, we are going to collect this info: 
@@ -236,13 +242,12 @@ def main(movie_file):
         
         # if we have data for speed at each frame, determine speed for each step of each leg
         # and add this column to the dataframe
-        pathtracking_df = pd.read_excel(excel_filename, sheet_name='pathtracking', index_col=None)
         if 'speed' in pathtracking_df.columns:
             step_data_df = getSpeedForStep(step_data_df, pathtracking_df)
         
         
         # swing offsets and metachronal lag for lateral legs
-        anterior_offsets, contralateral_offsets, metachronal_lag = getOffsets(step_data_df)
+        anterior_offsets, contralateral_offsets, metachronal_lag = getOffsets(step_data_df, pathstats_df)
         # add these to the step_data dataframe
         step_data_df['anterior_offsets'] = anterior_offsets
         step_data_df['contralateral_offsets'] = contralateral_offsets
@@ -255,7 +260,6 @@ def main(movie_file):
         ## Calculate average step parameters for each leg, and write to the step_stats sheet of the excel file
         saveStepStats(legs, step_data_df, excel_filename)
 
-        ### WORKING HERE ... gaitFunctions getGaits (and then saveGaits)
         # get and save gait styles for every frame (to the gait_styles sheet)
         gaitFunctions.saveGaits(movie_file)
             
@@ -266,12 +270,40 @@ def main(movie_file):
         # return step_data_df
 
 
-def badLeg(leg, movie_file):
+def badLeg(leg, pathstats_df):
     print('\n **** No data for ' + leg + ' ****')
     print(' **** steptracking is problematic in ' + movie_file + ' ****\n')
     
 
-def getOffsets(step_df): # working - maybe also send path_stats df ... which has boundaries of bouts
+def findBoutEnd(event_time,bouts):
+    '''
+    
+
+    Parameters
+    ----------
+    event_time : floating point decimal
+        timing of a particular event
+    bouts : list
+        list of different time ranges
+
+    Returns
+    -------
+    bout_end : floating point decimal
+        the timing of the end of the bout during which the event_time occurred
+
+    '''
+    
+    for bout in bouts:
+        bout_boundaries = [float(x) for x in bout.split('-')]
+        bout_start = bout_boundaries[0]
+        bout_end = bout_boundaries[1]
+        if event_time >= bout_start and event_time <= bout_end:
+            return bout_end
+    
+    print('could not find end of bout for event at ' + str(event_time))
+    return 0
+
+def getOffsets(step_df, pathstats_df): 
     '''
     Get offsets (3 to 2 swing start, 2 to 1 swing start) 
     Get metachronal lag (3 --> 1 swing starts with requirement that 2 swings in middle)
@@ -288,6 +320,11 @@ def getOffsets(step_df): # working - maybe also send path_stats df ... which has
         loaded from 'step_timing' sheet of an excel file associated with a clip 
         (or group of clips from same individual)
         step_df is made from analyzeSteps.py, and requires data from frameStepper.py
+        
+    pathstats_df : pandas dataframe
+        loaded from 'path_stats' sheet of an excel file associated with a clip 
+        (or group of clips from same individual)
+        pathstats_df is made from analyzeTrack.py, and requires data from autoTracker.py
 
     Returns
     -------
@@ -304,8 +341,11 @@ def getOffsets(step_df): # working - maybe also send path_stats df ... which has
     
     '''
     
+    # from pathstats_df, get information about cruise bouts for this movie file
+    cruise_bouts = pathstats_df[pathstats_df['path parameter'] == 'cruise bout timing'].values[0][1].split(';')
+ 
+    # make vectors of steps and swing starts
     steps = step_df['legID'].values
-    
     swing_start_array = step_df['UpTime'].values
     
     # Make swing_starts = a dictionary of swing starts (in numpy array), keyed by leg
@@ -335,38 +375,42 @@ def getOffsets(step_df): # working - maybe also send path_stats df ... which has
         
         swing_time = float(swing_start_array[i])
         
+        ## when finding the offset between legs, want to make sure that the 
+        ## next step is within the SAME cruising bout
+        # which cruising bout is this step in
+        # when does this bout end? 
+        bout_end = findBoutEnd(swing_time, cruise_bouts)
+        
         ## OPPOSITE OFFSETS
         # for all LEFT legs, enter time of next swing of opposite leg (if available)
         if 'L' in leg:
             opposite_leg = opposite_dict[leg]
             opposite_swings = swing_starts[opposite_leg]
             next_opposite_swing = get_next_event(swing_time, opposite_swings)
-            if next_opposite_swing > 0:
+            if next_opposite_swing > 0 and next_opposite_swing <= bout_end:
                 contralateral_offsets[i] = next_opposite_swing - swing_time
         
         ## ANTERIOR OFFSETS
         # for 2nd pair and 3rd pair, enter time of next swing of adjacent anterior leg 
-        # WORKING - but only if within same cruise bout!
         if '2' in leg or '3' in leg:
             anterior_leg = anterior_dict[leg]
             anterior_swings = swing_starts[anterior_leg]
             next_anterior_swing = get_next_event(swing_time, anterior_swings)
-            if next_anterior_swing > 0:
+            if next_anterior_swing > 0 and next_anterior_swing <= bout_end:
                 anterior_offsets[i] = next_anterior_swing - swing_time
                 
         # METACHRONAL LAG
         # for 3rd pair, get next time of 2nd leg on same side ... 
         # THEN get next time of 1st leg on same side
-        # WORKING - but only if within same cruise bout!
         if '3' in leg:
             second_leg = anterior_dict[leg]
             second_leg_swings = swing_starts[second_leg]
             next_second_leg_swing = get_next_event(swing_time, second_leg_swings)
-            if next_second_leg_swing > 0:
+            if next_second_leg_swing > 0 and next_second_leg_swing <= bout_end:
                 first_leg = anterior_dict[second_leg]
                 first_leg_swings = swing_starts[first_leg]
                 next_first_leg_swing = get_next_event(next_second_leg_swing, first_leg_swings)
-                if next_first_leg_swing > 0:
+                if next_first_leg_swing > 0 and next_first_leg_swing <= bout_end:
                     # print(leg, swing_time, next_second_leg_swing, next_first_leg_swing) # testing
                     lag = next_first_leg_swing - swing_time
                     metachronal_lag[i] = lag
