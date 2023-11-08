@@ -16,7 +16,7 @@ import gaitFunctions
 import pandas as pd
 # import glob
 
-def main(movie_file, plot_style = ''): # track or speed or steps
+def main(movie_file, plot_style = ''): # plot_style can be track or speed or steps
 
     print('\nPreparing plots for ' + movie_file)
 
@@ -41,8 +41,7 @@ def main(movie_file, plot_style = ''): # track or speed or steps
         analyzeTrack.main(movie_file)
         path_stats = gaitFunctions.loadPathStats(movie_file)
 
-    # collect data for path_stats
-    # median_area = round(path_stats['area'],4)
+    ## collect tracked path data
     scale = float(path_stats['scale'])
     median_length = round(path_stats['body length (scaled)'],4)
     clip_duration = round(path_stats['clip duration'],2)
@@ -51,14 +50,17 @@ def main(movie_file, plot_style = ''): # track or speed or steps
     discrete_turns = path_stats['# turns']
     num_stops = path_stats['# stops']
     
-    # get step data if available
-    stepdata_df = gaitFunctions.loadStepData(movie_file)
+    ## collect step data if available
+    # WORKING - update this to select which steptracking bout if multiple available
+    
+    stepdata_df = gaitFunctions.loadStepData(movie_file) 
     have_steps = True
     if stepdata_df is None:
         print(' ... no step data available yet - run frameStepper.py')
         have_steps = False
     
-    # select plot style if none provided
+    ## Data collection complete!
+    ## select plot style if none provided
     if len(plot_style) == 0: # plot style not provided, choose a type of plot
         plot_style = selectPlotStyle(have_steps)
         style_specified = False
@@ -149,22 +151,6 @@ def main(movie_file, plot_style = ''): # track or speed or steps
             steps = gaitFunctions.plotLegSet(steps, movie_file, lateral_legs)
             steps.set_xlim(speed_xlim)
             
-            # plot the gait styles for lateral legs
-            gaits_ax = f.add_axes([0.1, 0.26, 0.65, 0.04])
-            gaits_ax = gaitFunctions.plotGaits(gaits_ax, excel_filename, 'lateral')
-            gaits_ax.set_xlim(speed_xlim)
-            
-            # proportions and legend for gait styles: lateral
-            lateral_gait_proportions_ax = f.add_axes([0.83, 0.1, 0.02, 0.18])
-            lateral_gait_proportions_ax = gaitFunctions.gaitStyleProportionsPlot(lateral_gait_proportions_ax, 
-                                                                                  [excel_filename],
-                                                                                  'lateral')
-            
-            # plot the gait styles for rear legs
-            reargaits_ax = f.add_axes([0.1, 0.44, 0.65, 0.04])
-            reargaits_ax = gaitFunctions.plotGaits(reargaits_ax, excel_filename, 'rear')
-            reargaits_ax.set_xlim(speed_xlim)
-            
             # plot the steps for the rear legs
             rear_steps = f.add_axes([0.1, 0.36, 0.65, 0.055])
             rear_legs = gaitFunctions.get_leg_combos()[0]['legs_4']
@@ -172,6 +158,22 @@ def main(movie_file, plot_style = ''): # track or speed or steps
             rear_steps.set_xlim(speed_xlim)
             rear_steps.set_xlabel('')
             # rear_steps.set_xticks([])
+            
+            # plot the gait styles for lateral legs
+            gaits_ax = f.add_axes([0.1, 0.26, 0.65, 0.04])
+            gaits_ax = gaitFunctions.plotGaits(gaits_ax, excel_filename, 'lateral')
+            gaits_ax.set_xlim(speed_xlim)
+            
+            # plot the gait styles for rear legs
+            reargaits_ax = f.add_axes([0.1, 0.44, 0.65, 0.04])
+            reargaits_ax = gaitFunctions.plotGaits(reargaits_ax, excel_filename, 'rear')
+            reargaits_ax.set_xlim(speed_xlim)
+            
+            # proportions and legend for gait styles: lateral
+            lateral_gait_proportions_ax = f.add_axes([0.83, 0.1, 0.02, 0.18])
+            lateral_gait_proportions_ax = gaitFunctions.gaitStyleProportionsPlot(lateral_gait_proportions_ax, 
+                                                                                  [excel_filename],
+                                                                                  'lateral')
             
             # proportions and legend for gait styles: rear
             rear_gait_proportions_ax = f.add_axes([0.83, 0.33, 0.02, 0.18])
@@ -255,6 +257,27 @@ def main(movie_file, plot_style = ''): # track or speed or steps
 
             f, axes = plt.subplots(1,2, figsize = (8,3), constrained_layout=True)
             f = gaitFunctions.metachronalLagLRPlot(f, stepdata_df)
+            plt.show()
+            
+            plot_style = keepPlotting(style_specified, have_steps)
+        
+        elif plot_style == 'gait styles':
+            
+            # working on this one
+            f = plt.figure(1, figsize=(12,6))
+            
+            # proportions and legend for gait styles: lateral
+            lateral_gait_proportions_ax = f.add_axes([0.1, 0.1, 0.25, 0.8])
+            lateral_gait_proportions_ax = gaitFunctions.gaitStyleProportionsPlot(lateral_gait_proportions_ax, 
+                                                                                  [excel_filename],
+                                                                                  'lateral')
+            
+            # proportions and legend for gait styles: rear
+            rear_gait_proportions_ax = f.add_axes([0.65, 0.1, 0.25, 0.8])
+            rear_gait_proportions_ax = gaitFunctions.gaitStyleProportionsPlot(rear_gait_proportions_ax, 
+                                                                                  [excel_filename],
+                                                                                  'rear')
+            
             plt.show()
             
             plot_style = keepPlotting(style_specified, have_steps)
@@ -404,7 +427,8 @@ def selectPlotStyle(have_steps=False):
                   'left vs. right',
                   'speed vs. steps',
                   'swing offsets',
-                  'metachronal lag']
+                  'metachronal lag',
+                  'gait styles']
     
     plotDescriptions = ['show critter path on background', # track
                         'show speed, distance, and turns', # speed
@@ -414,7 +438,8 @@ def selectPlotStyle(have_steps=False):
                         'show step parameters comparing left vs. right lateral legs', # left vs. right
                         'show scatter plot of speed vs step parameters (for lateral legs)', # speed vs. steps
                         'show swing-swing timing offsets', # offsets
-                        'show elapsed time between 3rd leg swing and 1st leg swing'
+                        'show elapsed time between 3rd leg swing and 1st leg swing', # metachronal lag
+                        'show stacked bar chart of gait styles' # gait styles
                         ]
     print('\nPlot options: \n')
     print('  0. finished = quit plotting')

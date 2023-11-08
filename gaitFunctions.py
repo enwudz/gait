@@ -1216,6 +1216,9 @@ def proportionsFromList(li):
     dict_with_numerical_values = {}
     dict_with_proportional_values = {}
     
+    # remove 'no data' from list
+    li = [x for x in li if x != 'no data']
+    
     # count the number of each item in the input list
     for k in li:
         if k in dict_with_numerical_values.keys():
@@ -1226,7 +1229,8 @@ def proportionsFromList(li):
     # calculate proportions of each count
     for k in dict_with_numerical_values.keys():
         dict_with_proportional_values[k] = dict_with_numerical_values[k] / len(li)
-        
+    
+    dict_with_proportional_values['no data'] = 0
     return dict_with_proportional_values
 
 def get_gait_combo_colors(leg_set = 'lateral'):
@@ -1249,6 +1253,7 @@ def get_gait_combo_colors(leg_set = 'lateral'):
                 'tripod_canonical','tripod_other','other']
         plot_colors = get_plot_colors(len(all_combos))
     
+    # add 'white' for no data
     all_combos.append('no data')
     plot_colors = np.append(plot_colors,'white')
     combo_colors = dict(zip(all_combos, plot_colors))
@@ -1301,7 +1306,7 @@ def gaitStyleProportionsPlot(ax, excel_files, leg_set = 'lateral'):
 
     exp_names = []
     for i, gait_styles_vec in enumerate(gait_style_vectors):
-        
+
         combo_proportions = proportionsFromList(gait_styles_vec)
 
         for j, combo in enumerate(all_combos):
@@ -1746,6 +1751,7 @@ def getGaits(movie_file, leg_set = 'lateral'):
                 for bout in cruise_bouts:
                     bout_boundaries = [float(x) for x in  bout.split('-')]
                     bout_int = str(int(bout_boundaries[0])) + '-' + str(int(bout_boundaries[1]))
+                    # print(bout_int, time_int) # testing
                     if bout_int == time_int:
                         bout_start_time = bout_boundaries[0]
                         bout_end_time = bout_boundaries[1]
