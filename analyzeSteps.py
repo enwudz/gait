@@ -71,14 +71,17 @@ def main(movie_file):
             # these times are expressed as the FRACTION of the gait cycle for each step of the ref_leg
     
             if ref_leg not in up_down_times.keys():
-                print('No data for ' + ref_leg)
-                continue
+                badLeg(ref_leg, movie_file)
+                return
     
             # get timing and step characteristics for all gait cycles for this leg
             downs = up_down_times[ref_leg]['d']
             ups = up_down_times[ref_leg]['u']
             
             downs, ups, stance_times, swing_times, gait_cycles, duty_factors, mid_swings = gaitFunctions.getStepSummary(downs,ups)
+            if len(stance_times) == 0:
+                badLeg(ref_leg, movie_file)
+                return
             
             # if leg down the whole time, then downs = [0] and ups = [length_of_clip] 
             if len(downs) == 1 and len(ups) == 1:
@@ -263,7 +266,12 @@ def main(movie_file):
         # return step_data_df
 
 
-def getOffsets(step_df):
+def badLeg(leg, movie_file):
+    print('\n **** No data for ' + leg + ' ****')
+    print(' **** steptracking is problematic in ' + movie_file + ' ****\n')
+    
+
+def getOffsets(step_df): # working - maybe also send path_stats df ... which has boundaries of bouts
     '''
     Get offsets (3 to 2 swing start, 2 to 1 swing start) 
     Get metachronal lag (3 --> 1 swing starts with requirement that 2 swings in middle)
@@ -327,6 +335,7 @@ def getOffsets(step_df):
         
         swing_time = float(swing_start_array[i])
         
+        ## OPPOSITE OFFSETS
         # for all LEFT legs, enter time of next swing of opposite leg (if available)
         if 'L' in leg:
             opposite_leg = opposite_dict[leg]
@@ -334,8 +343,10 @@ def getOffsets(step_df):
             next_opposite_swing = get_next_event(swing_time, opposite_swings)
             if next_opposite_swing > 0:
                 contralateral_offsets[i] = next_opposite_swing - swing_time
-            
+        
+        ## ANTERIOR OFFSETS
         # for 2nd pair and 3rd pair, enter time of next swing of adjacent anterior leg 
+        # WORKING - but only if within same cruise bout!
         if '2' in leg or '3' in leg:
             anterior_leg = anterior_dict[leg]
             anterior_swings = swing_starts[anterior_leg]
@@ -343,8 +354,10 @@ def getOffsets(step_df):
             if next_anterior_swing > 0:
                 anterior_offsets[i] = next_anterior_swing - swing_time
                 
+        # METACHRONAL LAG
         # for 3rd pair, get next time of 2nd leg on same side ... 
         # THEN get next time of 1st leg on same side
+        # WORKING - but only if within same cruise bout!
         if '3' in leg:
             second_leg = anterior_dict[leg]
             second_leg_swings = swing_starts[second_leg]

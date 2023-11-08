@@ -486,7 +486,11 @@ def getStepSummary(downs, ups):
     # only want COMPLETE gait cycles ... so a Down first and a Down last
     if downs[0] > ups[0]:
         ups = ups[1:] # if an UP comes first, get rid of it
-    if ups[-1] > downs[-1]:
+        
+    # but if we get rid of an up and it's the ONLY step ... then we are in trouble
+    if len(ups) == 0:
+        print('No good data for this leg!')   
+    elif ups[-1] > downs[-1]:
         ups = ups[:-1] # if an UP comes last, get rid of it
 
     stance_times = []
