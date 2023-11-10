@@ -18,7 +18,7 @@ WISH LIST
 
 '''
 
-def main(movie_file, resize=20):
+def main(movie_file, resize=100):
     
     ''' ******************* 
     first, need to find the frames folder(s) for this movie
@@ -59,7 +59,8 @@ def main(movie_file, resize=20):
         
         # if no path_stats, prompt to run analyzeTrack, and exit
         if len(path_stats) == 0:
-            exit('No path found for this movie, run autoTracker.py and analyzeTrack.py')
+            print('No path found for this movie, run autoTracker.py and analyzeTrack.py')
+            return
             
         # print informmation about cruising bouts for this movie
         print('...this clip has ' + str(path_stats['# cruise bouts']) + ' bouts of cruising:')
@@ -103,7 +104,7 @@ def main(movie_file, resize=20):
                     movie_clip_file = base_name + '_' + time_string
                     frame_folder = movie_clip_file + '_rotacrop'
                     print('\nRotating and cropping ' + movie_clip_file)
-                    rotaZoomer.main(frame_folder, movie_file, resize, 'up', boutstart, boutend)
+                    rotaZoomer.main(frame_folder, movie_file, resize, 'up', True, boutstart, boutend)
                     print('Saving rotated and cropped frames to ' + frame_folder)
                     
                 else:
@@ -115,12 +116,17 @@ def main(movie_file, resize=20):
                 frame_folder_list.append(frame_folder)
                 
         else: # saving whole movie
+        
+            # get time boundaries of movie WORKING
+            (vid_width, vid_height, vid_fps, vid_frames, vid_length) = gaitFunctions.getVideoData(movie_file, False)
+            time_string = '0-'+str(int(vid_length))
+        
             if rotated_frames:
-                frame_folder = base_name + '_rotacrop'
+                frame_folder = base_name + '_' + time_string + '_rotacrop'
                 print('Saving rotated and cropped frames to ' + frame_folder)
-                rotaZoomer.main(frame_folder, movie_file, resize)
+                rotaZoomer.main(frame_folder, movie_file, resize, 'up', True)
             else:
-                frame_folder = base_name + '_frames'
+                frame_folder = base_name + '_' + time_string + '_frames'
                 print('Saving frames to ' + frame_folder)
                 gaitFunctions.saveFrames(movie_file)
             frame_folder_list = [frame_folder]
@@ -130,15 +136,15 @@ def main(movie_file, resize=20):
     OK now we have the frames in folders
        if more than one folder of frames available, select the ONE we want to track
     ******************* '''
-    
-    steptracking_sheet = 'steptracking'
+
     if len(frame_folder_list) > 1:
         print('Select a folder of frames to track:')
         frame_folder = gaitFunctions.selectOneFromList(frame_folder_list)
-        time_int = frame_folder.split('_')[-2]
-        steptracking_sheet += '_' + time_int
     else:
         frame_folder = frame_folder_list[0]
+   
+    time_int = frame_folder.split('_')[-2]
+    steptracking_sheet = 'steptracking_' + time_int
     # print(frame_folder)
     # print(steptracking_sheet)
     

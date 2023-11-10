@@ -24,14 +24,12 @@ import glob
 import os
 import scipy.signal
 
-def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', starttime = 0, endtime = 100000):
+def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', save_cropped_frames = False, starttime = 0, endtime = 100000):
     
     # report selections
     print('\nMovie is ' + movie_file)
     print('Zoom is ' + str(zoom_percent) + ' percent')
     
-    save_cropped_frames = False
-      
     # Can adjust these paramaters for labels
     font = cv2.FONT_HERSHEY_DUPLEX # cv2.FONT_HERSHEY_SCRIPT_COMPLEX 
     add_labels = True
@@ -62,7 +60,9 @@ def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', start
         selection = input('\nShould we save rotated and cropped frames? (y) or (n): ')
         if selection == 'y':
             save_cropped_frames = True
-            os.mkdir(cropped_folder)
+            
+    if save_cropped_frames:        
+        os.mkdir(cropped_folder)
     
     ''' get tracked path data and figure out bearing and cropping parameters '''
     # load tracked path data
