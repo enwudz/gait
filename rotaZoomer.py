@@ -27,7 +27,7 @@ import scipy.signal
 def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', starttime = 0, endtime = 100000):
     
     # report selections
-    print('Movie is ' + movie_file)
+    print('\nMovie is ' + movie_file)
     print('Zoom is ' + str(zoom_percent) + ' percent')
     
     save_cropped_frames = False
@@ -38,7 +38,7 @@ def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', start
     text_size = 1
     turn_color = (0,0,0) # (155, 155, 0)
     stop_color = (0,0,0) # (15, 0, 100)
-    time_x, time_y = [0.15, 0.15] # where should we put the time label?
+    time_x, time_y = [0.05, 0.05] # where should we put the time label?
     turn_x, turn_y = [0.05, 0.99] # where should we put the turn label?
     stop_x, stop_y = [0.5, 0.99] # where should we put the stop label?
     

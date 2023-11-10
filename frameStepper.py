@@ -70,7 +70,7 @@ def main(movie_file, resize=20):
             
         # ask if want to save frames for whole movie, or for the individual bouts
         bout_decision = input('\nMake frames from (w)hole movie, or from the (c)ruising bouts only? ').rstrip().lower()
-        frames_decision = input('\nSave (r)otated and cropped frames, or (u)nprocessed frames? ').rstrip().lower()
+        frames_decision = input('\nShould we make (r)otated and cropped frames, or leave frame (u)nprocessed? ').rstrip().lower()
         
         if bout_decision == 'c':
             bout_text = 'each bout'
@@ -102,6 +102,7 @@ def main(movie_file, resize=20):
                 if rotated_frames:
                     movie_clip_file = base_name + '_' + time_string
                     frame_folder = movie_clip_file + '_rotacrop'
+                    print('\nRotating and cropping ' + movie_clip_file)
                     rotaZoomer.main(frame_folder, movie_file, resize, 'up', boutstart, boutend)
                     print('Saving rotated and cropped frames to ' + frame_folder)
                     
