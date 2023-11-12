@@ -56,7 +56,7 @@ unique_movies = sorted(np.unique(df['stems'].values))
 
 # for each movie, sort bouts from longest to smallest
 # collect bouts until reach a threshold of total time
-threshold = 10 # in seconds
+threshold = 8 # in seconds (10? 8?)
 
 for movie in unique_movies:
     cumulative_duration = 0
