@@ -161,16 +161,17 @@ def main(movie_file):
         
         # get frame times for stop and end of this bout
         boutstart, boutend = [float(x) for x in bout_selection.split('-')]
-        time_string = str(int(boutstart)) + '-' + str(int(boutend))
+        
+    elif len(cruise_bouts) == 1:
+        boutstart, boutend = [float(x) for x in cruise_bouts[0].split('-')]
         
     # if we are not tracking bouts, we are tracking whole movie!
     else:
-        print('whole movie')
-        time_string = 'need whole movie length'
         # get time boundaries of movie
         boutstart = frame_times[0]
         boutend = frame_times[-1]
     
+    time_string = str(int(boutstart)) + '-' + str(int(boutend))
     steptracking_sheet = 'steptracking_' + time_string
     # print(time_string)
     # print(steptracking_sheet)
