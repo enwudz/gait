@@ -5,6 +5,7 @@ import os
 import glob
 import gaitFunctions
 import pandas as pd
+import numpy as np
 # from time import sleep
 
 # aside: want to make a movie from a bunch of frames?
@@ -18,23 +19,45 @@ WISH LIST
 
 '''
 
-def main(movie_file, resize=100):
+def main(movie_file):
+
+    ''' ******************* 
+    determine the timing of cruise bouts for this movie
+    ******************* '''
+
+    # find the excel file, and load the path_stats page
+    path_stats = gaitFunctions.loadPathStats(movie_file)
+    
+    # if no path_stats, prompt to run analyzeTrack, and exit
+    if len(path_stats) == 0:
+        print('No path found for this movie, run autoTracker.py and analyzeTrack.py')
+        return
+        
+    # print informmation about cruising bouts for this movie
+    print('...this clip has ' + str(path_stats['# cruise bouts']) + ' bouts of cruising:')
+    
+    cruise_bouts = path_stats['cruise bout timing'].split(';')
+    for bout in cruise_bouts:
+            print('   ' + bout)
     
     ''' ******************* 
-    first, need to find the frames folder(s) for this movie
-      or make these folders if they do not exist yet
+    Find the frames folder for this movie
+      or make this folder if it does not exist yet
     ******************* '''
 
     have_frame_folders = False
+    save_bouts = False
+    resize = 100
 
-    # look for rotated frames folder(s) for this movie
+    ### look for rotated frames folder(s) for this movie
     base_name = movie_file.split('.')[0]
     looking = '\n... Looking for rotated frames for ' + movie_file
     frame_folder_names = base_name + '*_rotacrop'
     frame_folder_list = glob.glob(frame_folder_names)
     if len(frame_folder_list) > 0:
-        print(looking + ' ... found!')
+        print(looking + ' ... found rotated frames!')
         have_frame_folders = True
+        frame_folder = frame_folder_list[0]
     else:
         print(looking + ' ... none found!')
     
@@ -44,37 +67,23 @@ def main(movie_file, resize=100):
         frame_folder_names = base_name + '*_frames'
         frame_folder_list = glob.glob(frame_folder_names)
         if len(frame_folder_list) > 0:
-            print(looking + ' ... found!')
+            print(looking + ' ... found unprocessed frames!')
             have_frame_folders = True
+            frame_folder = frame_folder_list[0]
         else:
             print(looking + ' ... none found!')
     
-    # if no regular frames folder(s) ... need to save some frames
+    # if no frames folder(s) ... need to save some frames
     if have_frame_folders == False:
         
         print('\nWe need to save some frames to track from ' + movie_file)
-        
-        # find the excel file, and load the path_stats page
-        path_stats = gaitFunctions.loadPathStats(movie_file)
-        
-        # if no path_stats, prompt to run analyzeTrack, and exit
-        if len(path_stats) == 0:
-            print('No path found for this movie, run autoTracker.py and analyzeTrack.py')
-            return
-            
-        # print informmation about cruising bouts for this movie
-        print('...this clip has ' + str(path_stats['# cruise bouts']) + ' bouts of cruising:')
-
-        cruise_bouts = path_stats['cruise bout timing'].split(';')
-        for bout in cruise_bouts:
-            print('   ' + bout)
             
         # ask if want to save frames for whole movie, or for the individual bouts
         bout_decision = input('\nMake frames from (w)hole movie, or from the (c)ruising bouts only? ').rstrip().lower()
         frames_decision = input('\nShould we make (r)otated and cropped frames, or leave frame (u)nprocessed? ').rstrip().lower()
         
         if bout_decision == 'c':
-            bout_text = 'each bout'
+            bout_text = 'cruising bouts'
             save_bouts = True
         else:
             bout_text = 'the whole movie'
@@ -84,6 +93,11 @@ def main(movie_file, resize=100):
             frames_text = 'rotated and cropped'
             rotated_frames = True
             import rotaZoomer
+            
+            select_resize = input('Enter % to resize each frame (default=100): ')
+            if len(select_resize) > 0:
+                resize = int(select_resize)
+            
         else:
             frames_text = ''
             rotated_frames = False
@@ -94,67 +108,75 @@ def main(movie_file, resize=100):
         NOW we are ready to save some frames!
         ******************* '''
         if save_bouts: # save multiple bouts
-            frame_folder_list = []
+            
+            # make list of boutstarts and boutends for rotaZoomer
+            boutstarts = []
+            boutends = []
+            
             for bout in cruise_bouts:
                 boutstart = float(bout.split('-')[0].replace(' ',''))
                 boutend = float(bout.split('-')[1].replace(' ',''))
                 time_string = str(int(boutstart)) + '-' + str(int(boutend))
+                boutstarts.append(boutstart)
+                boutends.append(boutend)
                 
-                if rotated_frames:
-                    movie_clip_file = base_name + '_' + time_string
-                    frame_folder = movie_clip_file + '_rotacrop'
-                    print('\nRotating and cropping ' + movie_clip_file)
-                    rotaZoomer.main(frame_folder, movie_file, resize, 'up', True, boutstart, boutend)
-                    print('Saving rotated and cropped frames to ' + frame_folder)
-                    
-                else:
-                    movie_clip_file = base_name + '_' + time_string   
-                    frame_folder = movie_clip_file + '_frames'
-                    gaitFunctions.saveFrames(frame_folder, movie_file, True, boutstart, boutend)
-                    print('Saving unprocessed frames to ' + frame_folder)
-                    
-                frame_folder_list.append(frame_folder)
+            if rotated_frames:
+                # movie_clip_file = base_name + '_' + time_string
+                frame_folder = base_name + '_rotacrop'
+                print('\nRotating and cropping ' + base_name + ' for ' + time_string)
+                rotaZoomer.main(frame_folder, movie_file, resize, 'up', True, boutstarts, boutends)
+                print('Saving rotated and cropped frames to ' + frame_folder)
+                
+            else:  
+                frame_folder = base_name + '_frames'
+                gaitFunctions.saveFrames(frame_folder, movie_file, boutstarts, boutends, True)
+                print('Saving unprocessed frames to ' + frame_folder)
                 
         else: # saving whole movie
         
-            # get time boundaries of movie WORKING
-            (vid_width, vid_height, vid_fps, vid_frames, vid_length) = gaitFunctions.getVideoData(movie_file, False)
-            time_string = '0-'+str(int(vid_length))
-        
             if rotated_frames:
-                frame_folder = base_name + '_' + time_string + '_rotacrop'
+                frame_folder = base_name + '_rotacrop'
                 print('Saving rotated and cropped frames to ' + frame_folder)
                 rotaZoomer.main(frame_folder, movie_file, resize, 'up', True)
             else:
-                frame_folder = base_name + '_' + time_string + '_frames'
+                frame_folder = base_name + '_frames'
                 print('Saving frames to ' + frame_folder)
-                gaitFunctions.saveFrames(movie_file)
-            frame_folder_list = [frame_folder]
-
+                gaitFunctions.saveFrames(frame_folder, movie_file)
     
     ''' *******************
-    OK now we have the frames in folders
-       if more than one folder of frames available, select the ONE we want to track
-    ******************* '''
-
-    if len(frame_folder_list) > 1:
-        print('Select a folder of frames to track:')
-        frame_folder = gaitFunctions.selectOneFromList(frame_folder_list)
-    else:
-        frame_folder = frame_folder_list[0]
-   
-    time_int = frame_folder.split('_')[-2]
-    steptracking_sheet = 'steptracking_' + time_int
-    # print(frame_folder)
-    # print(steptracking_sheet)
-    
-    ''' *******************
-    OK, now we have the single folder of frames we want to track, 
+    Now we have the folder of frames we want to track, 
       now get the step data dictionary and dataframe from the excel file
-      if more than one folder of frames, then each folder will need (or already have) 
+      if more than one cruising bout, then each bout will need (or already have) 
       a steptracking sheet in the excel file: steptracking_time-range
     ******************* '''
 
+    frame_times = gaitFunctions.getFrameTimes(movie_file)
+
+    # if we are tracking bouts, select which bout to track
+    if len(cruise_bouts) > 1:
+        
+        # select the bout to track
+        print('Select a bout to track ... ')
+        bout_selection = gaitFunctions.selectOneFromList(cruise_bouts)
+        
+        # get frame times for stop and end of this bout
+        boutstart, boutend = [float(x) for x in bout_selection.split('-')]
+        time_string = str(int(boutstart)) + '-' + str(int(boutend))
+        
+    # if we are not tracking bouts, we are tracking whole movie!
+    else:
+        print('whole movie')
+        time_string = 'need whole movie length'
+        # get time boundaries of movie
+        boutstart = frame_times[0]
+        boutend = frame_times[-1]
+    
+    steptracking_sheet = 'steptracking_' + time_string
+    # print(time_string)
+    # print(steptracking_sheet)
+    # exit()
+    
+    # get foot data from the steptracking sheet
     foot_data, foot_data_df, excel_filename = get_foot_data(movie_file, steptracking_sheet)
     
     # get number of feet
@@ -193,13 +215,13 @@ def main(movie_file, resize=100):
         # step through frames and label up and down times for this foot
         # can enter a number for resize to scale video
         print('... record data for ' + foot + '\n')
-        data = stepThroughFrames(frame_folder, foot, resize) 
+        data = stepThroughFrames(frame_folder, foot, boutstart, boutend, resize) 
     
         # if no steps, data will be empty. 
         # for data, we expect a list of two lists: down_times, up_times
         if len(data[0]) == 0 and len(data[1]) == 0:
             data[0] = [0]
-            lastframe = gaitFunctions.getFrameTimes(movie_file)[-1]
+            lastframe = frame_times[-1]
             data[1] = [lastframe]# length of clip
     
         # print out foot down and foot up data for this foot
@@ -387,14 +409,19 @@ def filenameToTime(filename):
     else:
         return 0
 
-def stepThroughFrames(folder_name, footname, resize=100):
+def stepThroughFrames(folder_name, footname, frame_start, frame_end, resize=100):
 
-    # search in this folder for .png files
+    # Search in this folder for .png files
     search_term = os.path.join(folder_name, '*.png')
     frames = sorted(glob.glob(search_term))
-
-    # open up the frames in order
-    numFrames = len(frames)
+    
+    # Filter frames based on start and end times desired
+    frame_start_msec = int(frame_start * 1000)
+    frame_end_msec = int(frame_end * 1000)
+    frame_image_times = np.array([int(filenameToTime(x)) for x in frames])
+    start_index = np.where(frame_image_times>=frame_start_msec)[0][0]
+    end_index = np.where(frame_image_times>=frame_end_msec)[0][0]
+    frames = frames[start_index:end_index]
 
     # initialize parameters and empty containers
     i = 0
@@ -402,11 +429,15 @@ def stepThroughFrames(folder_name, footname, resize=100):
     footUp = []
     current_state = ''
     end_message = 'End of clip - press (q) or (esc) ... or go to the (b)eginning!'
-    # frame_name = ''
 
+    # Print Instructions
     print('Select [e.g. click into] the image window and step through frames')
     print('... (n)ext frame, (p)revious frame, (b)eginning, (e)nd, (q)uit')
     print('... (d)own step, (u)p step, (x) = clear most recent step entry')
+    
+    # Open up the frames in order
+    numFrames = len(frames)
+
     while True:
   
         if i >= numFrames:
@@ -512,14 +543,16 @@ def stepThroughFrames(folder_name, footname, resize=100):
 if __name__== "__main__":
 
     if len(sys.argv) > 1:
+        
         movie_file = sys.argv[1]
         try:
             resize = int(sys.argv[2])
         except:
-            resize = 300
+            resize = 100
+            
     else:
         movie_file = gaitFunctions.selectFile(['mp4','mov'])
-        resize = 300
+        resize = 100
 
-    print('Resizing to ' + str(resize) + '%')
-    main(movie_file, resize)
+    # print('Resizing to ' + str(resize) + '%')
+    main(movie_file)

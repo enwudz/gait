@@ -12,7 +12,6 @@ to make movie, run:
     python makeMovieFromImages.py searchterm fps outfile
     
 WISHLIST
- set initial bearing as average of first X seconds (1? 2?)
     
 """
 
@@ -24,13 +23,9 @@ import glob
 import os
 import scipy.signal
 
-def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', save_cropped_frames = False, starttime = 0, endtime = 100000):
+def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', save_cropped_frames = False, starttimes = [], endtimes = []):
     
-    # report selections
-    print('\nMovie is ' + movie_file)
-    print('Zoom is ' + str(zoom_percent) + ' percent')
-    
-    # Can adjust these paramaters for labels
+    ''' ----> Adjust these paramaters for labels '''
     font = cv2.FONT_HERSHEY_DUPLEX # cv2.FONT_HERSHEY_SCRIPT_COMPLEX 
     add_labels = True
     text_size = 1
@@ -39,6 +34,10 @@ def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', save_
     time_x, time_y = [0.05, 0.05] # where should we put the time label?
     turn_x, turn_y = [0.05, 0.99] # where should we put the turn label?
     stop_x, stop_y = [0.5, 0.99] # where should we put the stop label?
+    
+    # report selections
+    print('\nMovie is ' + movie_file)
+    print('Zoom is ' + str(zoom_percent) + ' percent')
     
     ''' check to see if rotated frames folder exists; if not, make a folder '''
     flist = glob.glob(cropped_folder)
@@ -216,92 +215,101 @@ def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', save_
             break
         else:
             # found a frame
-        
-            # decide whether to save this frame
-            if frametimes[i] >= starttime and frametimes[i] <= endtime:
             
-                # get data for this frame
-                rotate_angle += smoothed_deltabearings[i]
-                x = smoothed_x[i]
-                y = smoothed_y[i]
+            # get data for this frame
+            rotate_angle += smoothed_deltabearings[i]
+            x = smoothed_x[i]
+            y = smoothed_y[i]
+            
+            # load frame image
+            # im = cv2.imread(frame_file)
+            
+            # get center of image
+            (h, w) = im.shape[:2]
+            (cX, cY) = (w // 2, h // 2)
+            
+            # get offset of centroid from center of image
+            x_centroid_offset = x - cX
+            y_centroid_offset = y - cY
+            
+            # pad image to twice max dimension
+            padded = padImage(im, 100)
+            # gaitFunctions.displayFrame(padded)
+            
+            # find new centroid after padding
+            (padded_h, padded_w) = padded.shape[:2]
+            (padded_cX, padded_cY) = (padded_w // 2, padded_h // 2)
+            new_x = int(padded_cX + x_centroid_offset)
+            new_y = int(padded_cY + y_centroid_offset)
+            # cv2.circle(padded, (new_x, new_y), 10, (0,0,0), -1)
+            
+            # rotate padded image around centroid    
+            M = cv2.getRotationMatrix2D((new_x, new_y), rotate_angle, 1.0)
+            rotated = cv2.warpAffine(padded, M, (padded_w, padded_h))
+            # gaitFunctions.displayFrame(rotated)    
+            
+            # crop around centroid
+            ybot = new_y - crop_height_offset
+            ytop = new_y + crop_height_offset
+            xbot = new_x - crop_width_offset
+            xtop = new_x + crop_width_offset
+            
+            cropped = rotated[ybot:ytop, xbot:xtop]        
+            # gaitFunctions.displayFrame(cropped)  
+            
+            if flipToRight:
+                cropped = cv2.flip(cropped, 1)
+            
+            if zoom_percent == 100:
+                frame = cropped
+            else:
+                frame = resizeImage(cropped, zoom_percent)
+            
+            if add_labels == True:
+      
+                # put the time variable on the video frame
+                frame = cv2.putText(frame, str(frametimes[i]),
+                                    time_stamp_position,
+                                    font, text_size,
+                                    (55, 55, 55),
+                                    4, cv2.LINE_8)
                 
-                # load frame image
-                # im = cv2.imread(frame_file)
+                # add text for turns (fade in before and out after by text alpha)
+                if turn_alphas[i] == 1:
+                    cv2.putText(frame, 'Turn', turn_position, font, text_size, turn_color, 4, cv2.LINE_8)
+                elif turn_alphas[i] > 0:
+                    overlay = frame.copy()
+                    cv2.putText(overlay, 'Turn', turn_position, font, text_size, turn_color, 4, cv2.LINE_8)
+                    frame = cv2.addWeighted(overlay, turn_alphas[i], frame, 1 - turn_alphas[i], 0) 
                 
-                # get center of image
-                (h, w) = im.shape[:2]
-                (cX, cY) = (w // 2, h // 2)
+                # add text for stops
+                if stop_alphas[i] == 1:
+                    cv2.putText(frame, 'Stop', stop_position, font, text_size, stop_color, 4, cv2.LINE_8)
+                elif stop_alphas[i] > 0:
+                    overlay = frame.copy()
+                    cv2.putText(overlay, 'Stop', stop_position, font, text_size, stop_color, 4, cv2.LINE_8)
+                    frame = cv2.addWeighted(overlay, stop_alphas[i], frame, 1 - stop_alphas[i], 0) 
+            
+            cv2.imshow('press (q) to quit', frame)
+            if cv2.waitKey(25) & 0xFF == ord('q'):
+                break
+            
+            if save_cropped_frames:
                 
-                # get offset of centroid from center of image
-                x_centroid_offset = x - cX
-                y_centroid_offset = y - cY
+                save_this_frame = False
                 
-                # pad image to twice max dimension
-                padded = padImage(im, 100)
-                # gaitFunctions.displayFrame(padded)
+                # decide whether to save this particular frame
+                # cv2 sometimes(?) assigns the last frame of the movie to time 0  
+                if len(starttimes) == 0 and frametimes[i] > 0:
+                    save_this_frame = True
+                elif len(starttimes) > 0 and len(endtimes) > 0:
+                    # see if this frame is within a bout
+                    if gaitFunctions.numberWithinRanges(frametimes[i], starttimes, endtimes):
+                        save_this_frame = True
                 
-                # find new centroid after padding
-                (padded_h, padded_w) = padded.shape[:2]
-                (padded_cX, padded_cY) = (padded_w // 2, padded_h // 2)
-                new_x = int(padded_cX + x_centroid_offset)
-                new_y = int(padded_cY + y_centroid_offset)
-                # cv2.circle(padded, (new_x, new_y), 10, (0,0,0), -1)
-                
-                # rotate padded image around centroid    
-                M = cv2.getRotationMatrix2D((new_x, new_y), rotate_angle, 1.0)
-                rotated = cv2.warpAffine(padded, M, (padded_w, padded_h))
-                # gaitFunctions.displayFrame(rotated)    
-                
-                # crop around centroid
-                ybot = new_y - crop_height_offset
-                ytop = new_y + crop_height_offset
-                xbot = new_x - crop_width_offset
-                xtop = new_x + crop_width_offset
-                
-                cropped = rotated[ybot:ytop, xbot:xtop]        
-                # gaitFunctions.displayFrame(cropped)  
-                
-                if flipToRight:
-                    cropped = cv2.flip(cropped, 1)
-                
-                if zoom_percent == 100:
-                    frame = cropped
-                else:
-                    frame = resizeImage(cropped, zoom_percent)
-                
-                if add_labels == True:
-          
-                    # put the time variable on the video frame
-                    frame = cv2.putText(frame, str(frametimes[i]),
-                                        time_stamp_position,
-                                        font, text_size,
-                                        (55, 55, 55),
-                                        4, cv2.LINE_8)
-                    
-                    # add text for turns (fade in before and out after by text alpha)
-                    if turn_alphas[i] == 1:
-                        cv2.putText(frame, 'Turn', turn_position, font, text_size, turn_color, 4, cv2.LINE_8)
-                    elif turn_alphas[i] > 0:
-                        overlay = frame.copy()
-                        cv2.putText(overlay, 'Turn', turn_position, font, text_size, turn_color, 4, cv2.LINE_8)
-                        frame = cv2.addWeighted(overlay, turn_alphas[i], frame, 1 - turn_alphas[i], 0) 
-                    
-                    # add text for stops
-                    if stop_alphas[i] == 1:
-                        cv2.putText(frame, 'Stop', stop_position, font, text_size, stop_color, 4, cv2.LINE_8)
-                    elif stop_alphas[i] > 0:
-                        overlay = frame.copy()
-                        cv2.putText(overlay, 'Stop', stop_position, font, text_size, stop_color, 4, cv2.LINE_8)
-                        frame = cv2.addWeighted(overlay, stop_alphas[i], frame, 1 - stop_alphas[i], 0) 
-                
-                cv2.imshow('press (q) to quit', frame)
-                if cv2.waitKey(25) & 0xFF == ord('q'):
-                    break
-                
-                if save_cropped_frames:
-                    if frametimes[i] > 0: # cv2 sometimes(?) assigns the last frame of the movie to time 0            
-                        file_name = base_name + '_rotacrop_' + str(int(frametimes[i]*1000)).zfill(6) + '.png'
-                        cv2.imwrite(os.path.join(cropped_folder, file_name), frame)
+                if save_this_frame:           
+                    file_name = base_name + '_rotacrop_' + str(int(frametimes[i]*1000)).zfill(6) + '.png'
+                    cv2.imwrite(os.path.join(cropped_folder, file_name), frame)
               
         i += 1
      
