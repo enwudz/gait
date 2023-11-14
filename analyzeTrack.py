@@ -57,11 +57,13 @@ def main(movie_file):
     try:
         areas = tracked_data.areas.values 
         lengths = tracked_data.lengths.values 
+        widths = tracked_data.widths.values
         uncertainties = tracked_data[uncertainty_col].values
         
     except:
         areas = np.zeros(len(frametimes))
         lengths = np.zeros(len(frametimes))
+        widths = np.zeros(len(frametimes))
         uncertainties = np.zeros(len(frametimes))
         uncertainty_col = 'uncertainty'
     
@@ -86,11 +88,13 @@ def main(movie_file):
     # get medians for critter size: area and length
     median_area_pixels = np.median(areas)
     median_length_pixels = np.median(lengths)
+    median_width_pixels = np.median(widths)
     median_area_scaled = np.median(areas) / scale**2
     median_length_scaled = np.median(lengths) / scale
+    median_width_scaled = np.median(widths) / scale
     
     ### add all tracking vectors to the excel file, 'pathtracking' tab
-    d = {'times':frametimes, 'xcoords':xcoords, 'ycoords':ycoords, 'areas':areas, 'lengths':lengths,
+    d = {'times':frametimes, 'xcoords':xcoords, 'ycoords':ycoords, 'areas':areas, 'lengths':lengths, 'widths':widths,
          'smoothed_x':smoothedx, 'smoothed_y':smoothedy, 'distance':distance,
          'speed':speed, 'cumulative_distance':cumulative_distance, 'bearings': bearings,
          'bearing_changes':bearing_changes, 'stops':stops, 'turns':turns, uncertainty_col:uncertainties}
@@ -138,11 +142,15 @@ def main(movie_file):
     durations_string = ';'.join([str(x) for x in cruise_bout_durations])
     print('durations: ', durations_string)
             
-    parameters = ['scale','unit','body area (pixels^2)','body length (pixels)', 'body area (scaled)','body length (scaled)','clip duration','total distance','average speed',
+    parameters = ['scale','unit','body area (pixels^2)','body length (pixels)', 'body area (scaled)','body length (scaled)',
+                  'body width (pixels)', 'body width (scaled)',
+                  'clip duration','total distance','average speed',
                   '# turns','# stops', '% cruising', '# cruise bouts', 'cruise bout durations', 'cruise bout timing','cumulative bearings','bin duration',
                   'pixel threshold','tracking confidence']
-    vals = [scale, unit, median_area_pixels, median_length_pixels, median_area_scaled, median_length_scaled, clip_duration, total_distance, 
-            average_speed, num_turns, num_stops, cruising_proportion, num_cruise_bouts, durations_string, timing_string, cumulative_bearings, 
+    vals = [scale, unit, median_area_pixels, median_length_pixels, median_area_scaled, median_length_scaled, 
+            median_width_pixels, median_width_scaled,
+            clip_duration, total_distance, average_speed,
+            num_turns, num_stops, cruising_proportion, num_cruise_bouts, durations_string, timing_string, cumulative_bearings, 
             time_increment, pixel_threshold, tracking_confidence]
     
     path_stats = zip(parameters, vals)

@@ -51,7 +51,7 @@ def main(movie_file, difference_threshold = 25, showTracking = True):
     background_image = backgroundFromRandomFrames(movie_file, 100)
 
     # run through video and compare each frame with background
-    centroid_coordinates, areas, lengths, problem_frames = findCritter(movie_file, background_image, difference_threshold, showTracking) # typical threshold is 25, scale of 1 to 255
+    centroid_coordinates, areas, lengths, widths, problem_frames = findCritter(movie_file, background_image, difference_threshold, showTracking) # typical threshold is 25, scale of 1 to 255
     
     # save the centroid_coordinates and areas to the excel file
     times = [x[0] for x in centroid_coordinates]
@@ -60,7 +60,7 @@ def main(movie_file, difference_threshold = 25, showTracking = True):
     
     tracking_uncertainty_key = 'tracking_uncertainty_' + str(difference_threshold) 
     d = {'times':times, 'xcoords':xcoords, 'ycoords':ycoords, 
-         'areas':areas, 'lengths':lengths, tracking_uncertainty_key:problem_frames}
+         'areas':areas, 'lengths':lengths, 'widths':widths, tracking_uncertainty_key:problem_frames}
     
     # report on tracking confidence
     gaitFunctions.getTrackingConfidence(problem_frames, difference_threshold, True)
@@ -102,6 +102,7 @@ def findCritter(video_file, background, pixThreshold, showTracking):
     centroid_coordinates = [] # container for (x,y) coordinates of centroid of target object at each frame
     areas = [] # container for calculated areas of target object at each frame
     lengths = [] # container for calculated lengths of target object at each frame
+    widths = []  # container for calculated widths of target object at each frame
     
     stored_target = ''
     problem_frames = [] # list to keep track of frames with trouble tracking
@@ -160,9 +161,14 @@ def findCritter(video_file, background, pixThreshold, showTracking):
             # get area of target object
             target_area = cv2.contourArea(target)
             
-            # get length of target object
-            center_points, radius = cv2.minEnclosingCircle(target)
-            target_length = 2 * radius 
+            # get length and width of target object
+            center_points, (w,h), rotation_angle = cv2.minAreaRect(target)
+            if h >= w:
+                target_length = h
+                target_width = w
+            else:
+                target_length = w
+                target_width = h
             
         else:
             print('skipping this frame, cannot find target object')
@@ -177,6 +183,7 @@ def findCritter(video_file, background, pixThreshold, showTracking):
         centroid_coordinates.append((frameTime,cX,cY))
         areas.append(target_area)
         lengths.append(target_length)
+        widths.append(target_width)
         problem_frames.append(problem_frame)
 
         if showTracking:
@@ -210,7 +217,7 @@ def findCritter(video_file, background, pixThreshold, showTracking):
     vid.release()
     cv2.destroyAllWindows()
     
-    return centroid_coordinates, areas, lengths, problem_frames
+    return centroid_coordinates, areas, lengths, widths, problem_frames
 
 
 def addCoordinatesToFrame(frame, coordinates, colors):
