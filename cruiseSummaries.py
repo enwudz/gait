@@ -52,8 +52,6 @@ df = pd.DataFrame(d)
 # get unique movies
 unique_movies = sorted(np.unique(df['stems'].values))
 
-
-
 # for each movie, find the bout that is closest to the target length
 # collect bouts until reach a threshold of total time
 target = 10
@@ -78,8 +76,7 @@ for movie in unique_movies:
         movie_clips = np.delete(movie_clips, idx)
         
         cumulative_duration += closest_clip
-        
-    
+          
     # for i, movie_clip in enumerate(movie_clips):
     #     if cumulative_duration <= threshold:
     #         print(movie, movie_clip, movie_bouttiming[i], movie_durations[i])
