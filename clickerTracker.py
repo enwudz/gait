@@ -101,10 +101,6 @@ def main(movie_file):
     xcoords = fillGaps(xcoords)
     ycoords = fillGaps(ycoords)
     
-    # smooth the coordinates
-    # smoothedx = gaitFunctions.smoothFiltfilt(xcoords,3,0.05)
-    # smoothedy = gaitFunctions.smoothFiltfilt(ycoords,3,0.05)
-    
     # measure the length and width of the critter
     length, width = manualCritterMeasurement.main(movie_file)
     
@@ -122,7 +118,6 @@ def main(movie_file):
     with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
         df.to_excel(writer, index=False, sheet_name='pathtracking')
     
-
 def fillGaps(arr):
     iszero = np.concatenate(([0], np.equal(arr, 0).view(np.int8), [0]))
     absdiff = np.abs(np.diff(iszero))

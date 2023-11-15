@@ -10,14 +10,12 @@ import pandas as pd
 import numpy as np
 import glob
 
-excel_files = glob.glob('*.xlsx')
+def find_nearest(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return array[idx], idx
 
-# make dataframe
-# columns = 
-# stem  clip  bouttiming bout duration
-# build up lists for these
-# turn each list into dictionary
-# turn dictionaries into dataframe
+excel_files = glob.glob('*.xlsx')
 
 stems = []
 clips = []
@@ -54,8 +52,11 @@ df = pd.DataFrame(d)
 # get unique movies
 unique_movies = sorted(np.unique(df['stems'].values))
 
-# for each movie, sort bouts from longest to smallest
+
+
+# for each movie, find the bout that is closest to the target length
 # collect bouts until reach a threshold of total time
+target = 10
 threshold = 8 # in seconds (10? 8?)
 
 for movie in unique_movies:
@@ -66,11 +67,23 @@ for movie in unique_movies:
     movie_durations = movie_df['bout duration'].values
     movie_bouttiming = movie_df['bout timing'].values
     movie_clips = movie_df['clips'].values
+
+    while cumulative_duration < threshold:
+        closest_clip, idx = find_nearest(movie_durations, target)
+        print(movie_clips[idx], movie_bouttiming[idx], movie_durations[idx])
+        
+        # remove items at this index
+        movie_durations = np.delete(movie_durations,idx)
+        movie_bouttiming = np.delete(movie_bouttiming, idx)
+        movie_clips = np.delete(movie_clips, idx)
+        
+        cumulative_duration += closest_clip
+        
     
-    for i, movie_clip in enumerate(movie_clips):
-        if cumulative_duration <= threshold:
-            print(movie, movie_clip, movie_bouttiming[i], movie_durations[i])
-            cumulative_duration += movie_durations[i]
+    # for i, movie_clip in enumerate(movie_clips):
+    #     if cumulative_duration <= threshold:
+    #         print(movie, movie_clip, movie_bouttiming[i], movie_durations[i])
+    #         cumulative_duration += movie_durations[i]
     
     
     
