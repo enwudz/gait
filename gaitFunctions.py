@@ -1880,7 +1880,7 @@ def saveGaits(movie_file):
     except:
         species = 'tardigrade'
     
-    if species == 'tardigrade':
+    if species in ['tardigrade','unknown']: # if no species specified or found, assume it is a tardigrade
         frame_times, lateral_gait_styles, lateral_up_legs = getGaits(movie_file, 'lateral')
         frame_times, rear_gait_styles, rear_up_legs = getGaits(movie_file, 'rear')
         
