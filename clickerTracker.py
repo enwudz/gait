@@ -14,9 +14,11 @@ fill in missing points between the recorded frames
 '''
 
 import gaitFunctions
+import manualCritterMeasurement
 import initializeClip
 import pandas as pd
 import numpy as np
+import math
 import sys
 import cv2
 
@@ -100,10 +102,21 @@ def main(movie_file):
     ycoords = fillGaps(ycoords)
     
     # smooth the coordinates
-    smoothedx = gaitFunctions.smoothFiltfilt(xcoords,3,0.05)
-    smoothedy = gaitFunctions.smoothFiltfilt(ycoords,3,0.05)
+    # smoothedx = gaitFunctions.smoothFiltfilt(xcoords,3,0.05)
+    # smoothedy = gaitFunctions.smoothFiltfilt(ycoords,3,0.05)
     
-    d = {'times':frameTimes, 'xcoords':xcoords, 'ycoords':ycoords, }
+    # measure the length and width of the critter
+    length, width = manualCritterMeasurement.main(movie_file)
+    
+    # calculate the area ... assume the critter is elliptical ...
+    area = math.pi * 2 * length * 2 * width
+    
+    lengths = [length] * len(xcoords)
+    widths = [width] * len(xcoords)
+    areas = [area] * len(xcoords)
+    
+    d = {'times':frameTimes, 'xcoords':xcoords, 'ycoords':ycoords, 
+         'areas':areas, 'lengths':lengths, 'widths':widths}
     
     df = pd.DataFrame(d)
     with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 

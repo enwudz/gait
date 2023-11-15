@@ -1,75 +1,62 @@
 #!/usr/bin/python
-from imghdr import what
 import cv2
 import sys
-import os
 import math
-from gait_analysis import *
+import gaitFunctions
 
 '''
-Measure things!
-    distance of tardigrade travel
-    width of tardigrade
+Measure dimensions of a critter!
+    width of critter
     length of tardigrade
-    size of field of view (consider showing on the image where the horizontal halfway line is?)
-    (and calculate speed from distance and time)
 
 distance is measured in pixels - need to have a reference to convert to real distance
     e.g. a micrometer at same magnification
 '''
 
-def main(data_folder):
+def main(movie_file):
 
     # grab references to the global variables
     global D, image, refPt, drawing, nameText
 
-    # get data ... which folder should we look in?
-    # run this script in a directory that has directories containing data for clips
-    if len(data_folder) == 0: 
-        dirs = listDirectories()
-        data_folder = selectOneFromList(dirs)
-    mov_data = os.path.join(data_folder, 'mov_data.txt')
-    fileTest(mov_data)
+    # get an image to measure
+    # get number of frames
+    vid_width, vid_height, vid_fps, vid_frames, vid_length = gaitFunctions.getVideoData(movie_file)
+    print('There are ' + str(vid_frames) + ' frames in ' + movie_file)
+    
+    # select a frame to measure ... first, last, or a specific frame
+    selection_list = ['first frame','last frame', 'a specific frame number']
+    print('\nWhich movie frame should we measure? ')
+    selection = gaitFunctions.selectOneFromList(selection_list)
 
-    # parse movie data to get info about movie 
-    # (movie name, analyzed length, frame range for speed calculation, movie length)
-    movie_info = getMovieInfo(data_folder)
+    if selection == 'first frame' or selection == 'last frame':
+        first_frame, last_frame = gaitFunctions.getFirstLastFrames(movie_file)
+        if selection == 'first frame':
+            measured_frame = first_frame
+        else: 
+            measured_frame = last_frame
+            
+    else:
+        # we want to choose a specific frame.
+        frame_input = input('Enter a specific frame number to measure: ')
+        try: 
+            frame_number = int(frame_input)
+        except:
+            badInput(frame_input, movie_file)
+        if frame_number < 1 or frame_number > vid_frames:
+            badInput(frame_input, movie_file)
+        else:
+            # grab this specific frame from the movie
+            print('We will get ' + str(frame_number) + ' !')
+            cap = cv2.VideoCapture(movie_file)
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number-1)
+            ret, measured_frame = cap.read()
 
-    # if measurements already exist, prompt to quit
-    if movie_info['tardigrade_width'] > 0:
-        print('It looks like there are already measurements ... \n')
-        print('   Width: ' + str(movie_info['tardigrade_width']))
-        print('   Length: ' + str(movie_info['tardigrade_length']))
-        print('   Distance: ' + str(movie_info['distance_traveled']))
-        print('   Field Width: ' + str(movie_info['field_width']))
-        should_i_quit = input('\n   ... (p)roceed or (q)uit?: ')
-        if should_i_quit == 'q':
-            exit()
-        elif should_i_quit == 'p':
-            print('Getting more measurements!')
-
-    # if we have information about what frames to use to calculate speed
-    # ... save these two frames if we do not already have them
-    saveSpeedFrames(data_folder, movie_info)
-
-    # Prompt - measure (w)idth, (l)ength, (d)istance, (f)ield of view, (q)uit
-    # Assign old data or zeros to all of these before measuring
-
-    tardigrade_width = initializeMeasurementList(movie_info['tardigrade_width'])
-    tardigrade_length = initializeMeasurementList(movie_info['tardigrade_length'])
-    distance_traveled = initializeMeasurementList(movie_info['distance_traveled'])
-    field_of_view = initializeMeasurementList(movie_info['field_width'])
-    tardigrade_speed = movie_info['tardigrade_speed']
+    # got the frame!! Ready to measure things
+    
     measuring = True
-
-    # load beginning frame and ending frame
-    beginning = loadImage(data_folder, 'beginning_speed_frame.png')
-    ending = loadImage(data_folder, 'ending_speed_frame.png')
-
-    # superimpose the two images, and clone
-    image = cv2.addWeighted(beginning,0.5,ending,0.5,0)
-    clone = image.copy()
     what_to_measure = ''
+    width = 0
+    length = 0
 
     # let's measure things!
     measuring = True
@@ -81,54 +68,22 @@ def main(data_folder):
             break
         
         # measure the things!
-        image = clone.copy()
+        image = measured_frame.copy()
         D, what_to_measure = measureImage()
         if what_to_measure != 'q':
             print(what_to_measure + ' = ' + str(D))
 
         # add measurement to appropriate list (only need 1, but can take averages if multiple)
         if what_to_measure == 'width':
-            tardigrade_width.append(D)
+            width = D
         elif what_to_measure == 'length':
-            tardigrade_length.append(D)
-        elif what_to_measure == 'distance':
-            distance_traveled.append(D)
-        elif what_to_measure == 'field_of_view':
-            field_of_view.append(D)
+            length = D
     
-    # all done measuring! calculate measurement averages and add to movie_info
-    movie_info['tardigrade_width'] = averageMeasurement(tardigrade_width)
-    movie_info['tardigrade_length'] = averageMeasurement(tardigrade_length) 
-    movie_info['field_width'] = averageMeasurement(field_of_view)
-    movie_info['distance_traveled'] = averageMeasurement(distance_traveled) 
+    return length, width
 
-    # calculate speed!
-    elapsed_time = movie_info['speed_end'] - movie_info['speed_start']
-    if elapsed_time > 0:
-        tardigrade_speed = round(movie_info['distance_traveled'] / elapsed_time, 2)
-        print('Tardigrade speed is ' + str(tardigrade_speed) + ' pixels/second')
-    else:
-        tardigrade_speed = 'none'
-        print('No speed available!')
-    
-    movie_info['tardigrade_speed'] = tardigrade_speed
-
-    # update mov_data.txt
-    updateMovieData(data_folder, movie_info)
-
-def initializeMeasurementList(measurement_value):
-    if measurement_value > 0:
-        measurement_list = [measurement_value]
-    else:
-        measurement_list = []
-    return measurement_list
-
-def averageMeasurement(measurement_list):
-    if len(measurement_list) > 0:
-        average_measurement = np.around(np.mean(measurement_list))
-    else:
-        average_measurement = 0
-    return average_measurement
+def badInput(frame_number, movie_file):
+    print(frame_number + ' is not a valid frame in ' + movie_file)
+    exit()
 
 def measureImage():
 
@@ -193,13 +148,9 @@ def clickDrag(event, x, y, flats, param):
 			cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255,0,0), 2)
 		cv2.imshow(nameText, image)
 
-def loadImage(data_folder, image_filename):
-    image_file = os.path.join(data_folder, image_filename)
-    image = cv2.imread(image_file)
-    return image
 
 def promptForMeasurement():
-    selection = input('\nMeasure (w)idth, (l)ength, (d)istance, (f)ield of view, (q)uit?: ' ).rstrip()
+    selection = input('\nMeasure (w)idth or (l)ength or (q)uit?: ' ).rstrip()
     # print('you pressed ' + selection) # testing
     if selection == 'w':
         what_to_measure = 'width'
@@ -207,12 +158,6 @@ def promptForMeasurement():
     elif selection == 'l':
         what_to_measure = 'length'
         print('  You selected length - measure from nose to space between 4th leg pair')
-    elif selection == 'd':
-        what_to_measure = 'distance'
-        print('  You selected distance - measure nose to nose')
-    elif selection == 'f':
-        what_to_measure = 'field_of_view'
-        print('  You selected field of view - measure across diameter')
     else:
         what_to_measure = 'q'
         print('All done measuring!')
