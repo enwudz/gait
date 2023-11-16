@@ -432,9 +432,10 @@ def stepThroughFrames(folder_name, footname, frame_start, frame_end, resize=100)
     end_message = 'End of clip - press (q) or (esc) ... or go to the (b)eginning!'
 
     # Print Instructions
-    print('Select [e.g. click into] the image window and step through frames')
-    print('... (n)ext frame, (p)revious frame, (b)eginning, (e)nd, (q)uit')
-    print('... (d)own step, (u)p step, (x) = clear most recent step entry')
+    print('\nINSTRUCTIONS:')
+    print('  Select [click into] the image window and step through frames')
+    print('  ... (n)ext frame, (p)revious frame, (b)eginning, (e)nd, (q)uit')
+    print('  ... (d)own step, (u)p step, (x) = clear most recent step entry')
     
     # Open up the frames in order
     numFrames = len(frames)
