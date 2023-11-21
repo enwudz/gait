@@ -49,21 +49,22 @@ def main():
     # get list of excel files and make sure there is an excel for each movie
     clipstems = sorted(get_clips())
 
-    # make empty dataframes to collect data
+    # make empty dataframes to collect all available data
     path_summaries_df = pd.DataFrame()
     step_timing_combined_df = pd.DataFrame()
     step_summaries_df = pd.DataFrame()
     gait_summaries_df = pd.DataFrame()
     
-    # make empty dictionary to keep track of cruise bouts for each individual
-    cruise_bouts = {}
-    
+    ## for PATH TRACKING data
     # make empty dictionaries to collect path data, keyed by unique individual
+    cruise_bouts = {}
     clip_scales = {}
     clip_body_areas_pixels = {} 
     clip_body_lengths_pixels = {}
+    clip_body_widths_pixels = {}
     clip_body_areas_scaled = {} 
     clip_body_lengths_scaled = {}
+    clip_body_widths_scaled = {}
     clip_cruising = {}
     clip_duration = {}
     num_stops = {}
@@ -71,6 +72,7 @@ def main():
     bearing_changes = {}
     distance_traveled = {}
     
+    ## for STEP PARAMETER data
     # make empty dictionaries to collect step parameters, keyed by unique individual
     clip_stance_lateral = {}
     clip_swing_lateral = {}
@@ -95,7 +97,9 @@ def main():
     
     clip_metachronal_lag = {}
     clip_metachronal_lag_normalized = {}
+    clip_metachronal_lag_ratio = {} # abs(log2(left/right))
     
+    ## for GAIT STYLE data
     # make empty dictionaries to collect gait style times, keyed by unique individual
     clip_total_frames = {}
     clip_stand_lateral = {}
@@ -103,16 +107,18 @@ def main():
     clip_tetrapod_canonical = {}
     clip_tetrapod_gallop = {}
     clip_tetrapod_other = {}
+    clip_tetrapod_total = {}
     clip_tripod_canonical = {}
     clip_tripod_other = {}
+    clip_tripod_total = {}
     clip_other_lateral = {}
     
     clip_stand_rear = {}
     clip_hop = {}
     clip_step = {}
     
-    
-    # go through clips and collect data ... each individual gets a unique id (uniq_id)
+    ## collect data for each clip
+    # ... each individual gets a unique id (uniq_id) and can have multiple clips
     for clip in clipstems:
         movie_file = clip + '.mov'
         excel_file = clip + '.xlsx'
@@ -146,29 +152,41 @@ def main():
         else:
             clip_scales[uniq_id] = np.array(float(path_stats_dict['scale']))
         
-        # collect body areas in pixels for this individual in this clip
+        # collect body AREAS in pixels for this individual in this clip
         if uniq_id in clip_body_areas_pixels.keys():
             clip_body_areas_pixels[uniq_id] = np.append(clip_body_areas_pixels[uniq_id], float(path_stats_dict['body area (pixels^2)']))
         else:
             clip_body_areas_pixels[uniq_id] = float(path_stats_dict['body area (pixels^2)'])
         
-        # collected body lengths in pixels for this individual in this clip
+        # collect body LENGTHS in pixels for this individual in this clip
         if uniq_id in clip_body_lengths_pixels.keys():
             clip_body_lengths_pixels[uniq_id] = np.append(clip_body_lengths_pixels[uniq_id], float(path_stats_dict['body length (pixels)']))
         else:
             clip_body_lengths_pixels[uniq_id] = float(path_stats_dict['body length (pixels)'])
+            
+        # collect body WIDTHS in pixels for this individual in this clip
+        if uniq_id in clip_body_widths_pixels.keys():
+            clip_body_widths_pixels[uniq_id] = np.append(clip_body_widths_pixels[uniq_id], float(path_stats_dict['body width (pixels)']))
+        else:
+            clip_body_widths_pixels[uniq_id] = float(path_stats_dict['body width (pixels)'])
         
-        # collect scaled areas for this individual in this clip
+        # collect scaled AREAS for this individual in this clip
         if uniq_id in clip_body_areas_scaled.keys():
             clip_body_areas_scaled[uniq_id] = np.append(clip_body_areas_scaled[uniq_id], float(path_stats_dict['body area (scaled)']))
         else:
             clip_body_areas_scaled[uniq_id] = float(path_stats_dict['body area (scaled)'])
         
-        # collect scaled lengths for this individual in this clip
+        # collect scaled LENGTHS for this individual in this clip
         if uniq_id in clip_body_lengths_scaled.keys():
             clip_body_lengths_scaled[uniq_id] = np.append(clip_body_lengths_scaled[uniq_id], float(path_stats_dict['body length (scaled)']))
         else:
             clip_body_lengths_scaled[uniq_id] = float(path_stats_dict['body length (scaled)'])
+            
+        # collect scaled WIDTHS for this individual in this clip
+        if uniq_id in clip_body_widths_scaled.keys():
+            clip_body_widths_scaled[uniq_id] = np.append(clip_body_widths_scaled[uniq_id], float(path_stats_dict['body width (scaled)']))
+        else:
+            clip_body_widths_scaled[uniq_id] = float(path_stats_dict['body width (scaled)'])
         
         # collect clip duration for this individual for this clip
         if uniq_id in clip_duration.keys():
@@ -300,22 +318,37 @@ def main():
             else:
                 clip_pixels_per_step_rear[uniq_id] = cruising_rear['distance_during_step'].values    
         
-            ## OFFSETS AND METACHRONAL LAG
-            # get metachronal lag (lateral legs)
+            ## OFFSETS AND METACHRONAL LAG for this clip
+            
+            # get METACHRONAL LAG (lateral legs) for this clip
             left_metachronal_lag, right_metachronal_lag, mean_gait_cycle = gaitFunctions.getMetachronalLag(sdf)
             metachronal_lag = np.concatenate([left_metachronal_lag, right_metachronal_lag])
             # print(uniq_id, metachronal_lag) # just testing
+            
             if uniq_id in clip_metachronal_lag.keys():
                 clip_metachronal_lag[uniq_id] = np.append(clip_metachronal_lag[uniq_id], metachronal_lag)
             else:
-                clip_metachronal_lag[uniq_id] = metachronal_lag / mean_gait_cycle
+                clip_metachronal_lag[uniq_id] = metachronal_lag
                 
             # get metachronal lag normalized to gait cycle (lateral legs)
+            normalized_metachronal_lag = metachronal_lag / mean_gait_cycle
             if uniq_id in clip_metachronal_lag_normalized.keys():
-                clip_metachronal_lag_normalized[uniq_id] = np.append(clip_metachronal_lag_normalized[uniq_id], metachronal_lag)
+                clip_metachronal_lag_normalized[uniq_id] = np.append(clip_metachronal_lag_normalized[uniq_id], normalized_metachronal_lag)
             else:
-                clip_metachronal_lag_normalized[uniq_id] = metachronal_lag / mean_gait_cycle
+                clip_metachronal_lag_normalized[uniq_id] = normalized_metachronal_lag
             
+            # get ratio of left / right metachronal lag
+            # print(uniq_id, left_metachronal_lag, right_metachronal_lag) # testing
+            if len(left_metachronal_lag) > 0 and len(right_metachronal_lag) > 0:         
+                metachronal_lag_ratio = np.abs(np.log2(np.mean(left_metachronal_lag)/np.mean(right_metachronal_lag)))
+            else:
+                metachronal_lag_ratio = np.nan
+            if uniq_id in clip_metachronal_lag_ratio.keys():
+                clip_metachronal_lag_ratio[uniq_id] = np.append(clip_metachronal_lag_ratio[uniq_id], metachronal_lag_ratio)
+            else:
+                clip_metachronal_lag_ratio[uniq_id] = metachronal_lag_ratio
+            
+            # get step timing OFFSETS
             anterior_offsets, opposite_offsets_lateral, opposite_offsets_rear, mean_gait_cycle_lateral, mean_gait_cycle_rear = gaitFunctions.getSwingOffsets(sdf)
             # print(uniq_id, anterior_offsets) # just testing
             
@@ -387,35 +420,54 @@ def main():
                 clip_pentapod[uniq_id] = np.count_nonzero(lateral_gaits=='pentapod')
                 
             # get #frames where two lateral legs are up in adjacent segments on opposite sides = 'tetrapod_canonical'
+            tetrapod_canonical_frames = np.count_nonzero(lateral_gaits=='tetrapod_canonical')
             if uniq_id in clip_tetrapod_canonical.keys():
-                clip_tetrapod_canonical[uniq_id] = np.append(clip_tetrapod_canonical[uniq_id], np.count_nonzero(lateral_gaits=='tetrapod_canonical'))
+                clip_tetrapod_canonical[uniq_id] = np.append(clip_tetrapod_canonical[uniq_id], tetrapod_canonical_frames)
             else:
-                clip_tetrapod_canonical[uniq_id] = np.count_nonzero(lateral_gaits=='tetrapod_canonical')
+                clip_tetrapod_canonical[uniq_id] = tetrapod_canonical_frames
                  
             # get #frames where two lateral legs are up in same segment on opposite sides = 'tetrapod_gallop'
+            tetrapod_gallop_frames = np.count_nonzero(lateral_gaits=='tetrapod_gallop')
             if uniq_id in clip_tetrapod_gallop.keys():
-                clip_tetrapod_gallop[uniq_id] = np.append(clip_tetrapod_gallop[uniq_id], np.count_nonzero(lateral_gaits=='tetrapod_gallop'))
+                clip_tetrapod_gallop[uniq_id] = np.append(clip_tetrapod_gallop[uniq_id], tetrapod_gallop_frames)
             else:
-                clip_tetrapod_gallop[uniq_id] = np.count_nonzero(lateral_gaits=='tetrapod_gallop')
+                clip_tetrapod_gallop[uniq_id] = tetrapod_gallop_frames
                 
             # get #frames where two lateral legs are up in a pattern not described above = 'tetrapod_other'
+            tetrapod_other_frames = np.count_nonzero(lateral_gaits=='tetrapod_other')
             if uniq_id in clip_tetrapod_other.keys():
-                clip_tetrapod_other[uniq_id] = np.append(clip_tetrapod_other[uniq_id], np.count_nonzero(lateral_gaits=='tetrapod_other'))
+                clip_tetrapod_other[uniq_id] = np.append(clip_tetrapod_other[uniq_id], tetrapod_other_frames)
             else:
-                clip_tetrapod_other[uniq_id] = np.count_nonzero(lateral_gaits=='tetrapod_other')
+                clip_tetrapod_other[uniq_id] = tetrapod_other_frames
                 
-            # get #frames where three lateral legs are up in adjacent segments on opposite sides = 'tripod_canonical'
-            if uniq_id in clip_tripod_canonical.keys():
-                clip_tripod_canonical[uniq_id] = np.append(clip_tripod_canonical[uniq_id], np.count_nonzero(lateral_gaits=='tripod_canonical'))
+            # get #frames TOTAL where two lateral legs are up in any pattern
+            tetrapod_total_frames = tetrapod_canonical_frames + tetrapod_gallop_frames + tetrapod_other_frames
+            if uniq_id in clip_tetrapod_total.keys():
+                clip_tetrapod_total[uniq_id] = np.append(clip_tetrapod_total[uniq_id], tetrapod_total_frames)
             else:
-                clip_tripod_canonical[uniq_id] = np.count_nonzero(lateral_gaits=='tripod_canonical')
+                clip_tetrapod_total[uniq_id] = tetrapod_total_frames   
+            
+            # get #frames where three lateral legs are up in adjacent segments on opposite sides = 'tripod_canonical'
+            tripod_canonical_frames = np.count_nonzero(lateral_gaits=='tripod_canonical')
+            if uniq_id in clip_tripod_canonical.keys():
+                clip_tripod_canonical[uniq_id] = np.append(clip_tripod_canonical[uniq_id], tripod_canonical_frames)
+            else:
+                clip_tripod_canonical[uniq_id] = tripod_canonical_frames
                 
             # get #frames where three lateral legs are up in a pattern that is not 'canonical' = 'tripod_other'
+            tripod_other_frames = np.count_nonzero(lateral_gaits=='tripod_other')
             if uniq_id in clip_tripod_other.keys():
-                clip_tripod_other[uniq_id] = np.append(clip_tripod_other[uniq_id], np.count_nonzero(lateral_gaits=='tripod_other'))
+                clip_tripod_other[uniq_id] = np.append(clip_tripod_other[uniq_id], tripod_other_frames)
             else:
-                clip_tripod_other[uniq_id] = np.count_nonzero(lateral_gaits=='tripod_other')
-                
+                clip_tripod_other[uniq_id] = tripod_other_frames
+            
+            # get #frames TOTAL where two lateral legs are up in any pattern
+            tripod_total_frames = tripod_canonical_frames + tripod_other_frames
+            if uniq_id in clip_tripod_total.keys():
+                clip_tripod_total[uniq_id] = np.append(clip_tripod_total[uniq_id], tripod_total_frames)
+            else:
+                clip_tripod_total[uniq_id] = tripod_total_frames   
+            
             # get #frames where more than three lateral legs are up = 'other'
             if uniq_id in clip_other_lateral.keys():
                 clip_other_lateral[uniq_id] = np.append(clip_other_lateral[uniq_id], np.count_nonzero(lateral_gaits=='other'))
@@ -441,7 +493,8 @@ def main():
                 clip_step[uniq_id] = np.count_nonzero(rear_gaits=='step')
         
         
-    #### ===> finished collecting data. Build up dataframes to save
+    #### ===> finished collecting data.
+    #### NEXT, build up dataframes to save
     
     #### ==> path_summaries dataframe ... info for each unique individual
     ids = sorted(clip_scales.keys())   
@@ -450,6 +503,8 @@ def main():
     dates = [x.split('_')[1] for x in ids]  
     scales = [np.mean(clip_scales[x]) for x in ids]
     lengths = [np.mean(clip_body_lengths_scaled[x]) for x in ids]
+    widths = [np.mean(clip_body_widths_scaled[x]) for x in ids]
+    bodyratio = [widths[i]/lengths[i] for i, width in enumerate(widths)]
     areas = [np.mean(clip_body_areas_scaled[x]) for x in ids]
     durations = [np.sum(clip_duration[x]) for x in ids]
     distances = [np.sum(distance_traveled[x]) for x in ids]
@@ -470,6 +525,8 @@ def main():
                            'Scale (pixels in 1mm)':scales,
                            'Body Size (mm^2)':areas,
                            'Body Length (mm)':lengths,
+                           'Body Width (mm)':widths,
+                           'Body Width/Length Ratio':bodyratio,
                            'Duration analyzed (sec)':durations,
                            'Distance traveled (mm)':distances,
                            'Speed (mm/s)':speed_mm,
@@ -507,6 +564,7 @@ def main():
     opposite_offsets_lateral_normalized = [np.mean(clip_opposite_offset_lateral_normalized[x]) for x in ids]
     metachronal_lag = [np.mean(clip_metachronal_lag[x]) for x in ids]     
     metachronal_lag_normalized = [np.mean(clip_metachronal_lag_normalized[x]) for x in ids] 
+    metachronal_lag_ratio = [np.nanmean(clip_metachronal_lag_ratio[x]) for x in ids] 
     opposite_offsets_rear = [np.mean(clip_opposite_offset_rear[x]) for x in ids] 
     opposite_offsets_rear_normalized = [np.mean(clip_opposite_offset_rear_normalized[x]) for x in ids] 
         
@@ -527,6 +585,7 @@ def main():
                            'bodylength per step (rear legs)':bodylength_per_step_rear,
                            'Metachronal lag (lateral legs)':metachronal_lag,
                            'Metachronal lag (normalized, lateral legs)':metachronal_lag_normalized,
+                           'Metachronal lag Left-Right Ratio':metachronal_lag_ratio,
                            'Anterior swing offsets (lateral legs)':anterior_offsets,
                            'Anterior swing offsets (normalized, lateral legs)':normalized_anterior_offsets,
                            'Opposite swing offsets (lateral legs)':opposite_offsets_lateral,
@@ -548,8 +607,10 @@ def main():
     frames_tetrapod_canonical = [np.sum(clip_tetrapod_canonical[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
     frames_tetrapod_gallop = [np.sum(clip_tetrapod_gallop[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
     frames_tetrapod_other = [np.sum(clip_tetrapod_other[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
+    frames_tetrapod_total = [np.sum(clip_tetrapod_total[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
     frames_tripod_canonical = [np.sum(clip_tripod_canonical[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
     frames_tripod_other = [np.sum(clip_tripod_other[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
+    frames_tripod_total = [np.sum(clip_tripod_total[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
     frames_other = [np.sum(clip_other_lateral[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
     frames_stand_rear = [np.sum(clip_stand_rear[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
     frames_hop = [np.sum(clip_hop[x]) * 100 / num_frames[i] for i,x in enumerate(ids)]
@@ -565,8 +626,10 @@ def main():
                            '% tetrapod canonical (lateral legs)':frames_tetrapod_canonical,
                            '% tetrapod gallop (lateral legs)':frames_tetrapod_gallop,
                            '% tetrapod other (lateral legs)':frames_tetrapod_other,
+                           '% tetrapod total (lateral legs)':frames_tetrapod_total,
                            '% tripod canonical (lateral legs)':frames_tripod_canonical,
                            '% tripod other (lateral legs)':frames_tripod_other,
+                           '% tripod total (lateral legs':frames_tripod_total,
                            '% other (lateral legs)':frames_other,
                            '% stand (rear legs)':frames_stand_rear,
                            '% hop (rear legs)':frames_hop,

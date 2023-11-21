@@ -61,6 +61,7 @@ def main(movie_file):
         header += ',anterior_swing_start,contralateral_swing_start'
 
     for steptracking_sheet in steptracking_sheets:
+        
         print('... getting steps from ' + steptracking_sheet)
         # load mov_data = a dictionary of UP and DOWN times for each leg ... or complain that this data is not available
         mov_data, excel_filename = gaitFunctions.loadUpDownData(excel_filename, steptracking_sheet)
@@ -276,9 +277,8 @@ def badLeg(leg, pathstats_df):
     
 
 def findBoutEnd(event_time,bouts):
-    '''
     
-
+    '''
     Parameters
     ----------
     event_time : floating point decimal
@@ -427,6 +427,9 @@ def get_next_event(event_time, event_times):
     
 def saveStepStats(legs, step_data_df, excel_filename):
     
+    # we only want to save the stats for steps that occur during cruise bouts
+    cruise_steps = step_data_df[step_data_df.cruising_during_step==True]
+    
     stance_time = []
     swing_time = []
     gait_cycle = []
@@ -434,12 +437,12 @@ def saveStepStats(legs, step_data_df, excel_filename):
     distances = []
     
     for leg in legs:
-        stance_time.append(np.mean([float(x) for x in step_data_df[step_data_df.legID==leg]['stance'].values]))
-        swing_time.append(np.mean([float(x) for x in step_data_df[step_data_df.legID==leg]['swing'].values]))
-        gait_cycle.append(np.mean([float(x) for x in step_data_df[step_data_df.legID==leg]['gait'].values]))
-        duty_factor.append(np.mean([float(x) for x in step_data_df[step_data_df.legID==leg]['duty'].values]))
+        stance_time.append(np.mean([float(x) for x in cruise_steps[cruise_steps.legID==leg]['stance'].values]))
+        swing_time.append(np.mean([float(x) for x in cruise_steps[cruise_steps.legID==leg]['swing'].values]))
+        gait_cycle.append(np.mean([float(x) for x in cruise_steps[cruise_steps.legID==leg]['gait'].values]))
+        duty_factor.append(np.mean([float(x) for x in cruise_steps[cruise_steps.legID==leg]['duty'].values]))
         try: # this will only work if analyzePath has already been run . . . 
-            distances.append(np.mean([float(x) for x in step_data_df[step_data_df.legID==leg]['distance_during_step'].values]))
+            distances.append(np.mean([float(x) for x in cruise_steps[cruise_steps.legID==leg]['distance_during_step'].values]))
         except:
             distances.append(0)
         
