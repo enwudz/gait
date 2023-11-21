@@ -26,6 +26,7 @@ import sys
 from scipy import stats
 import gaitFunctions
 import pandas as pd
+import os
 
 def main(movie_file, difference_threshold = 25, showTracking = True):
     
@@ -348,15 +349,34 @@ def saveFrameToFile(file_stem, frame_number, frame):
     file_name = file_stem + '_frames_' + str(frame_number).zfill(8) + '.png'
     cv2.imwrite(file_name, frame, [cv2.IMWRITE_PNG_COMPRESSION, 0])
 
+
+def loadBackgroundImage(imagepath):
+    print('... loading background image ... ')
+    background_image = cv2.imread(imagepath)
+    background_image = cv2.cvtColor(background_image, cv2.COLOR_BGR2GRAY)
+    return background_image
+
 def checkForBackgroundImage(movie_file):
+    
     # check to see if there is already an image
     background_imname = movie_file.split('.')[0] + '_background.png'
-    print('... looking for background image: ' + background_imname)
     background_exists = False
+    imagepath = ''
+    
     if len(glob.glob(background_imname)) > 0:
         background_exists = True
-        print('... found it!')
-    return background_imname, background_exists
+        imagepath = background_imname
+    
+    elif len(glob.glob(os.path.join('background_images', background_imname))) > 0:
+        background_exists = True
+        imagepath = os.path.join('background_images', background_imname)
+    
+    if background_exists:
+        background_image = loadBackgroundImage(imagepath)        
+    else:
+        background_image = np.array([])
+    
+    return background_imname, background_image, background_exists
 
 def backgroundFromRandomFrames(movie_file, num_background_frames):
     ''' Check if there is already a background image for this movie file
@@ -365,7 +385,8 @@ def backgroundFromRandomFrames(movie_file, num_background_frames):
 
     # maybe try https://hostadvice.com/how-to/how-to-do-background-removal-in-a-video-using-opencv/ instead?
 
-    background_imname, background_exists = checkForBackgroundImage(movie_file)
+    background_imname, background_image, background_exists = checkForBackgroundImage(movie_file)
+    
     if background_exists == False:
 
         # if no background image already, make one!
@@ -423,12 +444,17 @@ def backgroundFromRandomFrames(movie_file, num_background_frames):
         # consider blurring the background image a bit?
 
         print('... saving background image as ' + background_imname)
-        cv2.imwrite(background_imname, background_image)
+        
+        if len(glob.glob('background_images')) == 0:
+            os.mkdir('background_images')
+        background_impath = os.path.join('background_images', background_imname)
+        
+        cv2.imwrite(background_impath, background_image)
         print('... finished making background image!')
+        
+        # klugey to load it again when we already have it!
+        background_image = loadBackgroundImage(background_impath)
 
-    print('... Loading background ...')
-    background_image = cv2.imread(background_imname)
-    background_image = cv2.cvtColor(background_image, cv2.COLOR_BGR2GRAY)
     return background_image
 
 # def getBackgroundFrames(num_frames, num_background_frames):

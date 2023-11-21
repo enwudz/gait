@@ -2558,6 +2558,30 @@ def removeFramesFolder(movie_file):
             print(' ... removing ' + frames_folder + '\n')
             shutil.rmtree(frames_folder)
 
+def getSavedBackgrounds(background_image_folder = 'background_images'):
+    # make folder for background images, or copy what's in there 
+    wd = os.getcwd()
+    if len(glob.glob(background_image_folder)) == 0:
+        os.mkdir(background_image_folder)
+    else:
+        print('\n ...Copying background images from ' + background_image_folder)
+        background_images = glob.glob(os.path.join(background_image_folder, '*background*png'))
+        for img in background_images:
+            imfilename = os.path.basename(img)
+            shutil.copyfile(img, os.path.join(wd,imfilename))
+
+def backupBackgrounds(background_image_folder, removeImages = False):
+    print('\nSaving background images to ' + background_image_folder)
+    background_images = glob.glob('*background*png')
+    if len(background_images) > 0:
+        for bi in background_images:
+            shutil.move(bi, os.path.join(background_image_folder,bi))
+        if removeImages:
+            print('... cleaning up background images ...')
+            for bi in background_images:
+                os.remove(bi)
+            
+
 def cleanUpTrash(movie_file):
     fstem = movie_file.split('.')[0]
     bg = glob.glob(fstem + '*background.png')

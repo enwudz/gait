@@ -22,7 +22,7 @@ def main(movie_file):
     # <=== put a # before a line to comment it off
     
     ## make an excel file for a clip
-    # initializeClip.main(movie_file)
+    initializeClip.main(movie_file)
     # 
     ## automated path tracking, including speed, turns, stops
     # if tracking wonky at 12, try 25 or 40 or ...  eg: (movie_file, 25, True) 

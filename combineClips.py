@@ -38,6 +38,7 @@ import numpy as np
 import glob
 import os
 import gaitFunctions
+import warnings
 
 
 def main():
@@ -563,8 +564,11 @@ def main():
     opposite_offsets_lateral = [np.mean(clip_opposite_offset_lateral[x]) for x in ids]
     opposite_offsets_lateral_normalized = [np.mean(clip_opposite_offset_lateral_normalized[x]) for x in ids]
     metachronal_lag = [np.mean(clip_metachronal_lag[x]) for x in ids]     
-    metachronal_lag_normalized = [np.mean(clip_metachronal_lag_normalized[x]) for x in ids] 
-    metachronal_lag_ratio = [np.nanmean(clip_metachronal_lag_ratio[x]) for x in ids] 
+    metachronal_lag_normalized = [np.mean(clip_metachronal_lag_normalized[x]) for x in ids]
+    # nanmean gives warnings if only nan in array
+    with warnings.catch_warnings():
+        warnings.filterwarnings(action='ignore', message='Mean of empty slice')
+        metachronal_lag_ratio = [np.nanmean(clip_metachronal_lag_ratio[x]) for x in ids] 
     opposite_offsets_rear = [np.mean(clip_opposite_offset_rear[x]) for x in ids] 
     opposite_offsets_rear_normalized = [np.mean(clip_opposite_offset_rear_normalized[x]) for x in ids] 
         
