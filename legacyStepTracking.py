@@ -14,7 +14,6 @@ import autoTracker
 import analyzeTrack
 import analyzeSteps
 import os
-import shutil
 import sys
 
 '''
@@ -54,7 +53,7 @@ def main(movie_file, retrack = True):
             initializeClip.main(movie_file)
             
             # auto tracker
-            autoTracker.main(movie_file)
+            autoTracker.main(movie_file, 12, True)
             
             # analyze track
             analyzeTrack.main(movie_file)
@@ -64,7 +63,7 @@ def main(movie_file, retrack = True):
             legacy_step_df.to_excel(writer, index=False, sheet_name='stepALLtracking')
     
         # Make new sheets for bout step data
-        legacy_leg_states = legacy_step_df.leg_states.values
+        legacy_leg_states = legacy_step_df.leg_state.values
         legacy_times = legacy_step_df.times.values
         
         # load the path_stats page for this movie
@@ -85,13 +84,24 @@ def main(movie_file, retrack = True):
             time_string = str(int(boutstart)) + '-' + str(int(boutend))
 
             steptracking_sheetname = 'steptracking_' + time_string
-            print(steptracking_sheetname)
+            
+            # working
+            bout_step_times = []
+            for i, state in enumerate(legacy_leg_states):
+                step_times = [float(x) for x in legacy_times[i].split()]
+                after_start = [x for x in step_times if x >= boutstart]
+                before_end = [x for x in after_start if x <= boutend]
+                bout_step_times.append(' '.join([str(x) for x in before_end]))
+                
+            bout_df = pd.DataFrame({'leg_state':legacy_leg_states, 'times':bout_step_times})
+            with pd.ExcelWriter(excel_file, if_sheet_exists='replace', engine='openpyxl', mode='a') as writer:
+                bout_df.to_excel(writer, index=False, sheet_name=steptracking_sheetname)
         
-        # analyze steps
-        analyzeSteps.main(movie_file)
-        
-        # clean up trash
-        gaitFunctions.cleanUpTrash(movie_file)
+    # analyze steps
+    analyzeSteps.main(movie_file)
+    
+    # clean up trash
+    gaitFunctions.cleanUpTrash(movie_file)
 
 if __name__== "__main__":
 

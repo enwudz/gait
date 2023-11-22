@@ -304,12 +304,16 @@ def summaryPlots(df, start_data_col):
                 print('\n ... invalid selection, try again ...')
         
         groups = []
+        groupnames = []
         for g in np.arange(num_groups):
             print('\nSelect individual(s) for group ' + str(g+1) + ' of ' + str(num_groups))
             selection = gaitFunctions.selectMultipleFromList(individuals)
             groups.append(selection)
             
-        groupnames = ['\n'.join(x) for x in groups]
+            groupname = input('Enter the name of this group: ').rstrip()
+            groupnames.append(groupname)
+            
+        # groupnames = ['\n'.join(x) for x in groups]
     
     # Offer options to plot, and do the plots
     plotting = True
@@ -345,7 +349,9 @@ def makeBoxPlot(df,col,groupnames,groups,datacol):
     data_to_plot = []
     for i,group in enumerate(groups):
         # print(group, col, datacol) # testing
-        data_to_plot.append(df[df[col].isin(group)][datacol].values)
+        thisdata = df[df[col].isin(group)][datacol].values
+        thisdata = thisdata[~np.isnan(thisdata)]
+        data_to_plot.append(thisdata)
     # print(data_to_plot) # testing
     
     # make boxplot
@@ -448,7 +454,7 @@ if __name__== "__main__":
     
     else:
         
-        datafiles = sorted(glob.glob('*combined.xlsx'))
+        datafiles = sorted(glob.glob('*combined*.xlsx'))
         
         if len(datafiles) == 1:
             datafile = datafiles[0]
