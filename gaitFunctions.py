@@ -155,10 +155,10 @@ def metachronalLagLRPlot(f, step_df):
 
 def getStepParameters():
     parameters = ['stance', 'swing', 'duty', 
-                  'gait', 'distance_during_step']
+                  'gait', 'distance_during_step_scaled']
     labels = ['stance duration (sec)', 'swing duration (sec)',
              'duty factor', 'gait cycle (sec)', 
-             'distance traveled (pixels)']
+             'distance traveled']
     return parameters, labels
 
 def speedStepParameterPlot(f, step_df):
@@ -167,11 +167,11 @@ def speedStepParameterPlot(f, step_df):
     
     cruising = step_df[step_df['cruising_during_step'] == True]
     cruising = cruising[cruising['legID'].isin(legs)]
-    speed_cruising = cruising['speed_during_step'].values
+    speed_cruising = cruising['speed_during_step_scaled'].values
     
     noncruising = step_df[step_df['cruising_during_step'] == False]
     noncruising = noncruising[noncruising['legID'].isin(legs)]   
-    speed_noncruising = noncruising['speed_during_step'].values
+    speed_noncruising = noncruising['speed_during_step_scaled'].values
 
     for i, parameter in enumerate(parameters):
         parameter_cruising = cruising[parameter].values
@@ -182,7 +182,7 @@ def speedStepParameterPlot(f, step_df):
         
         # add axes labels
         f.axes[i].set_ylabel(ylabs[i])
-        f.axes[i].set_xlabel('Speed (pix / sec)')
+        f.axes[i].set_xlabel('Speed (mm / sec)') # units not generalizable here
                        
     return f
 

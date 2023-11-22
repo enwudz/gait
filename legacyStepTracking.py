@@ -17,20 +17,13 @@ import os
 import sys
 
 '''
-legacySteptracking take existing steptracking and break up the data into cruise bouts . . . 
-	Delete excel file
-	Run initializeClip
-	Run autoTracker
-	Run analyzeTrack
-	Save existing steptracking data to stepALLtracking
-	For each cruise bout
-		Save steptracking data to appropriate sheet
-	Run analyzeSteps
+Take existing steptracking and break up the data into cruise bouts . . . 
+    but also save old data in stepALLtracking tab
 '''
 
 def main(movie_file, retrack = True):
     
-    update_excel = False
+    update_excel = True
     
     fstem = movie_file.split('.')[0]
     excel_file = fstem + '.xlsx'
@@ -39,7 +32,10 @@ def main(movie_file, retrack = True):
     xlworkbook = pd.ExcelFile(excel_file, engine='openpyxl')
     if 'steptracking' in xlworkbook.sheet_names:
         update_excel = True
+        old_tracking = True
         legacy_step_df = pd.read_excel(excel_file, sheet_name='steptracking')
+    else:
+        old_tracking = False
             
     if update_excel:
         
@@ -59,43 +55,46 @@ def main(movie_file, retrack = True):
             analyzeTrack.main(movie_file)
             
         # retracking finished ... save legacy step data
-        with pd.ExcelWriter(excel_file, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
-            legacy_step_df.to_excel(writer, index=False, sheet_name='stepALLtracking')
-    
-        # Make new sheets for bout step data
-        legacy_leg_states = legacy_step_df.leg_state.values
-        legacy_times = legacy_step_df.times.values
+        if old_tracking:
+            with pd.ExcelWriter(excel_file, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
+                legacy_step_df.to_excel(writer, index=False, sheet_name='stepALLtracking')
         
-        # load the path_stats page for this movie
-        path_stats = gaitFunctions.loadPathStats(movie_file)
+            # Make new sheets for bout step data
+            legacy_leg_states = legacy_step_df.leg_state.values
+            legacy_times = legacy_step_df.times.values
         
-        # print informmation about cruising bouts for this movie
-        print('...this clip has ' + str(path_stats['# cruise bouts']) + ' bouts of cruising:')
-        
-        cruise_bouts = path_stats['cruise bout timing'].split(';')
-        for bout in cruise_bouts:
-                print('   ' + bout)
-        
-        # make a steptracking sheet for each bout
-        print('Making a steptracking sheet for each cruise bout ... ')
-        for bout in cruise_bouts:
-            boutstart = float(bout.split('-')[0].replace(' ',''))
-            boutend = float(bout.split('-')[1].replace(' ',''))
-            time_string = str(int(boutstart)) + '-' + str(int(boutend))
-
-            steptracking_sheetname = 'steptracking_' + time_string
+            # load the path_stats page for this movie
+            path_stats = gaitFunctions.loadPathStats(movie_file)
             
-            # working
-            bout_step_times = []
-            for i, state in enumerate(legacy_leg_states):
-                step_times = [float(x) for x in legacy_times[i].split()]
-                after_start = [x for x in step_times if x >= boutstart]
-                before_end = [x for x in after_start if x <= boutend]
-                bout_step_times.append(' '.join([str(x) for x in before_end]))
+            # print informmation about cruising bouts for this movie
+            print('...this clip has ' + str(path_stats['# cruise bouts']) + ' bouts of cruising:')
+            
+            if path_stats['# cruise bouts'] > 0:
+            
+                cruise_bouts = path_stats['cruise bout timing'].split(';')
+                for bout in cruise_bouts:
+                        print('   ' + bout)
                 
-            bout_df = pd.DataFrame({'leg_state':legacy_leg_states, 'times':bout_step_times})
-            with pd.ExcelWriter(excel_file, if_sheet_exists='replace', engine='openpyxl', mode='a') as writer:
-                bout_df.to_excel(writer, index=False, sheet_name=steptracking_sheetname)
+                # make a steptracking sheet for each bout
+                print('Making a steptracking sheet for each cruise bout ... ')
+                for bout in cruise_bouts:
+                    boutstart = float(bout.split('-')[0].replace(' ',''))
+                    boutend = float(bout.split('-')[1].replace(' ',''))
+                    time_string = str(int(boutstart)) + '-' + str(int(boutend))
+        
+                    steptracking_sheetname = 'steptracking_' + time_string
+                    
+                    # working
+                    bout_step_times = []
+                    for i, state in enumerate(legacy_leg_states):
+                        step_times = [float(x) for x in legacy_times[i].split()]
+                        after_start = [x for x in step_times if x >= boutstart]
+                        before_end = [x for x in after_start if x <= boutend]
+                        bout_step_times.append(' '.join([str(x) for x in before_end]))
+                        
+                    bout_df = pd.DataFrame({'leg_state':legacy_leg_states, 'times':bout_step_times})
+                    with pd.ExcelWriter(excel_file, if_sheet_exists='replace', engine='openpyxl', mode='a') as writer:
+                        bout_df.to_excel(writer, index=False, sheet_name=steptracking_sheetname)
         
     # analyze steps
     analyzeSteps.main(movie_file)
