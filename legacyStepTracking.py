@@ -49,7 +49,7 @@ def main(movie_file, retrack = True):
             initializeClip.main(movie_file)
             
             # auto tracker
-            autoTracker.main(movie_file, 12, True)
+            autoTracker.main(movie_file, 50, True)
             
             # analyze track
             analyzeTrack.main(movie_file)
