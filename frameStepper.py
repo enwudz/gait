@@ -19,7 +19,7 @@ WISH LIST
 
 '''
 
-def main(movie_file):
+def main(movie_file, resize):
 
     ''' ******************* 
     determine the timing of cruise bouts for this movie
@@ -47,7 +47,7 @@ def main(movie_file):
 
     have_frame_folders = False
     save_bouts = False
-    resize = 100
+    # resize = 100
 
     ### look for rotated frames folder(s) for this movie
     base_name = movie_file.split('.')[0]
@@ -557,4 +557,4 @@ if __name__== "__main__":
         resize = 100
 
     # print('Resizing to ' + str(resize) + '%')
-    main(movie_file)
+    main(movie_file, resize)

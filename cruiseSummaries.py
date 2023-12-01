@@ -12,8 +12,11 @@ import glob
 
 def find_nearest(array, value):
     array = np.asarray(array)
-    idx = (np.abs(array - value)).argmin()
-    return array[idx], idx
+    if len(array) > 0:
+        idx = (np.abs(array - value)).argmin()
+        return array[idx], idx
+    else:
+        return 0, 0
 
 excel_files = glob.glob('*.xlsx')
 
@@ -68,14 +71,17 @@ for movie in unique_movies:
 
     while cumulative_duration < threshold:
         closest_clip, idx = find_nearest(movie_durations, target)
-        print(movie_clips[idx], movie_bouttiming[idx], movie_durations[idx])
-        
-        # remove items at this index
-        movie_durations = np.delete(movie_durations,idx)
-        movie_bouttiming = np.delete(movie_bouttiming, idx)
-        movie_clips = np.delete(movie_clips, idx)
-        
-        cumulative_duration += closest_clip
+        if idx > 0:
+            print(movie_clips[idx], movie_bouttiming[idx], movie_durations[idx])
+            
+            # remove items at this index
+            movie_durations = np.delete(movie_durations,idx)
+            movie_bouttiming = np.delete(movie_bouttiming, idx)
+            movie_clips = np.delete(movie_clips, idx)
+            
+            cumulative_duration += closest_clip
+        else:
+            break
           
     # for i, movie_clip in enumerate(movie_clips):
     #     if cumulative_duration <= threshold:
