@@ -15,7 +15,6 @@ import gaitFunctions
 '''
 WISH LIST
 
-if no length, prompt to measure it
 
 '''
 
@@ -79,7 +78,7 @@ def main(movie_file):
     distance, speed, cumulative_distance, bearings, bearing_changes = distanceSpeedBearings(frametimes, smoothedx, smoothedy)
     
     # get vectors for stops and turns
-    stops, turns = stopsTurns(frametimes, speed, bearing_changes, bearings, time_increment, np.median(lengths), turn_threshold)
+    stops, turns, bearing_changes = stopsTurns(frametimes, speed, bearing_changes, bearings, time_increment, np.median(lengths), turn_threshold)
     
     # get % cruising
     non_cruising_proportion = np.count_nonzero(stops + turns) / len(stops)
@@ -194,6 +193,7 @@ def stopsTurns(times, speed, bearing_changes, bearings, increment, length, turn_
     
     stops = binary vector (1 = stopped, 0 = moving)
     turns = binary vector (1 = turning, 0 = not turning)
+    bearing_changes = filtered input where bearing changes during a stop are 0
 
     '''
     
@@ -229,7 +229,21 @@ def stopsTurns(times, speed, bearing_changes, bearings, increment, length, turn_
         # print(mean_speed_in_bin, stop_threshold) # to test!
         if mean_speed_in_bin <= stop_threshold:       
             stops[start_bin:end_bin] = 1
-                         
+    
+    # WORKING UPDATE BEARING CHANGES DURING THE STOP
+    # find the beginning and end of each stop   
+    # num_frame_in_stop = ....
+    # get bearing just before the stop
+    # prior_bearing = bearings[start_bin]
+    # after_bearing = bearings[end_bin]
+    # bearing_change_during_stop = gaitFunctions.change_in_bearing(prior_bearing, after_bearing)
+    # bearing_filler = np.linspace(0,bearing_change_during_stop, num_frame_in_stop)
+            
+    # # set bearing changes DURING the stop to equal steps between before and after
+    # bearing_changes[start_bin:end_bin] = bearing_filler
+    
+    # now find TURNS
+    for i, time in enumerate(times[:start_of_last_batch]):                 
         # find TURNS     
         # look at total change in bearing from this bin
         # # if ABOVE a threshold (eg 28 degrees)? = a TURN
@@ -238,7 +252,7 @@ def stopsTurns(times, speed, bearing_changes, bearings, increment, length, turn_
         if np.sum(np.abs(bearing_changes[start_bin:end_bin])) >= turn_threshold:
             turns[start_bin:end_bin] = 1
   
-    return stops, turns
+    return stops, turns, bearing_changes
 
 def distanceSpeedBearings(times, xcoords, ycoords):
     '''
@@ -261,10 +275,8 @@ def distanceSpeedBearings(times, xcoords, ycoords):
     distance = distance traveled per video frame (in PIXELS)
     speed = speed of travel during video frame (in PIXELS / second)
     cumulative_distance = distance traveled from beginning through video frame (in PIXELS)
-    bearing = change in bearing during video frame (this will be ZERO if stopped)
-    
-    stops = binary vector (1 = stopped, 0 = moving)
-    turns = binary vector (1 = turning, 0 = not turning)
+    bearings = bearing during video frame
+    bearing_changes = change in bearing during video frame 
 
     '''
 
