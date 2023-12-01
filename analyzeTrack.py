@@ -22,11 +22,19 @@ def main(movie_file):
     
     # tracking data is from autoTracker.py, and is in an excel file for each clip
     
-    # things we can adjust ... see also turn_threshold = 28 in stopsturns function
-    time_increment = 0.3 # in seconds ... over what time duration should we look for stops and turns
+    ''' things we can adjust to determine what is a stop and what is a turn '''
+    # What time window should we look for stops and turns
+    time_increment = 0.3 # in seconds ... 
+    
+    # define STOP = speed threshold expressed as fraction of length of critter
+    # if distance in a time window (increment) is below this threshold, it is a STOP!
+    threshold_distance = 0.15
+    
+    # define threshold for TURNS
     turn_threshold = 28 # in degrees ... minimum angle to be called a 'turn' within time increment
     cruise_bout_threshold = 3 # in seconds ... what is minimum time to count as a 'cruise'?
     
+    ''' get going on analysis '''
     # load tracked path stats for this clip (if available)
     path_stats = gaitFunctions.loadPathStats(movie_file)
     
@@ -78,7 +86,8 @@ def main(movie_file):
     distance, speed, cumulative_distance, bearings, bearing_changes = distanceSpeedBearings(frametimes, smoothedx, smoothedy)
     
     # get vectors for stops and turns
-    stops, turns, bearing_changes = stopsTurns(frametimes, speed, bearing_changes, bearings, time_increment, np.median(lengths), turn_threshold)
+    stop_threshold = threshold_distance * np.median(lengths) * time_increment 
+    stops, turns, bearing_changes = stopsTurns(frametimes, speed, bearing_changes, bearings, time_increment, stop_threshold, turn_threshold)
     
     # get % cruising
     non_cruising_proportion = np.count_nonzero(stops + turns) / len(stops)
@@ -166,7 +175,7 @@ def cruiseBouts(turns, stops):
     cruise_bouts = gaitFunctions.zero_runs(cruising)
     return cruise_bouts
 
-def stopsTurns(times, speed, bearing_changes, bearings, increment, length, turn_threshold):    
+def stopsTurns(times, speed, bearing_changes, bearings, increment, stop_threshold, turn_threshold):    
     
     '''
     From vectors of speed and bearings ...
@@ -201,19 +210,14 @@ def stopsTurns(times, speed, bearing_changes, bearings, increment, length, turn_
     stops = np.zeros(len(speed))
     turns = np.zeros(len(speed))
     
-    # # make bins
-    # current_time = 0
-    # video_length = times[-1]
-    
-    # define speed threshold for stop
-    # if mean speed in a time window (increment) is below this threshold, it is a STOP!
-    threshold_distance = 0.15 * length # expressed as fraction of length of critter
-    stop_threshold = threshold_distance * increment # STOP is below this speed
-    
-    # bin_number = 0
-    
     time_of_last_batch = times[-1] - increment
     start_of_last_batch = np.where(times >= time_of_last_batch)[0][0]
+    
+    ''' find STOPs
+    # look at AVERAGE SPEED of this bin
+    # if below a threshold for speed? = a STOP
+    # in STOPS array , set all frames of this bin to 1
+    ''' 
     
     for i, time in enumerate(times[:start_of_last_batch]):
         
@@ -221,34 +225,48 @@ def stopsTurns(times, speed, bearing_changes, bearings, increment, length, turn_
         start_bin = np.where(times >= time)[0][0]
         end_bin = np.where(times >= next_time)[0][0]
         mean_speed_in_bin = np.mean(speed[start_bin:end_bin])
-        
-        # find STOPs
-        # look at AVERAGE SPEED of this bin
-        # if below a threshold for speed? = a STOP
-        # in STOPS, set all frames of this bin to 1
-        # print(mean_speed_in_bin, stop_threshold) # to test!
+    
         if mean_speed_in_bin <= stop_threshold:       
             stops[start_bin:end_bin] = 1
     
-    # WORKING UPDATE BEARING CHANGES DURING THE STOP
-    # find the beginning and end of each stop   
-    # num_frame_in_stop = ....
-    # get bearing just before the stop
-    # prior_bearing = bearings[start_bin]
-    # after_bearing = bearings[end_bin]
-    # bearing_change_during_stop = gaitFunctions.change_in_bearing(prior_bearing, after_bearing)
-    # bearing_filler = np.linspace(0,bearing_change_during_stop, num_frame_in_stop)
-            
-    # # set bearing changes DURING the stop to equal steps between before and after
-    # bearing_changes[start_bin:end_bin] = bearing_filler
+    ''' deal with BEARING CHANGES during each STOP ... 
+    want to have bearing changes during a stop be mostly ZERO
+    but also want to be pointing in the right direction after the stop
+    WORKING
+    '''
     
-    # now find TURNS
+    stop_ranges = gaitFunctions.one_runs(stops)  
+    for stop_range in stop_ranges:
+    
+        # set delta bearings during the stop to 0
+        bearing_changes[stop_range[0]:stop_range[1]] = 0
+
+        # but need to point in correct direction after stop is finished!
+        # get bearing at beginning and ending of this stop
+        prior_bearing = bearings[stop_range[0]] # working ... would rather have average of a few frames before the stop
+        after_bearing = bearings[stop_range[1]] # working ... would rather have average of a few frames after the stop
+              
+        turn_buffer_frames = 10
+       
+        bearing_change_during_stop = gaitFunctions.change_in_bearing(prior_bearing, after_bearing)
+        bearing_filler = np.ones(turn_buffer_frames) * bearing_change_during_stop / turn_buffer_frames
+        # print(stop_range, prior_bearing, after_bearing, bearing_filler) # testing    
+            
+        # set bearing changes DURING the stop to equal steps between before and after
+        bearing_changes[stop_range[1]-turn_buffer_frames:stop_range[1]] = bearing_filler
+    
+    ''' now find TURNS from the bearing changes 
+    look at total change in bearing from this bin
+    if ABOVE a threshold (eg 28 degrees)? = a TURN
+    in the TURNS array , set all frames of this bin to 1
+    '''
+    
     for i, time in enumerate(times[:start_of_last_batch]):                 
-        # find TURNS     
-        # look at total change in bearing from this bin
-        # # if ABOVE a threshold (eg 28 degrees)? = a TURN
-        # # in TURNS, set all frames of this bin to 1
-        # # this is a bit wonky if stopped or exploring very slowly
+
+        next_time = time + increment
+        start_bin = np.where(times >= time)[0][0]
+        end_bin = np.where(times >= next_time)[0][0]
+        
         if np.sum(np.abs(bearing_changes[start_bin:end_bin])) >= turn_threshold:
             turns[start_bin:end_bin] = 1
   
@@ -313,6 +331,9 @@ def distanceSpeedBearings(times, xcoords, ycoords):
             cumulative_distance[i] = cumulative_distance[i-1] +  distance_in_frame
             delta_bearing = gaitFunctions.change_in_bearing(bearings[i], bearings[i-1])
             bearing_changes[i] = delta_bearing
+    
+    # set last bearing to 2nd to last position
+    bearings[-1] = bearings[-2]
     
     return distance, speed, cumulative_distance, bearings, bearing_changes
 

@@ -129,7 +129,7 @@ def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', save_
     b, a = scipy.signal.butter(pole, freq)
     smoothed_deltabearings = scipy.signal.filtfilt(b,a,delta_bearings)
 
-    # Quality control for smoothing: compare bearings vs. smoothed bearings    
+    # Quality control for smoothing: compare bearing changes vs. smoothed bearing changes   
     # import matplotlib.pyplot as plt
     # plt.plot(delta_bearings,'r')
     # plt.plot(smoothed_deltabearings,'k')
