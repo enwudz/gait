@@ -2134,43 +2134,6 @@ def rearCombos(rearleg_swing_counts):
             
     return rear_combos
 
-# def get_leg_swing_combos(movie_folder, leg_set = 'lateral'): # lateral or rear
-
-#     leg_combos = get_leg_combos()
-#     if leg_set == 'rear':
-#         legs = leg_combos['legs_4']
-#     else:
-#         legs = leg_combos['legs_lateral']
-    
-#     # set up variables to collect the data we need
-#     leg_swing_combos = {}
-#     total_frames = 0
-
-#     # get frame_times for this movie (in milliseconds, e.g. [0 33 66 100 .... ])
-#     frame_times = get_frame_times(movie_folder)
-#     total_frames += len(frame_times)
-
-#     # get dictionary of up & down timing for this video clip
-#     # keys = leg['u'] or leg['d'] where leg is in ['L4','L3','L2','L1' (or rights)]
-#     up_down_times, latest_event = getUpDownTimes(os.path.join(movie_folder, 'mov_data.txt'))
-
-#     # get matrix of up (1's) and down (0's) data for all legs
-#     # rows = legs
-#     # columns = frames of video
-#     leg_matrix = fill_leg_matrix(leg_matrix, legs, up_down_times, frame_times, indices)
-
-#     # get dictionary of #frames swinging for different combinations of legs 
-#     leg_swing_counts = get_leg_swing_counts(leg_matrix, leg_set)
-
-#     # get counts of #frames in each type of swing category
-#     for combo in leg_swing_counts.keys():
-#         swing_category = get_swing_categories(combo, leg_set)
-#         if swing_category in leg_swing_combos.keys():
-#             leg_swing_combos[swing_category] += leg_swing_counts[combo]
-#         else:       
-#             leg_swing_combos[swing_category] = leg_swing_counts[combo]
-        
-#     return leg_swing_combos
 
 def combineDictionariesWithCommonKeys(dict_list):
     combined_dict = {}
@@ -2253,15 +2216,6 @@ def get_swing_categories(swing_combination, leg_set = 'lateral'):
             gait_style = 'other' # 4 or more 
     
     return gait_style
-
-
-# def get_frame_times(movie_folder):
-#     video_file = getMovieFromFileList(movie_folder)
-#     vid = cv2.VideoCapture(os.path.join(movie_folder, video_file))
-#     vidlength, numframes, vidfps, vidstart, frame_width, frame_height = getVideoStats(vid, False)
-#     vid.release()
-#     frame_times = np.array([int(x) for x in np.linspace(0, vidlength * 1000, int(numframes))])
-#     return frame_times
 
 
 def uds_to_ones(ups, downs, leg_vector, frame_times):
@@ -2414,68 +2368,6 @@ def get_leg_swing_counts(leg_matrix, leg_set = 'lateral'):
                 leg_swing_counts[swinging_leg_key] = 1
 
     return leg_swing_counts
-
-# add_counts_to_dictionary is DEPRECATED
-##def add_counts_to_dictionary(new_data, existing_dictionary):
-##    # add counts from new dictionary to old dictionary
-##    # new_data is a dictionary of keys => counts
-##    # existing has keys => counts
-##
-##    # for each key of new_data 
-##    for k in new_data.keys():
-##
-##        # if this key is in existing_dictionary, add to existing counts
-##        if k in existing_dictionary.keys():
-##            existing_dictionary[k] += new_data[k]
-##
-##        # if this key is not in existing_dictionary, make an entry
-##        else:
-##            existing_dictionary[k] = new_data[k]
-##
-##    # return updated dictionary
-##    return existing_dictionary
-
-# stepDataToDf is DEPRECATED
-# convert step data for a single clip into a dataframe
-##def stepDataToDf(foldername, fname):
-##    fpath = os.path.join(foldername, fname)
-##    fileTest(fpath)  # to test if file exists before trying to open it
-##    df = pd.read_csv(fpath, index_col=None)
-##
-##    # add column that contains folder name
-##    num_rows = df.shape[0]
-##    exp_column = [foldername] * num_rows
-##    df['clip'] = exp_column
-##
-##    return df
-
-# foldersToDf is DEPRECATED
-# given multiple folders, combine step data from each folder into a dataframe
-##def foldersToDf(folder_list, fname):
-##    if len(folder_list) == 1:
-##        step_data = stepDataToDf(folder_list[0], fname)
-##    else:
-##        step_data = stepDataToDf(folder_list[0], fname)
-##        folder_list = folder_list[1:]
-##        for folder in folder_list:
-##            df = stepDataToDf(folder, fname)
-##            step_data = pd.concat([step_data, df])
-##
-##    return step_data
-
-# experimentToDf is DEPRECATED
-# given a folder that contains multiple folders, each with step data
-# combine step data from each folder into a dataframe
-##def experimentToDf(experiment_directory, fname):
-##    os.chdir(experiment_directory)
-##    # list directories in this folder
-##    clip_directories = listDirectories()
-##
-##    clip_list = sorted(selectMultipleFromList(clip_directories))
-##    df = foldersToDf(clip_list, fname)
-##    os.chdir('../')
-##    return df
-
 
 # given a dataframe containing step data (including a column for 'clip'
 # return metachronal lag (time between swings of hindlimbs and forelimbs)
@@ -2989,4 +2881,43 @@ def statsFromBoxData(boxData,statTest):
 
 	return pvals
     
+def getSomeAvg(v, numelements, reverse = False):
+    '''
+    Parameters
+    ----------
+    v : numpy array
+        one dimensional numpy array
+    numelements : integer
+        number of elements within v to take the average
+        this will be elements at either the beginning of v (if reverse is False)
+        or at the end of v (if reverse is True)
+    reverse : TYPE, optional
+        DESCRIPTION. The default is False.
+
+    Returns
+    -------
+    some_average = floating point decimal
+        average of numelements part of v
+
+    '''
+    
+    if reverse == True:
+        v = np.flip(v)
+    
+    if len(v) < numelements:
+        
+        # try half of numelements
+        half_numelements = int(numelements / 2)
+        
+        if len(v) < half_numelements:
+            someAvg = np.mean(v)
+            
+        else:
+            someAvg = np.mean(v[:half_numelements])
+    
+    else:
+        
+        someAvg = np.mean(v[:numelements])
+    
+    return someAvg
     
