@@ -554,7 +554,6 @@ def getSpeedForStep(step_data_df, pathtracking_df, pathstats_df):
         # calculate the average length measured for this step
         step_tardilengths[i] = np.mean(lengths[start_time_index:end_time_index])
     
-    # working ... could convert speed and distance to real values with scale ... need pathstats_df
     # get scale from pathstats_df
     scale = pathstats_df[pathstats_df['path parameter']=='scale'].values[0][1]
     # unit = pathstats_df[pathstats_df['path parameter']=='unit'].values[0][1]

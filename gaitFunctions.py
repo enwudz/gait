@@ -2881,43 +2881,10 @@ def statsFromBoxData(boxData,statTest):
 
 	return pvals
     
-def getSomeAvg(v, numelements, reverse = False):
-    '''
-    Parameters
-    ----------
-    v : numpy array
-        one dimensional numpy array
-    numelements : integer
-        number of elements within v to take the average
-        this will be elements at either the beginning of v (if reverse is False)
-        or at the end of v (if reverse is True)
-    reverse : TYPE, optional
-        DESCRIPTION. The default is False.
-
-    Returns
-    -------
-    some_average = floating point decimal
-        average of numelements part of v
-
-    '''
-    
-    if reverse == True:
-        v = np.flip(v)
-    
-    if len(v) < numelements:
-        
-        # try half of numelements
-        half_numelements = int(numelements / 2)
-        
-        if len(v) < half_numelements:
-            someAvg = np.mean(v)
-            
-        else:
-            someAvg = np.mean(v[:half_numelements])
-    
-    else:
-        
-        someAvg = np.mean(v[:numelements])
-    
-    return someAvg
-    
+def fillLastBit(vec,startval,endval,numtofill):
+    increment = (endval - startval) / numtofill
+    newvec = vec
+    for i in np.arange(numtofill):
+        idx = len(vec) - numtofill + i
+        newvec[idx] = vec[idx] + i * increment
+    return newvec

@@ -68,6 +68,7 @@ def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', save_
     tracked_df, excel_filename = gaitFunctions.loadTrackedPath(movie_file)
     frametimes = tracked_df.times.values
     bearings = tracked_df.bearings.values
+    delta_bearings = tracked_df.bearing_changes.values
     turns = tracked_df.turns.values
     stops = tracked_df.stops.values
 
@@ -95,44 +96,19 @@ def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', save_
             else:
                 direction = 'up'
                 
-    print('Direction of travel is ' + direction)   
+    print('Direction of travel is ' + direction)
     
-    # for abrupt turns and stops, smooth out bearing changes 
-    turn_ranges = gaitFunctions.one_runs(turns)
-    for turn_range in turn_ranges:
-        # get bearing before turn
-        try:
-            before_turn = bearings[turn_range[0]-1]
-        except:
-            before_turn = bearings[0]
-            
-        # get bearing after turn
-        try: 
-            after_turn = bearings[turn_range[1]]
-        except:
-            after_turn = bearings[-1]
-            
-        turn_length = turn_range[1] - turn_range[0]
-        bearings[turn_range[0]:turn_range[1]] = np.linspace(before_turn, after_turn, turn_length)
-
-    # convert bearings to bearing changes
-    delta_bearings = np.zeros(len(bearings))
-    for i, b in enumerate(bearings[:-1]):
-        delta_bearings[i+1] = gaitFunctions.change_in_bearing(b, bearings[i+1])
-    
-    ## force first bit of delta_bearings to be constant, to establish direction?
-    # delta_bearings[:15] = 0
-    
-    ## smooth out the bearing changes, not so much movement
-    pole = 10 # integer; lower = more smooth ... but 'freq' has more effect?
-    freq = 0.04 # float: lower = more smooth ... has more effect than 'pole'?
-    b, a = scipy.signal.butter(pole, freq)
-    smoothed_deltabearings = scipy.signal.filtfilt(b,a,delta_bearings)
+    ## smooth out the bearings or bearing changes, not so much movement
+    # pole = 10 # integer; lower = more smooth ... but 'freq' has more effect?
+    # freq = 0.04 # float: lower = more smooth ... has more effect than 'pole'?
+    # b, a = scipy.signal.butter(pole, freq)
+    # smoothed_deltabearings = scipy.signal.filtfilt(b,a,delta_bearings)
+    # smoothed_bearings = scipy.signal.filtfilt(b,a,bearings)
 
     # Quality control for smoothing: compare bearing changes vs. smoothed bearing changes   
     # import matplotlib.pyplot as plt
-    # plt.plot(delta_bearings,'r')
-    # plt.plot(smoothed_deltabearings,'k')
+    # plt.plot(bearings,'r')
+    # plt.plot(smoothed_bearings,'k')
     # plt.show()
     # exit()
     
@@ -217,7 +193,8 @@ def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', save_
             # found a frame
             
             # get data for this frame
-            rotate_angle += smoothed_deltabearings[i]
+            # rotate_angle += smoothed_deltabearings[i]
+            rotate_angle = bearings[i]
             x = smoothed_x[i]
             y = smoothed_y[i]
             
