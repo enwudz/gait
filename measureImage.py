@@ -8,7 +8,7 @@ import numpy as np
 
 '''
 modified from measure_things.py (in tardigrade gait)
-Masure a single image and save image with labeled measurement on it
+Measure a single image and save image with labeled measurement on it
 '''
 
 def main(image_file, saveImage = 'True'):

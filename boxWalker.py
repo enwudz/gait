@@ -25,6 +25,7 @@ def main(movie_file, leg_set = 'lateral'):
     
     ## Figure out what species we are dealing with
     identity_info = gaitFunctions.loadIdentityInfo(movie_file)
+
     if 'species' in identity_info.keys():
         species = identity_info['species']
         leg_group = 'right'
