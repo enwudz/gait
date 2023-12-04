@@ -25,9 +25,10 @@ def main(movie_file):
     # What time window should we look for stops and turns
     time_increment = 0.3 # in seconds ... 
     
-    # define STOP = speed threshold expressed as fraction of body length of critter
+    # define STOP = distance threshold expressed as fraction of body length of critter
     # if distance moved in a time window (increment) is below this threshold, it is a STOP!
-    threshold_distance = 0.15
+    # ... for example, need to move 0.15 body lengths in 0.3 seconds
+    stop_threshold = 0.03 # so distance threshold = stop_threshold * body_length
     
     # define threshold for TURNS
     turn_threshold = 28 # in degrees ... minimum angle to be called a 'turn' within time increment
@@ -61,8 +62,9 @@ def main(movie_file):
     frametimes = tracked_data.times.values
     
     try:
+        # units for areas, lengths, widths are in pixels
         areas = tracked_data.areas.values 
-        lengths = tracked_data.lengths.values 
+        lengths = tracked_data.lengths.values
         widths = tracked_data.widths.values
         uncertainties = tracked_data[uncertainty_col].values
         
@@ -80,17 +82,20 @@ def main(movie_file):
     # smooth the coordinates!
     smoothedx = gaitFunctions.smoothFiltfilt(xcoords,3,0.05)
     smoothedy = gaitFunctions.smoothFiltfilt(ycoords,3,0.05)
+    # import matplotlib.pyplot as plt # smoothing quality control
+    # plt.plot(ycoords,'r')
+    # plt.plot(smoothedy,'k')
+    # plt.show()
+    # exit()
 
     # from smoothed data, get vectors for distance, speed, cumulative_distance, bearings, bearing_changes
     distance, speed, cumulative_distance, bearings = distanceSpeedBearings(frametimes, smoothedx, smoothedy)
     
     # get vector for stops
-    stop_threshold = threshold_distance * np.median(lengths) * time_increment 
+    print('stop threshold is ' + str(stop_threshold) + ' body lengths in ' + str(time_increment) + ' seconds' )
+    distance_threshold = np.median(lengths) * stop_threshold # this is in pixels
+    stops = getStops(frametimes, smoothedx, smoothedy, time_increment, distance_threshold)
     
-    print('stop threshold is ', stop_threshold )
-    stops = getStops(frametimes, speed, time_increment, stop_threshold)
-    
-    # working
     # get vector for turns
     bearings, bearing_changes, turns = getTurns(frametimes, stops, bearings, time_increment, turn_threshold)
     
@@ -179,26 +184,30 @@ def cruiseBouts(turns, stops):
     cruise_bouts = gaitFunctions.zero_runs(cruising)
     return cruise_bouts
 
-def getStops(times, speed, increment, stop_threshold):
+def getStops(times, xcoords, ycoords, time_increment, distance_threshold):
 
     '''
-    From vectors of times and speed ...
+    From vectors of times and coordinates ...
     group into bins based on a time increment
 
-    estimate when tardigrade stops (where speed is < threshold)
+    estimate when tardigrade stops (where distance traveled in time window is < threshold)
 
     Parameters
     ----------
     times : numpy array
         times of each video frame
-    speed : numpy array
-        from distanceSpeedBearings, vector of speed in each video frame
-    increment : float
-        increment duration (in seconds) ... window duration to call stops and turns
-    length : float
-        length of critter in mm
-    stop_threshold : float
-        per-frame speed of movement 
+    xcoords : numpy array
+        x coordinate at each frame (usually smoothed)
+    ycoords : numpy array 
+        y coordinate at each frame (usually smoothed)
+    body_length : float
+        length of body in mm
+    time_increment : float
+        increment duration (in seconds) ... window duration to call stops
+    distance_threshold : float
+        threshold body length moved in the time increment, measured in pixels
+        if distance moved in time_increment is less than distance_threshold
+        then it is a STOP
 
     Returns
     -------
@@ -211,19 +220,25 @@ def getStops(times, speed, increment, stop_threshold):
     in STOPS array , set all frames of this bin to 1
     ''' 
     
-    time_of_last_batch = times[-1] - increment
+    time_of_last_batch = times[-1] - time_increment
     start_of_last_batch = np.where(times >= time_of_last_batch)[0][0]
 
-    stops = np.zeros(len(speed))
+    stops = np.zeros(len(times))
     for i, time in enumerate(times[:start_of_last_batch]):
         
-        next_time = time + increment
+        next_time = time + time_increment
         start_bin = np.where(times >= time)[0][0]
         end_bin = np.where(times >= next_time)[0][0]
-        mean_speed_in_bin = np.mean(speed[start_bin:end_bin])
+        start_coord = np.array([xcoords[start_bin], ycoords[start_bin] ] )
+        end_coord = np.array([xcoords[end_bin], ycoords[end_bin]])
+        distance_traveled_in_bin = np.linalg.norm(start_coord - end_coord)
     
-        if mean_speed_in_bin <= stop_threshold:       
+        if distance_traveled_in_bin <= distance_threshold:  
+            status = 'stop'
             stops[start_bin:end_bin] = 1
+        else:
+            status = 'GO'
+        # print(status, times[i], distance_traveled_in_bin, distance_threshold ) # quality control
     
     return stops
     
@@ -251,13 +266,11 @@ def getTurns(times, stops, bearings, increment, turn_threshold):
     deal with BEARINGs during each STOP ... 
     want to have bearings during a stop be mostly ZERO
     but also want to be pointing in the right direction after the stop
-    WORKING
     '''
     
     stop_ranges = gaitFunctions.one_runs(stops)  
     num_frames_to_average = 5 # when looking for bearing before and after a stop
     turn_buffer_frames = 10  # for gradually turning from old bearing (before stop) to new bearing (after stop)
-    
             
     for stop_range in stop_ranges:
         
@@ -284,6 +297,16 @@ def getTurns(times, stops, bearings, increment, turn_threshold):
         else:
             after_bearing = bearings[stop_range[1]]
         
+        # need to find direction of rotation from prior bearing to after bearing
+        # for example ... if old bearing is 90 and new bearing is 350
+        # want to go LEFT (e.g. to -10) = differnce of 100 degrees
+        # and not RIGHT = difference of 260 degrees
+        if np.abs(after_bearing - prior_bearing) > 0:
+            if prior_bearing < 180:
+                after_bearing = after_bearing - 360
+            else:
+                after_bearing = after_bearing + 360
+  
         # set bearing changes towards end of the stop to equal steps between before and after
         old_bearings = bearings[stop_range[1]-turn_buffer_frames:stop_range[1]]
         new_bearings = gaitFunctions.fillLastBit(old_bearings,prior_bearing,after_bearing,turn_buffer_frames)

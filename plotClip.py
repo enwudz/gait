@@ -329,12 +329,19 @@ def timeRibbonPlot(a4, tracked_df):
     a4.scatter(times[:-1],np.ones(len(times[:-1])),c=cols,s=10) # color-coded time!
     return a4
 
-def bearingChangePlot(a3, tracked_df):
-    bearing_changes = tracked_df.bearing_changes.values
+def bearingChangePlot(a3, tracked_df, datatype = 'bearings'): # bearings or bearing_changes
+
+    if datatype == 'bearings':
+        bearing_changes = tracked_df.bearings.values
+        ylab = 'Bearing (˚)'
+    else:
+        bearing_changes = tracked_df.bearing_changes.values
+        ylab = 'Change in\nbearing (˚)'
+    
     times = tracked_df.times.values
     a3.plot(times[1:-1],bearing_changes[1:-1],color='tab:green')
     a3.set_xticks([])
-    a3.set_ylabel('Change in\nbearing (˚)')
+    a3.set_ylabel(ylab)
     a3.spines['top'].set_visible(False)
     a3.spines['right'].set_visible(False)
     a3.spines['bottom'].set_visible(False)

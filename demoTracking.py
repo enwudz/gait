@@ -5,7 +5,7 @@ Created on Tue Oct 11 06:46:13 2022
 
 @author: iwoods
 
-From a movie file that has been tracked with trackCritter ...
+From a movie file that has been tracked with autoTracker ...
     show path of centroids along the video (time gradient color)
     show frame times within video (time gradient color)
     show timing of turns (with decreasing alpha each frame) 
@@ -13,20 +13,24 @@ From a movie file that has been tracked with trackCritter ...
     
 to make movie from saved frames, run:
     python makeMovieFromImages.py 'searchterm' fps outfile
+    ('searchterm' like '*frames*')
 
     
 """
 
 import sys
 import numpy as np
-from matplotlib import cm
+import matplotlib as mpl
 import cv2
 import gaitFunctions
 
-def main(movie_file):
+def main(movie_file, save_frames = False):
     
-    # save frames to make a movie?
-    save_frames = True
+    if save_frames == 'True':
+        print('Saving frames to make a movie ... run ')
+        print("python makeMovieFromImages.py 'searchterm' fps outfile")
+        print(" ... like ... ")
+        print("python makeMovieFromImages.py '*frames*png* 30 out.mp4")
     
     # plotting stuff to adjust
     font = cv2.FONT_HERSHEY_DUPLEX
@@ -177,22 +181,28 @@ def getFrameCount(videofile):
     return num_frames
 
 def makeColorList(cmap_name, N):
-     cmap = cm.get_cmap(cmap_name, N)
-     cmap = cmap(np.arange(N))[:,0:3]
-     cmap = np.fliplr(cmap)
+     
+    # cmap = cm.get_cmap(cmap_name, N)
+    cmap = mpl.colormaps.get_cmap(cmap_name)
+    cmap = cmap(np.arange(N))[:,0:3]
+    cmap = np.fliplr(cmap)
      
      # format for cv2 = 255 is max pixel intensity, colors are BGR     
-     cmap = cmap * 255 # for opencv colors
+    cmap = cmap * 255 # for opencv colors
      # convert RGB to BGR ... apparently no need! 
      # cmap = [[color[0], color[1], color[2]] for i, color in enumerate(cmap)]
-
-     return [tuple(i) for i in cmap]
+    
+    return [tuple(i) for i in cmap]
     
 if __name__== "__main__":
 
+    save_frames = False    
+    if len(sys.argv) > 2:
+        if sys.argv[2] == 'True':
+            save_frames = True
     if len(sys.argv) > 1:
         movie_file = sys.argv[1]
     else:
         movie_file = gaitFunctions.selectFile(['mp4','mov'])
 
-    main(movie_file)
+    main(movie_file, save_frames)

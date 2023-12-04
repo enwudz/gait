@@ -315,8 +315,11 @@ def smoothFiltfilt(x, pole=3, freq=0.1):
 
     '''
 
-    b, a = scipy.signal.butter(pole, freq)
-    filtered = scipy.signal.filtfilt(b,a,x)
+    # b, a = scipy.signal.butter(pole, freq)
+    # filtered = scipy.signal.filtfilt(b,a,x)
+    sos = scipy.signal.butter(pole, freq, output = 'sos')
+    filtered = scipy.signal.sosfiltfilt(sos, x)
+    
     return filtered
 
 

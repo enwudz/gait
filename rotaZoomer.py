@@ -21,7 +21,7 @@ import sys
 import gaitFunctions
 import glob
 import os
-import scipy.signal
+# import scipy.signal
 
 def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', save_cropped_frames = False, starttimes = [], endtimes = []):
     
@@ -29,11 +29,11 @@ def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', save_
     font = cv2.FONT_HERSHEY_DUPLEX # cv2.FONT_HERSHEY_SCRIPT_COMPLEX 
     add_labels = True
     text_size = 1
-    turn_color = (0,0,0) # (155, 155, 0) # all zeros for nothing
-    stop_color = (0,0,0) # (15, 0, 100) # all zeros for nothing
-    time_x, time_y = [0.05, 0.05] # where should we put the time label?
-    turn_x, turn_y = [0.05, 0.99] # where should we put the turn label?
-    stop_x, stop_y = [0.5, 0.99] # where should we put the stop label?
+    turn_color = (155,155,0) # (155, 155, 0) # all zeros for nothing
+    stop_color = (15,0,100) # (15, 0, 100) # all zeros for nothing
+    time_x, time_y = [0.05, 0.1] # where should we put the time label?
+    turn_x, turn_y = [0.05, 0.95] # where should we put the turn label?
+    stop_x, stop_y = [0.5, 0.95] # where should we put the stop label?
     
     # report selections
     print('\nMovie is ' + movie_file)
@@ -68,7 +68,7 @@ def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', save_
     tracked_df, excel_filename = gaitFunctions.loadTrackedPath(movie_file)
     frametimes = tracked_df.times.values
     bearings = tracked_df.bearings.values
-    delta_bearings = tracked_df.bearing_changes.values
+    # delta_bearings = tracked_df.bearing_changes.values
     turns = tracked_df.turns.values
     stops = tracked_df.stops.values
 
@@ -133,14 +133,19 @@ def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', save_
     
     ## set size of crop window
     if direction in ['up','down']:
-        width_multiplier = 0.4 # 0.4 for tardigrades
+        width_multiplier = 0.5 # 0.4 or 0.5 for tardigrades
         height_multiplier = 0.8 # 0.8 for tardigrades
     else:
         width_multiplier = 0.8
         height_multiplier = 0.6
     
+    # specify width and height of cropped video
     crop_width_offset = int(critter_length * width_multiplier)  
     crop_height_offset = int(critter_length * height_multiplier) 
+    
+    # get dimensions of cropped video
+    vid_width = 2 * crop_width_offset
+    vid_height = 2 * crop_height_offset
     
     ''' Get timing of turns and stops '''
     # these are arrays of frametimes when there are stops and turns
@@ -151,11 +156,12 @@ def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', save_
     label_buffer = 30 # in frames
     stop_alphas = gaitFunctions.labelTimes(frametimes, stop_times, label_buffer)
     turn_alphas = gaitFunctions.labelTimes(frametimes, turn_times, label_buffer)
+    # print(turn_alphas) # testing
     
     # where should we put the labels for frame time and stop and turn?
     vid = cv2.VideoCapture(movie_file)
-    vid_width  = int(vid.get(4))
-    vid_height = int(vid.get(3))
+    # vid_width  = int(vid.get(4))
+    # vid_height = int(vid.get(3))
     time_stamp_position = (int(time_x * vid_width), int(time_y * vid_height) )
     turn_position =  (int(turn_x * vid_width), int(turn_y * vid_height) )
     stop_position = (int(stop_x * vid_width), int(stop_y * vid_height) )
@@ -253,6 +259,7 @@ def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', save_
                 
                 # add text for turns (fade in before and out after by text alpha)
                 if turn_alphas[i] == 1:
+                    # print('adding turn') # testing
                     cv2.putText(frame, 'Turn', turn_position, font, text_size, turn_color, 4, cv2.LINE_8)
                 elif turn_alphas[i] > 0:
                     overlay = frame.copy()
