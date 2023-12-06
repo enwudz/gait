@@ -57,8 +57,8 @@ unique_movies = sorted(np.unique(df['stems'].values))
 
 # for each movie, find the bout that is closest to the target length
 # collect bouts until reach a threshold of total time
-target = 10
-threshold = 8 # in seconds (10? 8?)
+target_duration = 8
+minimum_total_duration = 10 # in seconds (10? 8?, 6?, 4?)
 
 for movie in unique_movies:
     cumulative_duration = 0
@@ -69,24 +69,25 @@ for movie in unique_movies:
     movie_bouttiming = movie_df['bout timing'].values
     movie_clips = movie_df['clips'].values
 
-    while cumulative_duration < threshold:
-        closest_clip, idx = find_nearest(movie_durations, target)
-        if idx > 0:
-            print(movie_clips[idx], movie_bouttiming[idx], movie_durations[idx])
+    while cumulative_duration < minimum_total_duration and len(movie_durations) > 0:
+        
+        # is there a clip that is longer than the target threshold
+        # if so, grab that first clip, and add the duration to cumulative_duration
+        try:
+            idx = np.where(movie_durations >= target_duration)[0][0]
+
+        # if there is NOT a clip that is longer than the target threshold
+        # grab the longest
+        except:
+            idx = np.argmax(movie_durations)
+        
+        print(movie_clips[idx], movie_bouttiming[idx], movie_durations[idx])
+        cumulative_duration += movie_durations[idx]
             
-            # remove items at this index
-            movie_durations = np.delete(movie_durations,idx)
-            movie_bouttiming = np.delete(movie_bouttiming, idx)
-            movie_clips = np.delete(movie_clips, idx)
-            
-            cumulative_duration += closest_clip
-        else:
-            break
-          
-    # for i, movie_clip in enumerate(movie_clips):
-    #     if cumulative_duration <= threshold:
-    #         print(movie, movie_clip, movie_bouttiming[i], movie_durations[i])
-    #         cumulative_duration += movie_durations[i]
-    
-    
-    
+        # remove items at this index
+        movie_durations = np.delete(movie_durations,idx)
+        movie_bouttiming = np.delete(movie_bouttiming, idx)
+        movie_clips = np.delete(movie_clips, idx)
+        
+        # keep going until target threshold is reached or we run out of clips
+
