@@ -2886,8 +2886,11 @@ def statsFromBoxData(boxData,statTest):
     
 def fillLastBit(vec,startval,endval,numtofill):
     increment = (endval - startval) / numtofill
-    newvec = vec
-    for i in np.arange(numtofill):
-        idx = len(vec) - numtofill + i
-        newvec[idx] = vec[idx] + i * increment
+    if numtofill >= len(vec):
+        newvec = vec
+        for i in np.arange(numtofill):
+            idx = len(vec) - numtofill + i
+            newvec[idx] = vec[idx] + i * increment
+    else:
+        newvec = np.linspace(startval,endval,len(vec))
     return newvec

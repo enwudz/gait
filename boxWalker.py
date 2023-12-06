@@ -28,7 +28,7 @@ def main(movie_file, leg_set = 'lateral'):
 
     if 'species' in identity_info.keys():
         species = identity_info['species']
-        leg_group = 'right'
+        leg_group = 'up' # choose orientation here
     else:
         species = 'tardigrade'
         leg_group = 'up'
@@ -36,7 +36,8 @@ def main(movie_file, leg_set = 'lateral'):
         num_legs = identity_info['num_legs']
     else:
         num_legs = 8
-    print('This is a ' + species + ' with ' + str(num_legs) + ' legs to show')
+    print('\nThis is a ' + species + ' with ' + str(num_legs) + ' legs to show')
+    print('we will show it going ' + leg_group)
     
     # get an array showing the orientation of the legs in the plot
     if species == 'tardigrade':

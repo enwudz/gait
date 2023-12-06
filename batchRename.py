@@ -10,8 +10,8 @@ import os
 import glob
 import pandas as pd
 
-replaceme = 'tardigrade'
-newthing = 'tardigrade0'
+replaceme = '28nov'
+newthing = '28nov_exemplaris'
 
 movs = glob.glob('*.mov')
 mp4s = glob.glob('*.mp4')
@@ -21,12 +21,12 @@ pngs = glob.glob('*.png')
 moviefiles = movs + mp4s
 
 # rename the png files
-# print('\nRenaming png images')
-# for f in pngs:
-#     if replaceme in f:
-#         newf = f.replace(replaceme,newthing)
-#         print('\t', f, newf)
-#         os.rename(f,newf)
+print('\nRenaming png images')
+for f in pngs:
+    if replaceme in f:
+        newf = f.replace(replaceme,newthing)
+        print('\t', f, newf)
+        os.rename(f,newf)
 
 # rename the movie files
 print('\nRenaming movie files')
