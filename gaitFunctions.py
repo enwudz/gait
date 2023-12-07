@@ -1330,6 +1330,8 @@ def gaitStylePercentagesPlot(ax, excel_files, leg_set = 'lateral'):
 
     '''
 
+    barWidth = 0.5
+    
     # get the gait vectors for the selected movie files
     gait_style_vectors = []
     exp_names = []
@@ -1352,12 +1354,32 @@ def gaitStylePercentagesPlot(ax, excel_files, leg_set = 'lateral'):
         all_combos, combo_colors = get_gait_combo_colors('lateral')
     # print(combo_colors) # test OK
 
-    plot_colors = [combo_colors[combo] for combo in all_combos]
-    percentages = [percentagesFromList(gait_styles_vec) for gait_styles_vec in gait_style_vectors]
-    ylab = 'gait styles'
+    for i, gait_styles_vec in enumerate(gait_style_vectors):
+        combo_proportions = percentagesFromList(gait_styles_vec)
+        for j, combo in enumerate(all_combos):
+            if j == 0:
+                bottom = 0
+            if i == 0: # first dataset ... plot everything at 0 value to make labels for legend
+                ax.bar(i, 0, bottom = bottom, color = combo_colors[combo],
+                       edgecolor='white', width=barWidth, label=combo.replace('_',' '))
+            if combo in gait_styles_vec:
+                ax.bar(i, combo_proportions[combo], bottom = bottom, color = combo_colors[combo],
+                    edgecolor='white', width=barWidth)
+                bottom += combo_proportions[combo]
     
-    ax = percentagesPlotWithLegend(ax, exp_names, all_combos, percentages, plot_colors, ylab)
+    ax.set_xticks(np.arange(len(gait_style_vectors)))
+    if len(exp_names) > 1:
+        ax.set_xticklabels(exp_names)
+    else:
+        ax.set_xticks([])
     
+    # Add a legend
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(reversed(handles), reversed(labels), loc='upper left',
+              bbox_to_anchor=(1,1), ncol=1, fontsize=8)
+    ax.set_ylabel(leg_set + ' gait styles')
+    ax.set_ylim([0,100])    
+
     return ax
 
 def need_tracking():
