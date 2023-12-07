@@ -171,13 +171,13 @@ def main(movie_file, plot_style = ''): # plot_style can be track or speed or ste
             
             # proportions and legend for gait styles: lateral
             lateral_gait_proportions_ax = f.add_axes([0.83, 0.1, 0.02, 0.18])
-            lateral_gait_proportions_ax = gaitFunctions.gaitStyleProportionsPlot(lateral_gait_proportions_ax, 
+            lateral_gait_proportions_ax = gaitFunctions.gaitStylePercentagesPlot(lateral_gait_proportions_ax, 
                                                                                   [excel_filename],
                                                                                   'lateral')
             
             # proportions and legend for gait styles: rear
             rear_gait_proportions_ax = f.add_axes([0.83, 0.33, 0.02, 0.18])
-            rear_gait_proportions_ax = gaitFunctions.gaitStyleProportionsPlot(rear_gait_proportions_ax, 
+            rear_gait_proportions_ax = gaitFunctions.gaitStylePercentagesPlot(rear_gait_proportions_ax, 
                                                                                   [excel_filename],
                                                                                   'rear')
     
@@ -268,13 +268,13 @@ def main(movie_file, plot_style = ''): # plot_style can be track or speed or ste
             
             # proportions and legend for gait styles: lateral
             lateral_gait_proportions_ax = f.add_axes([0.1, 0.1, 0.25, 0.8])
-            lateral_gait_proportions_ax = gaitFunctions.gaitStyleProportionsPlot(lateral_gait_proportions_ax, 
+            lateral_gait_proportions_ax = gaitFunctions.gaitStylePercentagesPlot(lateral_gait_proportions_ax, 
                                                                                   [excel_filename],
                                                                                   'lateral')
             
             # proportions and legend for gait styles: rear
             rear_gait_proportions_ax = f.add_axes([0.65, 0.1, 0.25, 0.8])
-            rear_gait_proportions_ax = gaitFunctions.gaitStyleProportionsPlot(rear_gait_proportions_ax, 
+            rear_gait_proportions_ax = gaitFunctions.gaitStylePercentagesPlot(rear_gait_proportions_ax, 
                                                                                   [excel_filename],
                                                                                   'rear')
             

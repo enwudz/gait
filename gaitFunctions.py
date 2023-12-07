@@ -1206,7 +1206,7 @@ def find_nearest(num, arr):
     return array[idx]
 
 
-def proportionsFromList(li):
+def percentagesFromList(li):
     '''
     Parameters
     ----------
@@ -1217,7 +1217,7 @@ def proportionsFromList(li):
     -------
     dict_with_proportional_values : dictionary
         keys = items in the input list
-        values = proportion of input list that is each item.
+        values = percentage of input list that is each item.
 
     '''
     dict_with_numerical_values = {}
@@ -1235,7 +1235,7 @@ def proportionsFromList(li):
     
     # calculate proportions of each count
     for k in dict_with_numerical_values.keys():
-        dict_with_proportional_values[k] = dict_with_numerical_values[k] / len(li)
+        dict_with_proportional_values[k] = (dict_with_numerical_values[k] / len(li)) * 100
     
     dict_with_proportional_values['no data'] = 0
     return dict_with_proportional_values
@@ -1267,7 +1267,50 @@ def get_gait_combo_colors(leg_set = 'lateral'):
 
     return all_combos, combo_colors
 
-def gaitStyleProportionsPlot(ax, excel_files, leg_set = 'lateral'):
+def percentagesPlotWithLegend(ax, groups, categories, percentages, plot_colors, ylab):  
+    '''
+    categories = list of categories for proportions 
+    plot_colors = list of colors for proportions (must be same size as proportion categories)
+    proportions = list of lists of values for each category
+    groups = list of group names (must be same length as proportions)
+    '''
+    
+    barWidth = 0.5
+    
+    for i, groupname in enumerate(groups):
+
+        for j, category in enumerate(categories):
+
+            if j == 0:
+                bottom = 0
+
+            if i == 0: # first dataset ... plot everything at 0 value to make labels for legend
+                ax.bar(i, 0, bottom = bottom, color = plot_colors[j],
+                       edgecolor='white', width=barWidth, label=categories[j])
+
+            ax.bar(i, percentages[i][j], bottom = bottom, color = plot_colors[j],
+                edgecolor='white', width=barWidth)
+
+            bottom += percentages[i][j]
+
+    # set x tick labels
+    ax.set_xticks(np.arange(len(groups)))
+    if len(groups) > 1:
+        ax.set_xticklabels(groups)
+    else:
+        ax.set_xticks([])
+    
+    # set y axis label
+    ax.set_ylabel(ylab)
+    ax.set_ylim([0,100])
+
+    # Add a legend
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(reversed(handles), reversed(labels), loc='upper left', bbox_to_anchor=(1,1), ncol=1, fontsize=8)
+    return ax
+
+def gaitStylePercentagesPlot(ax, excel_files, leg_set = 'lateral'):
+
     '''
  
     Parameters
@@ -1286,8 +1329,6 @@ def gaitStyleProportionsPlot(ax, excel_files, leg_set = 'lateral'):
         now filled with the stacked bar gait style plot!
 
     '''
-    
-    barWidth = 0.5
 
     # get the gait vectors for the selected movie files
     gait_style_vectors = []
@@ -1311,40 +1352,11 @@ def gaitStyleProportionsPlot(ax, excel_files, leg_set = 'lateral'):
         all_combos, combo_colors = get_gait_combo_colors('lateral')
     # print(combo_colors) # test OK
 
-    exp_names = []
-    for i, gait_styles_vec in enumerate(gait_style_vectors):
-
-        combo_proportions = proportionsFromList(gait_styles_vec)
-
-        for j, combo in enumerate(all_combos):
-
-            if j == 0:
-                bottom = 0
-
-            if i == 0: # first dataset ... plot everything at 0 value to make labels for legend
-                ax.bar(i, 0, bottom = bottom, color = combo_colors[combo],
-                       edgecolor='white', width=barWidth, label=combo.replace('_',' '))
-
-            if combo in gait_styles_vec:
-
-                ax.bar(i, combo_proportions[combo], bottom = bottom, color = combo_colors[combo],
-                    edgecolor='white', width=barWidth)
-
-                bottom += combo_proportions[combo]
-
-    ax.set_xticks(np.arange(len(gait_style_vectors)))
-    if len(exp_names) > 1:
-        ax.set_xticklabels(exp_names)
-    else:
-        ax.set_xticks([])
-
-    # Add a legend
-    handles, labels = ax.get_legend_handles_labels()
-    ax.legend(reversed(handles), reversed(labels), loc='upper left',
-              bbox_to_anchor=(1,1), ncol=1, fontsize=8)
-
-    ax.set_ylabel(leg_set + ' gait styles')
-    ax.set_ylim([0,1])
+    plot_colors = [combo_colors[combo] for combo in all_combos]
+    percentages = [percentagesFromList(gait_styles_vec) for gait_styles_vec in gait_style_vectors]
+    ylab = 'gait styles'
+    
+    ax = percentagesPlotWithLegend(ax, exp_names, all_combos, percentages, plot_colors, ylab)
     
     return ax
 
