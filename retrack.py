@@ -20,8 +20,9 @@ import gaitFunctions
 
 # get excel files
 print('\nGetting excel files . . . ')
-# xls = sorted(glob.glob('*.xlsx'))
-xls = ['sp_21Sep_tardigrade03_ramazzottius_240-300.xlsx'] # just testing one
+xls = sorted(glob.glob('*.xlsx'))
+xls = ['ea_14jul_tardigrade42_day2_013-098.xlsx'] # just testing one
+track_threshold = 12
 
 for xl in xls:
     
@@ -58,7 +59,7 @@ for xl in xls:
     initializeClip.main(movie_file)
     
     # run autoTracker
-    autoTracker.main(movie_file)
+    autoTracker.main(movie_file, track_threshold)
     
     # run analyzeTrack
     analyzeTrack.main(movie_file)

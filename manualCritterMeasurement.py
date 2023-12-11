@@ -165,10 +165,15 @@ def promptForMeasurement():
     return what_to_measure
 
 if __name__== "__main__":
-    if len(sys.argv) > 1:
-            data_folder = sys.argv[1]
-            print('looking in ' + data_folder)
-    else:
-        data_folder = ''
 
-    main(data_folder)
+    if len(sys.argv) > 1:
+        movie_file = sys.argv[1]
+    else:
+        movie_file = gaitFunctions.selectFile(['mp4','mov'])
+     
+    print(movie_file)    
+    
+    if '.mov' in movie_file or '.mp4' in movie_file:
+        main(movie_file)
+    else:
+        exit('No movie file found')
