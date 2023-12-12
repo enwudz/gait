@@ -1893,6 +1893,26 @@ def getFeetFromSpecies(species='tardigrade'):
                 print('\nInvalid entry for number of legs! Try again \n')
     return num_legs
 
+def getFrameSpeeds(movie_file):
+    # working
+    
+    # look for pathtracking sheet; complain if not found
+    tracked_df, excel_filename = loadTrackedPath(movie_file)
+    
+    # get vector of speeds
+    speeds = tracked_df.speed.values
+    
+    # get scale and bodylength from path_stats 
+    path_stats_dict = loadPathStats(movie_file)
+    scale = path_stats_dict['scale']
+    bodylength_pix = path_stats_dict['body length (pixels)']
+    
+    # convert speeds (in pixels/sec) to mm/s and bodylength/s
+    scaled_speeds = speeds / scale
+    bodylength_speeds = speeds / bodylength_pix
+    
+    return scaled_speeds, bodylength_speeds
+
 def saveGaits(movie_file):
     '''
     Save gait styles for lateral legs and rear legs (or all legs of a non-tardigrade) ...
@@ -1917,18 +1937,22 @@ def saveGaits(movie_file):
     except:
         species = 'tardigrade'
     
+    # working
+    # get speeds (mm/s and bodylength/s) for each frame ... from pathtracking sheet
+    speed_mm_s, speed_bodylength_s = getFrameSpeeds(movie_file)
+        
     if species in ['tardigrade','unknown']: # if no species specified or found, assume it is a tardigrade
         frame_times, lateral_gait_styles, lateral_up_legs = getGaits(movie_file, 'lateral')
         frame_times, rear_gait_styles, rear_up_legs = getGaits(movie_file, 'rear')
         
-        d = {'frametimes':frame_times, 
+        d = {'frametimes':frame_times, 'speed (mm/s)':speed_mm_s, 'speed (bodylength/s)':speed_bodylength_s,
              'gaits_lateral':lateral_gait_styles, 'swinging_lateral':lateral_up_legs, 
              'gaits_rear':rear_gait_styles, 'swinging_rear':rear_up_legs}
         
     elif species in ['human','cat','dog']:
         frame_times, gait_styles, up_legs = getGaits(movie_file, species)
         
-        d = {'frametimes':frame_times, 
+        d = {'frametimes':frame_times, 'speed (mm/s)':speed_mm_s, 'speed (bodylength/s)':speed_bodylength_s,
              'gaits':gait_styles, 'swinging_leg':up_legs}
     
     df = pd.DataFrame(d)
