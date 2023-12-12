@@ -67,7 +67,7 @@ def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', save_
     # load tracked path data
     tracked_df, excel_filename = gaitFunctions.loadTrackedPath(movie_file)
     frametimes = tracked_df.times.values
-    bearings = tracked_df.bearings.values
+    bearings = tracked_df.filtered_bearings.values # was just bearings
     # delta_bearings = tracked_df.bearing_changes.values
     turns = tracked_df.turns.values
     stops = tracked_df.stops.values

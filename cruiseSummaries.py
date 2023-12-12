@@ -63,7 +63,7 @@ minimum_total_duration = 10 # in seconds (10? 8?, 6?, 4?)
 for movie in unique_movies:
     cumulative_duration = 0
     movie_df = df[df['stems'] == movie]
-    movie_df = movie_df.sort_values(by=['bout duration'], ascending=False)
+    movie_df = movie_df.sort_values(by=['bout duration'], ascending=True)
     
     movie_durations = movie_df['bout duration'].values
     movie_bouttiming = movie_df['bout timing'].values
