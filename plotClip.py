@@ -332,7 +332,7 @@ def timeRibbonPlot(a4, tracked_df):
 def bearingChangePlot(a3, tracked_df, datatype = 'bearings'): # bearings or bearing_changes
 
     if datatype == 'bearings':
-        bearing_changes = tracked_df.bearings.values
+        bearing_changes = tracked_df.filtered_bearings.values # bearings or filtered_bearings
         ylab = 'Bearing (˚)'
     else:
         bearing_changes = tracked_df.bearing_changes.values
