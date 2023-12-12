@@ -311,10 +311,6 @@ def getTurns(times, stops, bearings, increment, turn_threshold):
         # set bearing changes towards end of the stop to equal steps between before and after
         old_bearings = np.copy(filtered_bearings)[stop_range[1]-turn_buffer_frames:stop_range[1]]
         new_bearings = gaitFunctions.fillLastBit(old_bearings,prior_bearing,after_bearing,turn_buffer_frames)
-        print()
-        print(old_bearings)
-        print(new_bearings)
-        print()
         filtered_bearings[stop_range[1]-turn_buffer_frames:stop_range[1]] = new_bearings
         
     ''' 
