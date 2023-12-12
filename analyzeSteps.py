@@ -495,6 +495,7 @@ def getSpeedForStep(step_data_df, pathtracking_df, pathstats_df):
     # extract data from steptracking dataframe
     downs = step_data_df.DownTime.values
     gait_durations = step_data_df.gait.values
+    stance_durations = step_data_df.stance.values
     
     # make empty vectors for step_speed and step_distance
     step_speed = np.zeros(len(downs))
@@ -516,8 +517,10 @@ def getSpeedForStep(step_data_df, pathtracking_df, pathstats_df):
         # find index in time that is equal to or greater than the beginning of this step
         start_time_index = np.where(frametimes>=step_start)[0][0]
         
-        # to find the time when this step ends, add gait_duration to beginning
-        step_end = step_start + float(gait_durations[i])
+        # to find the time when this step ends, two choices:
+        # get full step cycle by adding gait_duration to step_start
+        # OR only care about when this leg is 'working', and stance_duration to step_start??
+        step_end = step_start + float(stance_durations[i])
         
         # find the index in time that is equal to or greater than the end of this step
         try:
