@@ -1252,7 +1252,7 @@ def get_gait_combo_colors(leg_set = 'lateral'):
     if num_legs == 2:
         all_combos = ['stand','step','hop']
         # plot_colors = get_plot_colors(len(all_combos))      
-        plot_colors = ['firebrick', 'gold', 'forestgreen']
+        plot_colors = ['#faa802', 'forestgreen', '#ff0303']
     elif num_legs == 4:
         all_combos = ['stand','walk','trot','pace','gallop','unipod','jump']
         plot_colors = get_plot_colors(len(all_combos))
@@ -1260,8 +1260,8 @@ def get_gait_combo_colors(leg_set = 'lateral'):
         all_combos = ['stand','pentapod','tetrapod canonical','tetrapod gallop', 'tetrapod other',
                 'tripod canonical','tripod other','unclassified','other']
         # plot_colors = get_plot_colors(len(all_combos)
-        plot_colors = ['#a4312a', '#d22d7b', '#009bdd', '#a4ddf5', '#caecfa',
-                       '#5d257e', '#c292de', '#181818', '#8a8a8a']
+        plot_colors = ['#faa802', '#7c419e', '#0273a3', '#63cbf7', '#bbe9fc',
+                       '#d22d7b', '#f7a3ca', '#2e2c2c', '#8a8a8a']
     
     # add 'white' for no data
     all_combos.append('no data')
