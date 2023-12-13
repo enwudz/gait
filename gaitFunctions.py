@@ -1242,23 +1242,26 @@ def percentagesFromList(li):
 
 def get_gait_combo_colors(leg_set = 'lateral'):
 
-    if leg_set in ['rear','two', 'human', 2]:
+    if leg_set in ['rear','two', 'human', 'bipod', 2]:
         num_legs = 2
-    if leg_set in ['lateral','six','insect', 6]:
+    if leg_set in ['lateral','six','insect', 'hexapod', 6]:
         num_legs = 6
     if leg_set in ['quad', 'four', 'tetrapod', 'cat', 'dog', 4]:
         num_legs = 4
 
     if num_legs == 2:
         all_combos = ['stand','step','hop']
-        plot_colors = get_plot_colors(len(all_combos))      
+        # plot_colors = get_plot_colors(len(all_combos))      
+        plot_colors = ['firebrick', 'gold', 'forestgreen']
     elif num_legs == 4:
         all_combos = ['stand','walk','trot','pace','gallop','unipod','jump']
         plot_colors = get_plot_colors(len(all_combos))
     elif num_legs == 6:
-        all_combos = ['stand','pentapod','tetrapod_canonical','tetrapod_gallop', 'tetrapod_other',
-                'tripod_canonical','tripod_other','other']
-        plot_colors = get_plot_colors(len(all_combos))
+        all_combos = ['stand','pentapod','tetrapod canonical','tetrapod gallop', 'tetrapod other',
+                'tripod canonical','tripod other','unclassified','other']
+        # plot_colors = get_plot_colors(len(all_combos)
+        plot_colors = ['#a4312a', '#d22d7b', '#009bdd', '#a4ddf5', '#caecfa',
+                       '#5d257e', '#c292de', '#181818', '#8a8a8a']
     
     # add 'white' for no data
     all_combos.append('no data')

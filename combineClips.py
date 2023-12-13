@@ -7,7 +7,7 @@ Created on Thu Jan 12 11:01:45 2023
 
 Combines data from all experiments in a folder into one excel spreadsheet
 
-Each movie file should have an associated spreadsheet, which is produced by
+Each movie file should have a spreadsheet, which is produced by
     one or more of the following:
         trackCritter --> analyzeTrack
         frameStepper --> analyzeSteps
@@ -55,6 +55,7 @@ def main():
     step_timing_combined_df = pd.DataFrame()
     step_summaries_df = pd.DataFrame()
     gait_summaries_df = pd.DataFrame()
+    gait_styles_speeds_df = pd.DataFrame()
     
     ## for PATH TRACKING data
     # make empty dictionaries to collect path data, keyed by unique individual
@@ -397,10 +398,17 @@ def main():
         if gdf is not None:
 
             gdf = gdf[gdf['gaits_lateral'] != 'no data'] # only include frames with gait data
-            
             lateral_gaits = gdf['gaits_lateral'].values
             rear_gaits = gdf['gaits_rear'].values
             frames_in_clip = len(lateral_gaits)
+            
+            # add this data to gait_styles_speeds_df dataframe
+            gdf = addColtoDF(gdf, 'clip', clip) # add clip name
+            gdf = addColtoDF(gdf, 'treatment', treatment) # add treatment type
+            gdf = addColtoDF(gdf, 'individual', individual) # add individual name
+            gdf = addColtoDF(gdf, 'date', date+month) # add date
+            gdf = addColtoDF(gdf, 'uniq_id', uniq_id)
+            gait_styles_speeds_df = pd.concat([gait_styles_speeds_df, gdf])
             
             # get total #frames in each gait style for this individual for this clip
             if uniq_id in clip_total_frames.keys():
@@ -653,6 +661,8 @@ def main():
             step_summaries_df.to_excel(writer, index=False, sheet_name='step_summaries')
         if len(gait_summaries_df) > 0:
             gait_summaries_df.to_excel(writer, index=False, sheet_name='gait_summaries')
+        if len(gait_styles_speeds_df) > 0:
+            gait_styles_speeds_df.to_excel(writer, index=False, sheet_name='gait_speeds')
 
 def addColtoDF(df, colname, st):
     st_stem = st.split('.')[0]

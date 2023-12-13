@@ -132,7 +132,7 @@ def main(movie_file, plot_style = ''): # plot_style can be track or speed or ste
             
             # plot bearing changes on a separate axis above (a3)
             bearingax = f.add_axes([0.1, 0.9, 0.65, 0.05])
-            bearingax = bearingChangePlot(bearingax, tracked_df)
+            bearingax = bearingChangePlot(bearingax, tracked_df, 'bearings') # 'bearing_changes' or 'bearings'
             bearingax.set_xlim(speed_xlim)
             
             # 'cruising' percentage plot
