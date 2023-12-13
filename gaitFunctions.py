@@ -1257,10 +1257,10 @@ def get_gait_combo_colors(leg_set = 'lateral'):
         all_combos = ['stand','walk','trot','pace','gallop','unipod','jump']
         plot_colors = get_plot_colors(len(all_combos))
     elif num_legs == 6:
-        all_combos = ['stand','pentapod','tetrapod canonical','tetrapod gallop', 'tetrapod other',
-                'tripod canonical','tripod other','unclassified','other']
+        all_combos = ['stand','pentapod','tetrapod_canonical','tetrapod_gallop', 'tetrapod_other',
+                'tripod_canonical','tripod_other','unclassified','other']
         # plot_colors = get_plot_colors(len(all_combos)
-        plot_colors = ['#faa802', '#7c419e', '#0273a3', '#63cbf7', '#bbe9fc',
+        plot_colors = ['#faa802', '#c375f0', '#0273a3', '#63cbf7', '#bbe9fc',
                        '#d22d7b', '#f7a3ca', '#2e2c2c', '#8a8a8a']
     
     # add 'white' for no data
