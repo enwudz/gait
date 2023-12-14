@@ -122,8 +122,11 @@ def gaitProportionPlots(gait_df):
 
             # get mean proportion from this group
             groupData = gait_df[gait_df.treatment == group]
-            gaitStyleData = groupData[gait_style].values
-            group_data[group][gait_style] = np.mean(gaitStyleData)
+            try:
+                gaitStyleData = groupData[gait_style].values
+                group_data[group][gait_style] = np.mean(gaitStyleData)
+            except:
+                print('No data for ' + gait_style + ' in ' + group )
     
     
     # finished collecting the data
@@ -144,12 +147,14 @@ def gaitProportionPlots(gait_df):
             if i == 0: # first dataset ... plot everything at 0 value to make labels for legend
                 ax.bar(i, 0, bottom = bottom, color = combo_colors[combo],
                        edgecolor='white', width=barWidth, label=combo.replace('_',' '))
-
-            amt = group_data[group][gait_columns[j]]
-            ax.bar(i, amt, bottom = bottom, color = combo_colors[combo],
-                edgecolor='white', width=barWidth)
-
-            bottom += amt
+            try:
+                amt = group_data[group][gait_columns[j]]
+                ax.bar(i, amt, bottom = bottom, color = combo_colors[combo],
+                    edgecolor='white', width=barWidth)
+    
+                bottom += amt
+            except:
+                print('No data for ' + gait_columns[j] + ' in ' + group)
         
             
     
