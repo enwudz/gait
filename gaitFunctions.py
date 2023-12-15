@@ -2956,3 +2956,18 @@ def fillLastBit(vec,startval,endval,numtofill):
     else:
         newvec = np.linspace(startval,endval,len(vec))
     return newvec
+
+def whichExcelHaveSteps():
+    xls = glob.glob('*xlsx')
+    flist = []
+
+    for x in xls:
+        
+        xl = pd.ExcelFile(x)
+        sheets = xl.sheet_names
+        for sheet in sheets:
+            if 'steptracking' in sheet:
+                if x not in flist:
+                    flist.append(x)
+
+    return sorted(flist)
