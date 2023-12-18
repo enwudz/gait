@@ -4,6 +4,7 @@ import numpy as np
 import sys
 import gaitFunctions
 import pandas as pd
+from openpyxl import load_workbook
 
 # this script collects step information for EACH(!) COMPLETE gait cycle
 #   stance length, swing length, gait cycle duration, duty factor
@@ -43,6 +44,18 @@ def main(movie_file):
     
     # get pathstats_df for this movie
     pathstats_df = pd.read_excel(excel_filename, sheet_name='path_stats', index_col=None)
+    
+    # get rid of old sheets if present step_timing, gait_styles, step_stats
+    wb = load_workbook(excel_filename)
+    old_sheets = ['step_timing', 'gait_styles', 'step_stats']
+    for sheet in old_sheets:
+        if sheet in sheets:
+            print('... Removing old ' + sheet)
+            wb.remove(wb[sheet])
+    wb.save(excel_filename)
+        
+    # get steptracking bouts from steptracking sheets
+    steptracking_bouts = getStepTrackingBouts(excel_filename, steptracking_sheets)
     
     '''
     Make Header and container for step data
@@ -232,12 +245,12 @@ def main(movie_file):
         #     .... and the step data is list of lines for each step
         #     .... where each line is has values separated by commas
         
-        ## can print the data out below (or modify this code to save to a file)
+        ## Print the data out below (or modify this code to save to a file)
         # print(header)
         # for step in data_for_steps_with_swings:
         #     print(step)
         
-        # can convert the data into a pandas dataframe!
+        # Convert the data into a pandas dataframe!
         columns = header.split(',')        
         step_data_df = pd.DataFrame([line.split(',') for line in data_for_steps_with_swings], columns=columns)
         
@@ -248,7 +261,7 @@ def main(movie_file):
         
         
         # swing offsets and metachronal lag for lateral legs
-        anterior_offsets, contralateral_offsets, metachronal_lag = getOffsets(step_data_df, pathstats_df)
+        anterior_offsets, contralateral_offsets, metachronal_lag = getOffsets(step_data_df, steptracking_bouts)
         # add these to the step_data dataframe
         step_data_df['anterior_offsets'] = anterior_offsets
         step_data_df['contralateral_offsets'] = contralateral_offsets
@@ -274,7 +287,24 @@ def main(movie_file):
 def badLeg(leg, pathstats_df):
     print('\n **** No data for ' + leg + ' ****')
     print(' **** steptracking is problematic in ' + movie_file + ' ****\n')
+
+def getStepTrackingBouts(excel_file, steptracking_sheets):
+
+    steptracking_bouts = []
+    for sheet in steptracking_sheets:
+        earliest_time = 100000
+        latest_time = 0
+        mov_data, excel_filename = gaitFunctions.loadUpDownData(excel_file, sheet)
+        for leg in mov_data.keys():
+            vals = np.array([float(x) for x in mov_data[leg].split()])
+            if np.min(vals) < earliest_time:
+                earliest_time = np.min(vals)
+            if np.max(vals) > latest_time:
+                latest_time = np.max(vals)
+        timerange = str(earliest_time)+'-'+str(latest_time)
+        steptracking_bouts.append(timerange)
     
+    return steptracking_bouts
 
 def findBoutEnd(event_time,bouts):
     
@@ -303,13 +333,14 @@ def findBoutEnd(event_time,bouts):
     print('could not find end of bout for event at ' + str(event_time))
     return 0
 
-def getOffsets(step_df, pathstats_df): 
+def getOffsets(step_df, steptracking_bouts): 
     '''
     Get offsets (3 to 2 swing start, 2 to 1 swing start) 
     Get metachronal lag (3 --> 1 swing starts with requirement that 2 swings in middle)
     So ... this is geared only for six legs
     
-    Offsets are only recorded for legs while animal is 'cruising'
+    Offsets are only recorded for legs during steptracking bouts 
+        (usually while animal is 'cruising')
     
     Contralateral (opposite) offsets are only obtained for LEFT legs
     (time between left down and right down)
@@ -341,9 +372,6 @@ def getOffsets(step_df, pathstats_df):
     
     '''
     
-    # from pathstats_df, get information about cruise bouts for this movie file
-    cruise_bouts = pathstats_df[pathstats_df['path parameter'] == 'cruise bout timing'].values[0][1].split(';')
- 
     # make vectors of steps and swing starts
     steps = step_df['legID'].values
     swing_start_array = step_df['UpTime'].values
@@ -379,7 +407,7 @@ def getOffsets(step_df, pathstats_df):
         ## next step is within the SAME cruising bout
         # which cruising bout is this step in
         # when does this bout end? 
-        bout_end = findBoutEnd(swing_time, cruise_bouts)
+        bout_end = findBoutEnd(swing_time, steptracking_bouts)
         
         ## OPPOSITE OFFSETS
         # for all LEFT legs, enter time of next swing of opposite leg (if available)

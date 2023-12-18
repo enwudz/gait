@@ -1789,16 +1789,15 @@ def getGaits(movie_file, leg_set = 'lateral'):
                 bout_start_time = frame_times[0]
                 bout_end_time = frame_times[-1]
             else:
-                path_stats = loadPathStats(movie_file)
-                cruise_bouts = path_stats['cruise bout timing'].split(';')
-                time_int = steptracking_sheet.split('_')[1]
-                for bout in cruise_bouts:
-                    bout_boundaries = [float(x) for x in  bout.split('-')]
-                    bout_int = str(int(bout_boundaries[0])) + '-' + str(int(bout_boundaries[1]))
-                    # print(bout_int, time_int) # testing
-                    if bout_int == time_int:
-                        bout_start_time = bout_boundaries[0]
-                        bout_end_time = bout_boundaries[1]
+                bout_start_time = 100000
+                bout_end_time = 0
+                mov_data, excel_filename = loadUpDownData(excel_filename, steptracking_sheet)
+                for leg in mov_data.keys():
+                    vals = np.array([float(x) for x in mov_data[leg].split()])
+                    if np.min(vals) < bout_start_time:
+                        bout_start_time = np.min(vals)
+                    if np.max(vals) > bout_end_time:
+                        bout_end_time = np.max(vals)
             
             bout_start_frame = np.min(np.where(frame_times>=bout_start_time))
             bout_end_frame = np.min(np.where(frame_times>=bout_end_time))
