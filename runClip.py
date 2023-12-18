@@ -38,7 +38,7 @@ def main(movie_file):
 
     ## step-by-step timing
     # frameStepper.main(movie_file, 100)
-    analyzeSteps.main(movie_file) # when finished with frameStepper
+    #analyzeSteps.main(movie_file) # when finished with frameStepper
     # plotClip.main(movie_file)
 
 

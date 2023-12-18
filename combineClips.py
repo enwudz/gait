@@ -69,9 +69,11 @@ def main():
     clip_body_widths_scaled = {}
     clip_cruising = {}
     clip_duration = {}
+    clip_cruising_distance = {}
+    clip_cruising_duration = {}
     num_stops = {}
     num_turns = {}
-    bearing_changes = {}
+    cumulative_bearings = {}
     distance_traveled = {}
     
     ## for STEP PARAMETER data
@@ -195,7 +197,19 @@ def main():
             clip_duration[uniq_id] = np.append(clip_duration[uniq_id], float(path_stats_dict['clip duration']))
         else:
             clip_duration[uniq_id] = np.array(float(path_stats_dict['clip duration']))
-                                              
+                      
+        # collect clip cruising duration for this individual for this clip
+        if uniq_id in clip_cruising_duration.keys():
+            clip_cruising_duration[uniq_id] = np.append(clip_cruising_duration[uniq_id], float(path_stats_dict['total duration cruising']))
+        else:
+            clip_cruising_duration[uniq_id] = np.array(float(path_stats_dict['total duration cruising']))
+        
+        # collect clip cruising distance for this individual for this clip
+        if uniq_id in clip_cruising_distance.keys():
+            clip_cruising_distance[uniq_id] = np.append(clip_cruising_distance[uniq_id], float(path_stats_dict['total distance cruising']))
+        else:
+            clip_cruising_distance[uniq_id] = np.array(float(path_stats_dict['total distance cruising']))
+
         # collect #stops for this individual for this clip
         if uniq_id in num_stops.keys():
             num_stops[uniq_id] = np.append(num_stops[uniq_id], int(path_stats_dict['# stops']))
@@ -208,11 +222,11 @@ def main():
         else:
             num_turns[uniq_id] = np.array(int(path_stats_dict['# turns']))
         
-        # collect bearing_changes for this individual for this clip
-        if uniq_id in bearing_changes.keys():
-            bearing_changes[uniq_id] = np.append(bearing_changes[uniq_id], float(path_stats_dict['cumulative bearings']))
+        # collect cumulative bearing changes for this individual for this clip
+        if uniq_id in cumulative_bearings.keys():
+            cumulative_bearings[uniq_id] = np.append(cumulative_bearings[uniq_id], float(path_stats_dict['cumulative bearings']))
         else:
-            bearing_changes[uniq_id] = np.array(float(path_stats_dict['cumulative bearings']))
+            cumulative_bearings[uniq_id] = np.array(float(path_stats_dict['cumulative bearings']))
             
         # collect distance_traveled for this individual for this clip
         if uniq_id in distance_traveled.keys():
@@ -517,11 +531,26 @@ def main():
     areas = [np.mean(clip_body_areas_scaled[x]) for x in ids]
     durations = [np.sum(clip_duration[x]) for x in ids]
     distances = [np.sum(distance_traveled[x]) for x in ids]
+    cruising_durations = [np.sum(clip_cruising_duration[x]) for x in ids]
+    cruising_distances = [np.sum(clip_cruising_distance[x]) for x in ids]
     speed_mm = [distance / durations[i] for i, distance in enumerate(distances)]
     speed_bodylength = [distance / lengths[i] / durations[i] for i, distance in enumerate(distances)]
+    
+    # for cruising speed, cannot divide by zero if no cruising, so list comprehension too convoluted (if possible at all)
+    speed_mm_cruising = []
+    speed_bodylength_cruising = []
+    for i, cruising_distance in enumerate(cruising_distances):
+        if cruising_distance > 0:
+            speed_mm_cruising.append(cruising_distance / cruising_durations[i])
+            speed_bodylength_cruising.append(cruising_distance / lengths[i] / cruising_durations[i] )
+        else:
+            speed_mm_cruising.append(np.nan)
+            speed_bodylength_cruising.append(np.nan)
+    
     cruising = [np.sum(clip_cruising[x]) * 100 / len(clip_cruising[x]) for x in ids]
-    bearings = [np.sum(bearing_changes[x]) for x in ids]
+    bearings = [np.sum(cumulative_bearings[x]) for x in ids]
     degrees_per_sec = [bearings[i] / duration for i, duration in enumerate(durations) ]
+    degrees_per_sec_cruising = [bearings[i] / (cruising[i]/100 * duration) for i, duration in enumerate(durations) ]
     stops = [np.sum(num_stops[x]) for x in ids]
     stops_per_sec = [stops[i] / duration for i, duration in enumerate(durations) ]
     turns = [np.sum(num_turns[x]) for x in ids]
@@ -538,11 +567,14 @@ def main():
                            'Body Width/Length Ratio':bodyratio,
                            'Duration analyzed (sec)':durations,
                            'Distance traveled (mm)':distances,
-                           'Speed (mm/s)':speed_mm,
-                           'Speed (body lengths / s)':speed_bodylength,
+                           'Speed (mm/sec)':speed_mm,
+                           'Speed (body lengths / sec)':speed_bodylength,
                            'Percentage of time cruising':cruising,
+                           'Speed (mm/sec cruising)':speed_mm_cruising,
+                           'Speed (body lengths / sec cruising)':speed_bodylength_cruising,
                            'Total bearing change (deg)':bearings,
                            'Bearing change (deg) / sec':degrees_per_sec,
+                           'Bearing change (deg) / sec cruising':degrees_per_sec_cruising,
                            'Number of stops': stops,
                            'Stops / sec':stops_per_sec,
                            'Number of turns': turns,

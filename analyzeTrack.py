@@ -140,7 +140,10 @@ def main(movie_file):
     cruise_bouts = cruiseBouts(turns,stops)
     cruise_bout_timing = []
     cruise_bout_durations = []
+    speeds_during_cruising = []
     cruise_bout_total_duration = 0
+    cruise_bout_total_distance = 0
+    num_cruising_frames= 0
     for bout in cruise_bouts:
         bout_start = frametimes[bout[0]]
         if bout[1] >= len(frametimes):
@@ -152,6 +155,18 @@ def main(movie_file):
             cruise_bout_timing.append(str(bout_start) + '-' + str(bout_end))
             cruise_bout_durations.append(bout_duration)
             cruise_bout_total_duration += bout_duration
+            start_idx = np.min(np.where(frametimes>=bout_start))
+            end_idx = np.min(np.where(frametimes>=bout_end))  
+            speeds_during_cruising.extend(speed[start_idx:end_idx])
+            cruise_bout_total_distance += np.sum(distance[start_idx:end_idx])/scale
+            num_cruising_frames +=  (end_idx - start_idx)
+
+    # convert cruising speed with scale
+    if len(speeds_during_cruising) > 0:
+        speeds_during_cruising = np.array(speeds_during_cruising)
+        average_cruising_speed_scaled = np.mean(speeds_during_cruising) / scale
+    else:
+        average_cruising_speed_scaled = np.nan
 
     num_cruise_bouts = len(cruise_bout_timing)
     print('# cruising bouts: ' + str(num_cruise_bouts) + ', total seconds cruising: ' + str(np.round(cruise_bout_total_duration,1)))
@@ -163,13 +178,19 @@ def main(movie_file):
     parameters = ['scale','unit','body area (pixels^2)','body length (pixels)', 'body area (scaled)','body length (scaled)',
                   'body width (pixels)', 'body width (scaled)',
                   'clip duration','total distance','average speed',
-                  '# turns','# stops', '% cruising', '# cruise bouts', 'cruise bout durations', 'cruise bout timing','cumulative bearings','bin duration',
+                  '# turns','# stops', '% cruising', '# cruising frames',
+                  '# cruise bouts', 'total duration cruising', 'total distance cruising',
+                  'cruise bout durations', 'cruise bout timing', 'average cruising speed',
+                  'cumulative bearings','bin duration',
                   'pixel threshold','tracking confidence']
     vals = [scale, unit, median_area_pixels, median_length_pixels, median_area_scaled, median_length_scaled, 
             median_width_pixels, median_width_scaled,
             clip_duration, total_distance, average_speed,
-            num_turns, num_stops, cruising_proportion, num_cruise_bouts, durations_string, timing_string, cumulative_bearings, 
-            time_increment, pixel_threshold, tracking_confidence]
+            num_turns, num_stops, cruising_proportion, num_cruising_frames,
+            num_cruise_bouts, cruise_bout_total_duration, cruise_bout_total_distance, 
+            durations_string, timing_string, average_cruising_speed_scaled,
+            cumulative_bearings, time_increment, 
+            pixel_threshold, tracking_confidence]
     
     path_stats = zip(parameters, vals)
     df2 = pd.DataFrame(path_stats)
