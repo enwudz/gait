@@ -141,6 +141,7 @@ def main(movie_file):
     cruise_bout_timing = []
     cruise_bout_durations = []
     speeds_during_cruising = []
+    degrees_during_cruising = []
     cruise_bout_total_duration = 0
     cruise_bout_total_distance = 0
     num_cruising_frames= 0
@@ -158,6 +159,7 @@ def main(movie_file):
             start_idx = np.min(np.where(frametimes>=bout_start))
             end_idx = np.min(np.where(frametimes>=bout_end))  
             speeds_during_cruising.extend(speed[start_idx:end_idx])
+            degrees_during_cruising.extend(bearing_changes[start_idx:end_idx])
             cruise_bout_total_distance += np.sum(distance[start_idx:end_idx])/scale
             num_cruising_frames +=  (end_idx - start_idx)
 
@@ -165,8 +167,10 @@ def main(movie_file):
     if len(speeds_during_cruising) > 0:
         speeds_during_cruising = np.array(speeds_during_cruising)
         average_cruising_speed_scaled = np.mean(speeds_during_cruising) / scale
+        total_cruising_degrees = np.sum(np.abs(degrees_during_cruising))
     else:
         average_cruising_speed_scaled = np.nan
+        total_cruising_degrees = np.nan
 
     num_cruise_bouts = len(cruise_bout_timing)
     print('# cruising bouts: ' + str(num_cruise_bouts) + ', total seconds cruising: ' + str(np.round(cruise_bout_total_duration,1)))
@@ -181,7 +185,7 @@ def main(movie_file):
                   '# turns','# stops', '% cruising', '# cruising frames',
                   '# cruise bouts', 'total duration cruising', 'total distance cruising',
                   'cruise bout durations', 'cruise bout timing', 'average cruising speed',
-                  'cumulative bearings','bin duration',
+                  'cumulative bearings','bearings during cruising','bin duration',
                   'pixel threshold','tracking confidence']
     vals = [scale, unit, median_area_pixels, median_length_pixels, median_area_scaled, median_length_scaled, 
             median_width_pixels, median_width_scaled,
@@ -189,7 +193,7 @@ def main(movie_file):
             num_turns, num_stops, cruising_proportion, num_cruising_frames,
             num_cruise_bouts, cruise_bout_total_duration, cruise_bout_total_distance, 
             durations_string, timing_string, average_cruising_speed_scaled,
-            cumulative_bearings, time_increment, 
+            cumulative_bearings, total_cruising_degrees, time_increment, 
             pixel_threshold, tracking_confidence]
     
     path_stats = zip(parameters, vals)

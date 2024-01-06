@@ -43,6 +43,9 @@ import warnings
 
 def main():
     
+    # cruise threshold percentage for calculating degrees / sec cruising
+    cruise_threshold = 15
+    
     # set output file name to name of current directory
     current_directory = os.getcwd().split(os.sep)[-1]
     out_file = current_directory + '_combined.xlsx'
@@ -74,6 +77,7 @@ def main():
     num_stops = {}
     num_turns = {}
     cumulative_bearings = {}
+    cruising_bearings = {}
     distance_traveled = {}
     
     ## for STEP PARAMETER data
@@ -120,6 +124,11 @@ def main():
     clip_stand_rear = {}
     clip_hop = {}
     clip_step = {}
+    
+    clip_coordination_tetrapod = {}
+    clip_speed_tetrapod = {}
+    clip_coordination_tripod = {}
+    clip_speed_tripod = {}
     
     ## collect data for each clip
     # ... each individual gets a unique id (uniq_id) and can have multiple clips
@@ -227,7 +236,13 @@ def main():
             cumulative_bearings[uniq_id] = np.append(cumulative_bearings[uniq_id], float(path_stats_dict['cumulative bearings']))
         else:
             cumulative_bearings[uniq_id] = np.array(float(path_stats_dict['cumulative bearings']))
-            
+        
+        # collect cruising bearing changes for this individual for this clip
+        if uniq_id in cruising_bearings.keys():
+            cruising_bearings[uniq_id] = np.append(cruising_bearings[uniq_id], float(path_stats_dict['bearings during cruising']))
+        else:
+            cruising_bearings[uniq_id] = np.array(float(path_stats_dict['bearings during cruising']))    
+        
         # collect distance_traveled for this individual for this clip
         if uniq_id in distance_traveled.keys():
             distance_traveled[uniq_id] = np.append(distance_traveled[uniq_id], float(path_stats_dict['total distance']))
@@ -514,6 +529,36 @@ def main():
                 clip_step[uniq_id] = np.append(clip_step[uniq_id], np.count_nonzero(rear_gaits=='step'))
             else:
                 clip_step[uniq_id] = np.count_nonzero(rear_gaits=='step')
+                
+            # Collect coordination strength within each clip (if available)
+            if 'tetrapod_coordination' in gdf.columns:
+                coord_colvals = gdf['tetrapod_coordination'].values
+                coord_colvals = coord_colvals = coord_colvals[~np.isnan(coord_colvals)]
+                if uniq_id in clip_coordination_tetrapod.keys():
+                    clip_coordination_tetrapod[uniq_id] = np.append(clip_coordination_tetrapod[uniq_id], coord_colvals)
+                else:
+                    clip_coordination_tetrapod[uniq_id] = coord_colvals
+                speed_colvals = gdf['tetrapod_speed'].values
+                speed_colvals = speed_colvals = speed_colvals[~np.isnan(speed_colvals)]
+                if uniq_id in clip_speed_tetrapod.keys():
+                    clip_speed_tetrapod[uniq_id] = np.append(clip_speed_tetrapod[uniq_id], speed_colvals)
+                else:
+                    clip_speed_tetrapod[uniq_id] = speed_colvals
+                    
+            if 'tripod_coordination' in gdf.columns:
+                coord_colvals = gdf['tripod_coordination'].values
+                coord_colvals = coord_colvals = coord_colvals[~np.isnan(coord_colvals)]
+                if uniq_id in clip_coordination_tripod.keys():
+                    clip_coordination_tripod[uniq_id] = np.append(clip_coordination_tripod[uniq_id], coord_colvals)
+                else:
+                    clip_coordination_tripod[uniq_id] = coord_colvals
+                speed_colvals = gdf['tripod_speed'].values
+                speed_colvals = speed_colvals = speed_colvals[~np.isnan(speed_colvals)]
+                if uniq_id in clip_speed_tripod.keys():
+                    clip_speed_tripod[uniq_id] = np.append(clip_speed_tripod[uniq_id], speed_colvals)
+                else:
+                    clip_speed_tripod[uniq_id] = speed_colvals
+                
         
         
     #### ===> finished collecting data.
@@ -537,20 +582,29 @@ def main():
     speed_bodylength = [distance / lengths[i] / durations[i] for i, distance in enumerate(distances)]
     
     # for cruising speed, cannot divide by zero if no cruising, so list comprehension too convoluted (if possible at all)
-    speed_mm_cruising = []
-    speed_bodylength_cruising = []
+    speed_mm_cruising = np.zeros(len(cruising_distances))
+    speed_bodylength_cruising = np.zeros(len(cruising_distances))
     for i, cruising_distance in enumerate(cruising_distances):
         if cruising_distance > 0:
-            speed_mm_cruising.append(cruising_distance / cruising_durations[i])
-            speed_bodylength_cruising.append(cruising_distance / lengths[i] / cruising_durations[i] )
+            speed_mm_cruising[i] = cruising_distance / cruising_durations[i]
+            speed_bodylength_cruising[i] = cruising_distance / lengths[i] / cruising_durations[i] 
         else:
-            speed_mm_cruising.append(np.nan)
-            speed_bodylength_cruising.append(np.nan)
+            speed_mm_cruising[i] = np.nan
+            speed_bodylength_cruising[i] = np.nan
     
     cruising = [np.sum(clip_cruising[x]) * 100 / len(clip_cruising[x]) for x in ids]
     bearings = [np.sum(cumulative_bearings[x]) for x in ids]
     degrees_per_sec = [bearings[i] / duration for i, duration in enumerate(durations) ]
-    degrees_per_sec_cruising = [bearings[i] / (cruising[i]/100 * duration) for i, duration in enumerate(durations) ]
+    
+    # for degrees per second cruising, cannot divide by zero if no cruising ...
+    total_degrees_cruising = [np.nansum(cruising_bearings[x]) for x in ids]
+    degrees_per_sec_cruising = np.zeros(len(cruising_durations))
+    for i, cruise_duration in enumerate(cruising_durations):
+        if cruise_duration > 0:
+            degrees_per_sec_cruising[i] = total_degrees_cruising[i] / cruise_duration
+        else:
+            degrees_per_sec_cruising[i] = np.nan
+       
     stops = [np.sum(num_stops[x]) for x in ids]
     stops_per_sec = [stops[i] / duration for i, duration in enumerate(durations) ]
     turns = [np.sum(num_turns[x]) for x in ids]
@@ -680,9 +734,48 @@ def main():
                            '% step (rear legs)':frames_step
                            }
     
+    # Calculate coordination strength averages if available
+    # and add these to gait_summaries_dict
+    # Check for tetrapod coordination data
+    if len(clip_coordination_tetrapod.keys()) > 0:
+        tetrapod_coordination_strength = []
+        tetrapod_coordination_speed = []
+        for i, x in enumerate(ids):
+            if x in clip_coordination_tetrapod.keys():
+                if len(clip_coordination_tetrapod[x]) > 0:
+                    tetrapod_coordination_strength.append(np.mean(clip_coordination_tetrapod[x]))
+                    tetrapod_coordination_speed.append(np.mean(clip_speed_tetrapod[x]))
+                else:
+                    tetrapod_coordination_strength.append(np.nan)
+                    tetrapod_coordination_speed.append(np.nan)
+            else:
+                tetrapod_coordination_strength.append(np.nan)
+                tetrapod_coordination_speed.append(np.nan)
+        gait_summaries_dict['Tetrapod Coordination Strength'] = tetrapod_coordination_strength
+        gait_summaries_dict['Tetrapod Bout Speed (bodylength / s)'] = tetrapod_coordination_speed
+    
+    # Check for tripod coordination data     
+    if len(clip_coordination_tripod.keys()) > 0:
+        tripod_coordination_strength = []
+        tripod_coordination_speed = []
+        for i, x in enumerate(ids):
+            if x in clip_coordination_tripod.keys():
+                if len(clip_coordination_tripod[x]) > 0:
+                    tripod_coordination_strength.append(np.mean(clip_coordination_tripod[x]))
+                    tripod_coordination_speed.append(np.mean(clip_speed_tripod[x]))
+                else:
+                    tripod_coordination_strength.append(np.nan)
+                    tripod_coordination_speed.append(np.nan)          
+            else:
+                tripod_coordination_strength.append(np.nan)
+                tripod_coordination_speed.append(np.nan)
+        gait_summaries_dict['Tripod Coordination Strength'] = tripod_coordination_strength
+        gait_summaries_dict['Tripod Bout Speed (bodylength / s)'] = tripod_coordination_speed
+    
+    # convert gait_summaries_dict into a dataframe
     gait_summaries_df = pd.DataFrame(gait_summaries_dict)
 
-    # save dataframes to output file
+    # save all dataframes to different sheets in the combined output file
     print('\nCombining data from all clips into ' + out_file)
     with pd.ExcelWriter(out_file, engine='openpyxl') as writer: 
         if len(path_summaries_df) > 0:

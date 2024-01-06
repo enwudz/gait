@@ -274,8 +274,18 @@ def main(movie_file):
         ## Calculate average step parameters for each leg, and write to the step_stats sheet of the excel file
         saveStepStats(legs, step_data_df, excel_filename)
 
-        # get and save gait styles for every frame (to the gait_styles sheet)
-        gaitFunctions.saveGaits(movie_file)
+        # get gait styles for every frame and make a dataframe
+        gait_df = gaitFunctions.getGaitDataframe(movie_file)
+        
+        # here is where we can get coordination strength
+        stances, swings = combineSteptracking(excel_filename)
+        
+        for gait_style in ['tetrapod','tripod']:
+            gait_df = calculateCoordination(gait_df, gait_style, stances, swings)
+        
+        print('Saving gaits to gait_styles sheet ... ')
+        with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
+            gait_df.to_excel(writer, index=False, sheet_name='gait_styles')
             
         # # clean up!
         # gaitFunctions.removeFramesFolder(movie_file)
@@ -601,6 +611,159 @@ def getSpeedForStep(step_data_df, pathtracking_df, pathstats_df):
     step_data_df['average_tardigrade_length'] = step_tardilengths
  
     return step_data_df
+
+def combineSteptracking(excel_file):
+    
+    '''
+    combine steptracking data from all sheets within an excel file
+    into two dictionaries of stances and swings
+    key = legs
+    '''
+    
+    xl = pd.ExcelFile(excel_file)
+    sheets = xl.sheet_names
+    steptracking_sheets = sorted([x for x in sheets if 'steptracking' in x ])
+    
+    stances = {}
+    swings = {}
+    
+    for sheet in steptracking_sheets:
+        mov_data_df = xl.parse(sheet)
+        leg_states = mov_data_df.leg_state.values
+        leg_times = mov_data_df.times.values
+        for i,state in enumerate(leg_states):
+            leg = state.split('_')[0]
+            if 'down' in state:
+                stances_leg = np.array([float(x) for x in leg_times[i].split()])
+                if leg in stances:
+                    stances[leg] = np.concatenate((stances[leg], stances_leg))
+                else:
+                    stances[leg] = stances_leg
+            elif 'up' in state:
+                swings_leg = np.array([float(x) for x in leg_times[i].split()])
+                if leg in swings:
+                    swings[leg] = np.concatenate((swings[leg], swings_leg))
+                else:
+                    swings[leg] = swings_leg
+                    
+    # done collecting stances and swings ... put them in order
+    for leg in stances.keys():
+        stances[leg] = np.sort(stances[leg])
+        swings[leg] = np.sort(swings[leg])
+        
+    return stances, swings
+
+def truncToThree(flt):
+    '''
+    truncate a floating point decimal to three decimal places (not rounded)
+    '''
+    return int(flt*1000)/1000
+
+def calculateCoordination(gait_styles_df, gait_style, stances, swings):
+    
+    '''
+    Calculate 'coordination strength' for a specified gait_style ('tetrapod' or 'tripod')
+    This only considers bouts of 'canonical' gait
+    
+    See Wosnitza et al. 2013: https://doi.org/10.1242/jeb.078139
+    
+    Inputs:
+    gait_styles_df: DataFrame - loaded from gait_styles sheet
+    gait_style: String - 'tetrapod' or 'tripod'
+    stances: Dictionary - keys are leg names, values are numpy arrays of stance times
+    swings: Dictionary (similar to stances)
+    
+    Returns:
+    gait_styles_df with two new columns:
+        Coordination strength for each bout of the specified gait_style
+        Average speed (in bodylengths / sec) for each bout of the specified gait_style
+    '''
+    
+    # get relevant data
+    gait_search = gait_style + '_canonical'
+    gaits = gait_styles_df.gaits_lateral.values
+    frametimes = gait_styles_df.frametimes.values
+    swinging_legs = gait_styles_df.swinging_lateral.values
+    speed = gait_styles_df['speed (bodylength/s)'].values
+
+    # initialize empty vector to add to gait_styles_df
+    coord_strength_vec = np.empty(len(frametimes))
+    coord_strength_vec[:] = np.nan
+    coord_speed_vec = np.empty(len(frametimes))
+    coord_speed_vec[:] = np.nan
+    
+    coord_col_name = gait_style + '_coordination'
+    speed_col_name = gait_style + '_speed'
+
+    # get timing of start and end of video
+    vid_start = truncToThree(frametimes[0])
+    vid_end = truncToThree(frametimes[-1])
+    
+    leg_combo = ''
+    
+    # go through frames
+    for i, frametime in enumerate(frametimes):
+    
+        # does this frame have the style we are interested in?
+        if gaits[i] == gait_search:
+
+            # is it a new combination of legs, aka a new bout?
+            leg_str = swinging_legs[i]     
+            if leg_str != leg_combo:
+                leg_combo = leg_str
+                legs = leg_str.split('_')
+                lowest_swing = 10000
+                bout_start = truncToThree(frametime)
+                bout_end = 10000
+                highest_stance = 0
+                thistime = truncToThree(frametime)
+                
+                # for each leg, get the times that we need
+                for leg in legs:
+                    swing_ok = False
+                    stance_ok = False
+                
+                    # get the swing starts at or before start of bout
+                    start_swing = np.where(swings[leg] <= thistime)[0]
+                    if len(start_swing) > 0:
+                        swing_ok = True
+                        most_recent_swing = swings[leg][np.max(start_swing)]
+                        if most_recent_swing <= lowest_swing:
+                            lowest_swing = most_recent_swing
+                    
+                    # get the stance starts at or after the end of bout
+                    next_stance = np.where(stances[leg] >= thistime)[0]
+                    if len(next_stance) > 0:
+                        stance_ok = True
+                        next_step = stances[leg][np.min(next_stance)]
+                        if next_step >= highest_stance:
+                            highest_stance = next_step
+                        if next_step <= bout_end:
+                            bout_end = next_step
+                
+                if swing_ok and stance_ok:
+                    # now, we have the four times we need:
+                    # lowest_swing, highest_swing, lowest_stance, highest_stance
+                    # does the timing overlap with the start or end of the video (inefficient!)
+                    if lowest_swing > vid_start and highest_stance < vid_end:
+                        
+                        # calculate coordination strength for this bout
+                        coordination_strength = (bout_end - bout_start) / (highest_stance-lowest_swing) 
+                        coord_strength_vec[i] = coordination_strength
+                        
+                        # calculate average speed (bodylength/sec) for this bout
+                        end_frame = np.max(np.where(frametimes<=bout_end)[0])
+                        avg_speed = np.mean(speed[i:end_frame+1])
+                        coord_speed_vec[i] = avg_speed
+                        
+#                         print(lowest_swing, bout_start, bout_end, highest_stance, avg_speed, i, end_frame) # testing
+   
+    # finished going through frames, add columns of new data to dataframe
+    gait_styles_df[coord_col_name] = coord_strength_vec
+    gait_styles_df[speed_col_name] = coord_speed_vec
+    
+    return gait_styles_df
+
 
 if __name__== "__main__":
 

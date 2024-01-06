@@ -1915,7 +1915,7 @@ def getFrameSpeeds(movie_file):
     
     return scaled_speeds, bodylength_speeds
 
-def saveGaits(movie_file):
+def getGaitDataframe(movie_file):
     '''
     Save gait styles for lateral legs and rear legs (or all legs of a non-tardigrade) ...
     ...to gait_styles of the excel spreadsheet associated with movie_file
@@ -1957,12 +1957,8 @@ def saveGaits(movie_file):
         d = {'frametimes':frame_times, 'speed (mm/s)':speed_mm_s, 'speed (bodylength/s)':speed_bodylength_s,
              'gaits':gait_styles, 'swinging_leg':up_legs}
     
-    df = pd.DataFrame(d)
-    excel_filename = movie_file.split('.')[0] + '.xlsx'
-    
-    print('Saving gaits to gait_styles sheet ... ')
-    with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
-        df.to_excel(writer, index=False, sheet_name='gait_styles')
+    gait_df = pd.DataFrame(d)
+    return gait_df
 
 def frameSwings(movie_file):
     '''

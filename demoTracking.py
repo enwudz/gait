@@ -34,14 +34,14 @@ def main(movie_file, save_frames = False):
     
     # plotting stuff to adjust
     font = cv2.FONT_HERSHEY_DUPLEX
-    marker_size = 10
+    marker_size = 5
     text_size = 2
     turn_color = (155, 155, 0)
     stop_color = (15, 0, 100)
     time_x, time_y = [0.05, 0.1] # where should we put the time label?
     turn_x, turn_y = [0.05, 0.95] # where should we put the turn label?
     stop_x, stop_y = [0.05, 0.8] # where should we put the stop label?
-    colormap = 'plasma' # plasma, cool, Wistia, autumn, rainbow
+    colormap = 'plasma' # plasma, cool, Wistia, autumn, rainbow, viridis
     
     # read in times and coordinates
     tracked_df, excel_filename = gaitFunctions.loadTrackedPath(movie_file)

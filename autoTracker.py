@@ -94,8 +94,6 @@ def findCritter(video_file, background, pixThreshold, showTracking):
 
     print('... using pixel threshold ' + str(pixThreshold))
 
-    fstem = video_file.split('.')[0]
-
     frame_number = 0
     frames_in_video = getFrameCount(video_file)
     dot_colors = makeColorList('plasma', frames_in_video) # cool
@@ -122,7 +120,7 @@ def findCritter(video_file, background, pixThreshold, showTracking):
             break
 
         # save a copy of the original frame for later
-        saved_frame = frame.copy()
+        # saved_frame = frame.copy()
         
         # find difference between frame and background, as thresholded binary image
         binary_frame = getBinaryFrame(frame, background, pixThreshold)
@@ -192,9 +190,9 @@ def findCritter(video_file, background, pixThreshold, showTracking):
             cv2.drawContours(frame, contours, -1, (0,255,0), 5)
     
             #  show (color coded) centroids on frame
-            cv2.circle(frame, (cX, cY), 10, dot_colors[frame_number-1], -1)
+            cv2.circle(frame, (cX, cY), 5, dot_colors[frame_number-1], -1)
             # ==> OR show ALL centroids so far on the frame
-            # frame  = addCoordinatesToFrame(frame, centroid_coordinates, dot_colors)
+            frame  = addCoordinatesToFrame(frame, centroid_coordinates, dot_colors)
     
             # ==> SHOW TIME STAMPS: show (color coded) time stamps on frame
             # put the time variable on the video frame
@@ -211,6 +209,7 @@ def findCritter(video_file, background, pixThreshold, showTracking):
                 break
 
         # ==> SAVE FRAME TO FILE
+        # fstem = video_file.split('.')[0]
         # saveFrameToFile(fstem, frame_number, frame) # frame or binary_frame
 
    
@@ -238,7 +237,7 @@ def addCoordinatesToFrame(frame, coordinates, colors):
 
     '''
     for i, coord in enumerate(coordinates):
-        cv2.circle(frame, (coord[0], coord[1]), 5, colors[i], -1)
+        cv2.circle(frame, (coord[1], coord[2]), 5, colors[i], -1)
 
     return frame
 
