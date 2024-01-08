@@ -28,7 +28,7 @@ def main():
     animation_fps = 30
     critter = 'tardigrade'
     make_excel = True # true or false
-    fname = 'tetrapod_synchronous123_fast.mp4' # '' if do not want to save animation
+    fname = 'short_df_6_i_5_c_5.mp4' # '' if do not want to save animation
     
     ## ==> get SIMULATED data based on step parameters
     
@@ -54,11 +54,11 @@ def main():
 
 def load_simulated_steps(num_legs):
     ## define step parameters
-    num_cycles = 8
+    num_cycles = 2
     gait_cycle = 1 # in seconds
-    duty_factor =     0.67 # in fraction of gait cycle
-    anterior_offset = 0.67 # in fraction of gait cycle
-    opposite_offset = 0.33 # in fraction of gait cycle
+    duty_factor =     2/3 # in fraction of gait cycle
+    anterior_offset = 1/2 # in fraction of gait cycle
+    opposite_offset = 1/2 # in fraction of gait cycle
     fps = 30 # frames per second
     
     simulation = {}

@@ -281,7 +281,7 @@ def plotTrack(ax, ax_colorbar, movie_file, tracked_df):
     cmap = mpl.cm.get_cmap(cmap_name)
     cols = cmap(np.linspace(0,1,len(xcoords)))
     ax.scatter(xcoords,ycoords, s=50, c = 'k', alpha = 0.2) # raw coordinates
-    ax.scatter(smoothedx, smoothedy, c = cols, s=5) # smothed data
+    ax.scatter(smoothedx, smoothedy, c = cols, s=5) # smoothed data
     
     ax.set_xticks([])
     ax.set_yticks([])

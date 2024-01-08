@@ -196,9 +196,9 @@ def main(movie_file, plot_style = ''): # plot_style can be track or speed or ste
             print('Here is a plot of the steps of the selected legs - close the plot window to proceed')
             
             # set up an axis for the steps
-            fig_height = len(legs)
+            fig_height = 0.3 * len(legs)
             f = plt.figure(1, figsize=(12,fig_height))
-            ax = f.add_axes([0.1, 0.1, 0.85, 0.85])
+            ax = f.add_axes([0.1, 0.3, 0.85, 0.65])
             ax = gaitFunctions.plotLegSet(ax, movie_file, legs)
             plt.show()
             
