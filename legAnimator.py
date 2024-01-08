@@ -31,9 +31,14 @@ def main():
     fname = 'short_df_6_i_5_c_5.mp4' # '' if do not want to save animation
     
     ## ==> get SIMULATED data based on step parameters
+    gait_cycle = 1 # in seconds
+    duty_factor =     2/3 # in fraction of gait cycle
+    anterior_offset = 1/2 # in fraction of gait cycle
+    opposite_offset = 1/2 # in fraction of gait cycle
     
     num_legs = gaitFunctions.getFeetFromSpecies(critter)
-    up_down_times, frame_times = load_simulated_steps(num_legs)
+    simulation = getSimulation(num_legs, gait_cycle, duty_factor, anterior_offset, opposite_offset)
+    up_down_times, frame_times = load_simulated_steps(simulation)
     
     ## ==> OR get MEASURED up / down times for legs from an experiment
     # up_down_times, frame_times = load_movie_steps()
@@ -52,15 +57,9 @@ def main():
     if len(fname) > 0 and make_excel:
         makeExcelFromSimulatedSteps(fname, critter, up_down_times, frame_times)
 
-def load_simulated_steps(num_legs):
-    ## define step parameters
-    num_cycles = 2
-    gait_cycle = 1 # in seconds
-    duty_factor =     2/3 # in fraction of gait cycle
-    anterior_offset = 1/2 # in fraction of gait cycle
-    opposite_offset = 1/2 # in fraction of gait cycle
+def getSimulation(num_legs, gait_cycle, duty_factor, anterior_offset, opposite_offset):
+    num_cycles = 4
     fps = 30 # frames per second
-    
     simulation = {}
     simulation['num_legs'] = num_legs
     simulation['num_cycles'] = num_cycles
@@ -69,12 +68,13 @@ def load_simulated_steps(num_legs):
     simulation['opposite_offset'] = opposite_offset
     simulation['anterior_offset'] = anterior_offset
     simulation['fps'] = fps
-    
     max_time = int(num_cycles * gait_cycle)
     frame_times = np.linspace(0,max_time,max_time*fps)
     simulation['frame_times'] = frame_times[1:]
     simulation['max_time'] = max_time
+    return simulation
     
+def load_simulated_steps(simulation):
     up_down_times, frame_times = simulate_steps(simulation)
     return up_down_times, frame_times
 
