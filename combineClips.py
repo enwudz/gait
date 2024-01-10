@@ -41,14 +41,12 @@ import gaitFunctions
 import warnings
 
 
-def main():
+def main(saveExcel=True):
     
-    # cruise threshold percentage for calculating degrees / sec cruising
-    cruise_threshold = 15
-    
-    # set output file name to name of current directory
-    current_directory = os.getcwd().split(os.sep)[-1]
-    out_file = current_directory + '_combined.xlsx'
+    if saveExcel:
+        # set output file name to name of current directory
+        current_directory = os.getcwd().split(os.sep)[-1]
+        out_file = current_directory + '_combined.xlsx'
     
     # get list of excel files and make sure there is an excel for each movie
     clipstems = sorted(get_clips())
@@ -132,10 +130,13 @@ def main():
     
     ## collect data for each clip
     # ... each individual gets a unique id (uniq_id) and can have multiple clips
+    if saveExcel == False:
+        print('... loading data for clips in this folder')
     for clip in clipstems:
         movie_file = clip + '.mov'
         excel_file = clip + '.xlsx'
-        print(' ... loading data for ' + movie_file)
+        if saveExcel:
+            print(' ... loading data for ' + movie_file)
         
         #### ===> load identity info from this clip
         identity_info = gaitFunctions.loadIdentityInfo(movie_file, excel_file)
@@ -775,19 +776,22 @@ def main():
     # convert gait_summaries_dict into a dataframe
     gait_summaries_df = pd.DataFrame(gait_summaries_dict)
 
-    # save all dataframes to different sheets in the combined output file
-    print('\nCombining data from all clips into ' + out_file)
-    with pd.ExcelWriter(out_file, engine='openpyxl') as writer: 
-        if len(path_summaries_df) > 0:
-            path_summaries_df.to_excel(writer, index=False, sheet_name='path_summaries')
-        if len(step_timing_combined_df) > 0:
-            step_timing_combined_df.to_excel(writer, index=False, sheet_name='step_timing')
-        if len(step_summaries_df) > 0:
-            step_summaries_df.to_excel(writer, index=False, sheet_name='step_summaries')
-        if len(gait_summaries_df) > 0:
-            gait_summaries_df.to_excel(writer, index=False, sheet_name='gait_summaries')
-        if len(gait_styles_speeds_df) > 0:
-            gait_styles_speeds_df.to_excel(writer, index=False, sheet_name='gait_speeds')
+    if saveExcel:
+        # save all dataframes to different sheets in the combined output file
+        print('\nCombining data from all clips into ' + out_file)
+        with pd.ExcelWriter(out_file, engine='openpyxl') as writer: 
+            if len(path_summaries_df) > 0:
+                path_summaries_df.to_excel(writer, index=False, sheet_name='path_summaries')
+            if len(step_timing_combined_df) > 0:
+                step_timing_combined_df.to_excel(writer, index=False, sheet_name='step_timing')
+            if len(step_summaries_df) > 0:
+                step_summaries_df.to_excel(writer, index=False, sheet_name='step_summaries')
+            if len(gait_summaries_df) > 0:
+                gait_summaries_df.to_excel(writer, index=False, sheet_name='gait_summaries')
+            if len(gait_styles_speeds_df) > 0:
+                gait_styles_speeds_df.to_excel(writer, index=False, sheet_name='gait_speeds')
+            
+    return (path_summaries_df, step_timing_combined_df, step_summaries_df, gait_summaries_df, gait_styles_speeds_df)
 
 def addColtoDF(df, colname, st):
     st_stem = st.split('.')[0]
@@ -818,4 +822,4 @@ def get_clips():
     return ok_files
 
 if __name__ == '__main__':
-    main()
+    main(True)
