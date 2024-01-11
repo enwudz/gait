@@ -192,7 +192,7 @@ def findCritter(video_file, background, pixThreshold, showTracking):
             #  show (color coded) centroids on frame
             cv2.circle(frame, (cX, cY), 5, dot_colors[frame_number-1], -1)
             # ==> OR show ALL centroids so far on the frame
-            frame  = addCoordinatesToFrame(frame, centroid_coordinates, dot_colors)
+            frame  = addCoordinatesToFrame(frame, centroid_coordinates, dot_colors[:len(centroid_coordinates)])
     
             # ==> SHOW TIME STAMPS: show (color coded) time stamps on frame
             # put the time variable on the video frame
@@ -243,7 +243,7 @@ def addCoordinatesToFrame(frame, coordinates, colors):
 
 def makeColorList(cmap_name, N):
      cmap = cm[cmap_name]
-     cmap = cmap(np.arange(N))[:,0:3]
+     cmap = cmap(np.linspace(0,1,N))[:,0:3]
      cmap = np.fliplr(cmap)
 
      # format for cv2 = 255 is max pixel intensity, colors are BGR
