@@ -341,7 +341,7 @@ def bearingChangePlot(a3, tracked_df, datatype = 'bearings'): # bearings or bear
     times = tracked_df.times.values
     a3.plot(times[1:-1],bearing_changes[1:-1],color='tab:green')
     a3.set_xticks([])
-    a3.set_ylabel(ylab)
+    a3.set_ylabel(ylab, color = 'tab:green')
     a3.spines['top'].set_visible(False)
     a3.spines['right'].set_visible(False)
     a3.spines['bottom'].set_visible(False)
