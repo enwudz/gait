@@ -311,7 +311,7 @@ def superImposedFirstLast(movie_file):
     combined_frame = cv2.addWeighted(first_frame, 0.3, last_frame, 0.7, 0)
     return combined_frame
 
-def plotTrack(ax, ax_colorbar, movie_file, tracked_df):
+def plotTrack(ax, ax_colorbar, movie_file, tracked_df, addStopsTurns = True):
     
     times = tracked_df.times.values
     xcoords = tracked_df.xcoords.values
@@ -320,6 +320,7 @@ def plotTrack(ax, ax_colorbar, movie_file, tracked_df):
     smoothedy = tracked_df.smoothed_y.values
     
     combined_frame = superImposedFirstLast(movie_file)
+    combined_frame = combined_frame[:, :, [2, 1, 0]] # convert BGR to RGB
 
     ax.imshow(combined_frame) # combined_frame or last_frame
     
@@ -335,9 +336,53 @@ def plotTrack(ax, ax_colorbar, movie_file, tracked_df):
     ax.set_xticks([])
     ax.set_yticks([])
     
-    # add legend for time
+    # add legend/colorbar for time
     norm = mpl.colors.Normalize(vmin=0, vmax=times[-1])
     plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), label = 'Time (sec)', cax = ax_colorbar)
+    
+    # add stops and turns
+    if addStopsTurns:
+        
+        arrowup, arrowdown, cut_arrowup, cut_arrowdown = getArrowMarkers()
+        markersize = 15
+        stop_color = 'firebrick' # 'tab:red' or 'firebrick'
+        turn_color = 'forestgreen' # 'limegreen' or 'tab:green' or 'green' or 'forestgreen'
+    
+        # get runs of stops ... the stop marker will be plotted in the beginning of the stop bout
+        stops = tracked_df.stops.values
+        stop_bouts = one_runs(stops)
+        # stop_indices = [int((x[0]+x[1])/2) for x in stop_bouts] #  at middle of bout
+        stop_indices = [x[0] for x in stop_bouts] # at beginning of bout
+        stop_x = [smoothedx[i] for i in stop_indices]
+        stop_y = [smoothedy[i] for i in stop_indices]
+    
+        # plot stops
+        ax.plot(stop_x, stop_y, "8", markersize=markersize, markerfacecolor=stop_color, markeredgecolor="k")
+    
+        # get turns ... the turn marker will be plotted at the END of the turn
+        turns = tracked_df.turns.values
+        turn_bouts = one_runs(turns)
+        turn_indices = [x[1] for x in turn_bouts]
+    
+        turn_x = [smoothedx[i] for i in turn_indices]
+        turn_y = [smoothedy[i] for i in turn_indices]
+    
+        turn_directions = np.zeros(len(turn_bouts))
+        for i, idx in enumerate(turn_indices):
+            try:
+                turn_directions[i] = np.mean(tracked_df.filtered_bearings.values[idx:idx+5])
+                # print('getting average direction') # testing OK
+                # print(tracked_df.filtered_bearings.values[idx:idx+5]) # testing OK
+            except:
+                turn_directions[i] = tracked_df.filtered_bearings.values[idx]
+                # print('just getting first bearing') # testing OK
+    
+        # plot turns
+        # print(turn_directions) # testing OK
+        for i, angle in enumerate(turn_directions):
+            t = mpl.markers.MarkerStyle(marker=arrowup)
+            t._transform = t.get_transform().rotate_deg(-angle)
+            ax.plot(turn_x[i], turn_y[i], marker=t, markersize=markersize, markerfacecolor=turn_color, markeredgecolor="k")
 
     return ax, ax_colorbar
     

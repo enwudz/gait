@@ -78,7 +78,7 @@ def main(movie_file, plot_style = ''): # plot_style can be track or speed or ste
             f = plt.figure(1, figsize=(8,6))
             ax = f.add_axes([0.1, 0.1, 0.75, 0.8])
             ax_colorbar = f.add_axes([0.9,0.2,0.02,0.6])     
-            ax, ax_colorbar = gaitFunctions.plotTrack(ax, ax_colorbar, movie_file, tracked_df)
+            ax, ax_colorbar = gaitFunctions.plotTrack(ax, ax_colorbar, movie_file, tracked_df, True)
             
             # ==> add labels from experiment and show plot:
             ax.set_xlabel(getDataLabel(unit, median_length, distance, clip_duration, angle_space, discrete_turns, num_stops ))
@@ -307,6 +307,8 @@ def cruisingProportionPlot(ax, tracked_df):
     
     non_cruising_proportion = np.count_nonzero(stops + turns) / len(stops)
     cruising_proportion = 1 - non_cruising_proportion
+    
+    print('Percentage Cruising = ' + str(np.round(cruising_proportion,1)))
     
     cruising_color = 'lightcoral'
     
