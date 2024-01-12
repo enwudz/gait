@@ -390,7 +390,6 @@ def makeBoxPlot(df,col,groupnames,groups,datacol):
     
     plt.show()
     
-
 def selectPlotOption(option_list):
     print('\nPlot options: \n')
     print('  0. finished = quit plotting')

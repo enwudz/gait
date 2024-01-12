@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import matplotlib.pyplot as plt
-# from matplotlib.patches import Rectangle
+import matplotlib.path as mpath
+import matplotlib.patches as patches
 import matplotlib as mpl
 import pandas as pd
 import numpy as np
@@ -32,6 +33,54 @@ def boxScatterParams():
     scatter_size = 20 # scatter size
     jitter = 0.02
     return alpha, scatter_color, scatter_size, jitter
+
+def getArrowMarkers():
+    arrowhead_offset = 0.3
+    arrowhead_length = 0.4
+    arrowup_verts = [
+       (arrowhead_offset, 0),  # left, bottom
+       (arrowhead_offset, 1-arrowhead_length),  # left, top before arrow
+       (0, 1-arrowhead_length), # left lower corner of arrow
+       (0.5, 1), # top point of arrow
+       (1, 1-arrowhead_length), # right lower corner of arrow
+       (1-arrowhead_offset, 1-arrowhead_length),  # right, top before arrow
+       (1-arrowhead_offset, 0.),  # right, bottom
+       (0., 0),  # ignored
+    ]
+
+    arrowup_verts = [(x[0]*2 - 1,x[1]*2-1) for x in arrowup_verts]
+    arrowdown_verts = [(x[0],-x[1]) for x in arrowup_verts]
+
+    arrow_codes = [
+        mpath.Path.MOVETO,
+        mpath.Path.LINETO,
+        mpath.Path.LINETO,
+        mpath.Path.LINETO,
+        mpath.Path.LINETO,
+        mpath.Path.LINETO,
+        mpath.Path.LINETO,
+        mpath.Path.CLOSEPOLY,
+    ]
+    arrowup   = mpath.Path(arrowup_verts, arrow_codes)
+    arrowdown = mpath.Path(arrowdown_verts, arrow_codes)
+
+    # some voodoo here
+    flipped = arrowdown.vertices[::-1, ...]
+    flipped[0] = [-0.4,1]
+
+    # cirle 
+    circle = mpath.Path.unit_circle()
+
+    cut_vertsup   = np.concatenate([circle.vertices, arrowup.vertices])
+    cut_vertsdown = np.concatenate([circle.vertices, flipped])
+
+    cut_codesup   = np.concatenate([circle.codes, arrowup.codes])
+    cut_codesdown = np.concatenate([circle.codes, arrowdown.codes])
+
+    cut_arrowup   = mpath.Path(cut_vertsup,   cut_codesup)
+    cut_arrowdown = mpath.Path(cut_vertsdown, cut_codesdown)
+    
+    return arrowup, arrowdown, cut_arrowup, cut_arrowdown
 
 def omitNan(arr):
     arr = arr[np.logical_not(np.isnan(arr))]
@@ -2014,7 +2063,6 @@ def frameSwings(movie_file):
         # no gait data found
         return None
 
-
 def plotLegSet(ax, movie_file, legs_to_plot = 'all'):  
     '''
     For one clip: step plots of given leg set
@@ -2075,7 +2123,6 @@ def plotLegSet(ax, movie_file, legs_to_plot = 'all'):
     ax.set_frame_on(False)
     
     return ax
-
 
 def getGaitStyleVec(excel_file, leg_set = 'lateral', sheetname = 'gait_styles'):
     
@@ -2193,7 +2240,6 @@ def rearCombos(rearleg_swing_counts):
             
     return rear_combos
 
-
 def combineDictionariesWithCommonKeys(dict_list):
     combined_dict = {}
 
@@ -2276,7 +2322,6 @@ def get_swing_categories(swing_combination, leg_set = 'lateral'):
     
     return gait_style
 
-
 def uds_to_ones(ups, downs, leg_vector, frame_times):
     # ups and downs are lists of equal length
     # each up should be < each down
@@ -2290,7 +2335,6 @@ def uds_to_ones(ups, downs, leg_vector, frame_times):
         print('Problem - # ups != # downs !')
 
     return leg_vector
-
 
 def up_down_times_to_binary(downs, ups, frame_times):
     # convert list of leg-down and leg-up to vector of 0's (for stance), 1's (for swing)
