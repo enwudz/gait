@@ -242,7 +242,6 @@ def main(movie_file, plot_style = ''): # plot_style can be track or speed or ste
             
             # anterior-swing offsets, opposite-swing offsets (lateral), opposite-swing offsets(rear)
             # and normalized to gait cycle
-            
             f, axes = plt.subplots(2,3, figsize = (10,6), constrained_layout=True)
             f = gaitFunctions.swingOffsetPlot(f, stepdata_df)
             plt.show()  

@@ -86,14 +86,89 @@ def omitNan(arr):
     arr = arr[np.logical_not(np.isnan(arr))]
     return arr
 
+def getCompForCompType(comp_type):
+    if comp_type == 'swingswing':
+        comps = ['UpTime','UpTime']
+    elif comp_type == 'stanceswing':
+        comps = ['DownTime','UpTime']
+    elif comp_type == 'swingstance':
+        comps = ['UpTime','DownTime']
+    elif comp_type == 'stancestance':
+        comps = ['DownTime','DownTime']
+    else:
+        comps = ['UpTime','UpTime']
+    return comps  
+
+def offsetsForLegEvents(offsets, proportions, speeds, ref_leg_events, comp_leg_events, ref_leg_speeds, ref_leg_bodylengths):
+    for i, ref_event in enumerate(ref_leg_events[:-1]):
+        next_ref_event = ref_leg_events[i+1]
+        next_comp_idx = np.where(comp_leg_events>ref_event)[0]
+        speed_during_step = ref_leg_speeds[i]
+        length_during_step = ref_leg_bodylengths[i]
+        if len(next_comp_idx) > 0:
+            next_comp_event = comp_leg_events[next_comp_idx[0]]
+            ref_cycle = next_ref_event-ref_event
+            comp_event_offset = next_comp_event-ref_event
+            comp_event_phase_proportion = comp_event_offset / ref_cycle
+#                 print(ref_event, next_comp_event, next_ref_event, comp_event_phase_proportion) # testing
+            if comp_event_offset <= ref_cycle:
+                offsets.append(comp_event_offset)
+                proportions.append(comp_event_phase_proportion)
+                speeds.append(speed_during_step/length_during_step)
+    return offsets, proportions, speeds
+
+def swingTimingProportions(offsets, proportions, speeds, step_df, ref_leg, comp_leg, comp_type = 'swingswing'):
+    '''
+    offsets = list of (ref_leg -> comp_leg offset)
+        send an empty list at start, typically fill with offsets for all legs of interest
+    
+    proportions = list of (ref_leg -> comp_leg offset) / (gait cycle of ref_leg)
+        send an empty list at start, typically fill with proportions for all legs of interest
+    
+    speeds = list of speeds during steps of ref_leg
+        send an empty list at start, typically fill with speeds for all legs of interest
+    
+    step_df from step_timing sheet of individual clip or combined clips
+    
+    ref_leg = leg ID (e.g. 'L3')
+    
+    comp_leg = leg ID (e.g. 'L2')
+    
+    comp_type can be swingswing or swingstance or stancestance
+    
+    returns:
+    
+    proportions (updated with data for ref_leg)
+    speeds (updated with data for ref_leg)
+    
+    '''
+    
+    comps = getCompForCompType(comp_type)
+    
+    if 'uniq_id' in step_df.columns: # combined data
+    
+        individuals = np.sort(np.unique(step_df['uniq_id'].values))
+        for individual in individuals:
+            individual_data = step_df[step_df['uniq_id']==individual]
+            ref_leg_events = individual_data[individual_data['legID'] == ref_leg][comps[0]].values
+            ref_leg_speeds = individual_data[individual_data['legID'] == ref_leg]['speed_during_step'].values
+            ref_leg_bodylengths = individual_data[individual_data['legID'] == ref_leg]['average_tardigrade_length'].values
+            comp_leg_events = individual_data[individual_data['legID'] == comp_leg][comps[1]].values
+            offsets, proportions, speeds = offsetsForLegEvents(offsets, proportions, speeds, ref_leg_events, comp_leg_events, ref_leg_speeds, ref_leg_bodylengths)
+            
+    else: # data from just one clip
+    
+        ref_leg_events = step_df[step_df['legID'] == ref_leg][comps[0]].values
+        ref_leg_speeds = step_df[step_df['legID'] == ref_leg]['speed_during_step'].values
+        ref_leg_bodylengths = step_df[step_df['legID'] == ref_leg]['average_tardigrade_length'].values
+        comp_leg_events = step_df[step_df['legID'] == comp_leg][comps[1]].values
+        offsets, proportions, speeds = offsetsForLegEvents(offsets, proportions, speeds, ref_leg_events, comp_leg_events, ref_leg_speeds, ref_leg_bodylengths)
+    
+    return offsets, proportions, speeds
+
 def swingOffsetPlot(f, step_df):
     
-    anterior_offsets, opposite_offsets_lateral, opposite_offsets_rear, mean_gait_cycle_lateral, mean_gait_cycle_rear  = getSwingOffsets(step_df)
-
-    # normalize offsets to gait cycle length
-    n_anterior_offsets = anterior_offsets / mean_gait_cycle_lateral
-    n_opposite_offsets_lateral = opposite_offsets_lateral / mean_gait_cycle_lateral
-    n_opposite_offsets_rear = opposite_offsets_rear / mean_gait_cycle_rear
+    anterior_offsets, opposite_offsets_lateral, opposite_offsets_rear, n_anterior_offsets, n_opposite_offsets_lateral, n_opposite_offsets_rear = getSwingOffsets(step_df)
     
     toPlot = [anterior_offsets, opposite_offsets_lateral, opposite_offsets_rear,
               n_anterior_offsets, n_opposite_offsets_lateral, n_opposite_offsets_rear]
@@ -123,34 +198,69 @@ def swingOffsetPlot(f, step_df):
     return f
 
 def getSwingOffsets(step_df):
-    
-    cruising = step_df[step_df['cruising_during_step'] == True]
-    lateral_legs = get_leg_combos()[0]['legs_lateral']
-    rear_legs = get_leg_combos()[0]['rear']
-    three_two_legs = ['R3','L3','R2','L2']
-    
-    # get gait cycles of lateral legs
-    gait_cycle_lateral = cruising[cruising['legID'].isin(lateral_legs)]['gait'].values
-    mean_gait_cycle_lateral = np.mean(gait_cycle_lateral)
-    
-    # get gait cycles of rear legs
-    gait_cycle_rear = cruising[cruising['legID'].isin(rear_legs)]['gait'].values
-    mean_gait_cycle_rear = np.mean(gait_cycle_rear)
-    
-    # get swing offsets for lateral legs (anterior leg)
-    anterior_offsets = cruising[cruising['legID'].isin(three_two_legs)]['anterior_offsets'].values
-    anterior_offsets = omitNan(anterior_offsets)
-    
-    # get swing offsets for lateral legs (opposite leg)
-    opposite_offsets_lateral = cruising[cruising['legID'].isin(lateral_legs)]['contralateral_offsets'].values
-    opposite_offsets_lateral = omitNan(opposite_offsets_lateral)
-    
-    # get swing offsets for rear legs (opposite leg)
-    opposite_offsets_rear = cruising[cruising['legID'].isin(rear_legs)]['contralateral_offsets'].values
-    opposite_offsets_rear = omitNan(opposite_offsets_rear)
-                                                            
-    return anterior_offsets, opposite_offsets_lateral, opposite_offsets_rear, mean_gait_cycle_lateral, mean_gait_cycle_rear
 
+    # Can use swingTimingProportions to get swing->swing or stance->swing or stance->stance offsets
+    # for *any* pair of legs ...
+    
+    jnk = [] # for speeds
+    
+    anterior_offsets = []
+    opposite_offsets_lateral = []
+    opposite_offsets_rear = []
+    
+    n_anterior_offsets = []
+    n_opposite_offsets_lateral = []
+    n_opposite_offsets_rear = []
+     
+    cruising = step_df[step_df['cruising_during_step'] == True]
+    lateral_legs = get_leg_combos()[0]['legs_lateral'] # ['L3', 'L2', 'L1', 'R1', 'R2', 'R3']
+    opposite_lateral = ['R3','R2','R1','L1','L2','L3']
+    rear_legs = get_leg_combos()[0]['rear'] # ['R4','L4']
+    opposite_rear = ['L4','R4']
+    three_two_legs = ['R3','L3','R2','L2']
+    two_one_legs = ['R2','L2','R1','L1']
+    
+    anterior_legs = dict(zip(three_two_legs, two_one_legs))
+    opposite_lateral_legs = dict(zip(lateral_legs, opposite_lateral))
+    opposite_rear_legs = dict(zip(rear_legs, opposite_rear))
+    
+    # swingTimingProportions(offsets, proportions, speeds, step_df, ref_leg, comp_leg, comp_type = 'swingswing')
+    
+    # working
+    # get anterior offsets and normalized anterior offsets of lateral legs
+    for ref_leg in three_two_legs:
+        comp_leg = anterior_legs[ref_leg]
+        anterior_offsets, n_anterior_offsets, jnk = swingTimingProportions(anterior_offsets,
+                                                                           n_anterior_offsets,
+                                                                           jnk,
+                                                                           cruising,
+                                                                           ref_leg,
+                                                                           comp_leg,
+                                                                           'swingswing')
+    
+    # get opposite offsets and normalized opposite offsets of lateral legs
+    for ref_leg in three_two_legs:
+        comp_leg = opposite_lateral_legs[ref_leg]
+        opposite_offsets_lateral, n_opposite_offsets_lateral, jnk = swingTimingProportions(opposite_offsets_lateral,
+                                                                           n_opposite_offsets_lateral,
+                                                                           jnk,
+                                                                           cruising,
+                                                                           ref_leg,
+                                                                           comp_leg,
+                                                                           'swingswing')
+        
+    # get opposite offsets and normalized opposite offsets of rear legs
+    for ref_leg in rear_legs:
+        comp_leg = opposite_rear_legs[ref_leg]
+        opposite_offsets_rear, n_opposite_offsets_rear, jnk = swingTimingProportions(opposite_offsets_rear,
+                                                                           n_opposite_offsets_rear,
+                                                                           jnk,
+                                                                           cruising,
+                                                                           ref_leg,
+                                                                           comp_leg,
+                                                                           'swingswing')
+                                                            
+    return anterior_offsets, opposite_offsets_lateral, opposite_offsets_rear, n_anterior_offsets, n_opposite_offsets_lateral, n_opposite_offsets_rear
 
 def getMetachronalLag(step_df):
     
@@ -1990,7 +2100,6 @@ def getFeetFromSpecies(species='tardigrade'):
     return num_legs
 
 def getFrameSpeeds(movie_file):
-    # working
     
     # look for pathtracking sheet; complain if not found
     tracked_df, excel_filename = loadTrackedPath(movie_file)
@@ -2033,7 +2142,6 @@ def getGaitDataframe(movie_file):
     except:
         species = 'tardigrade'
     
-    # working
     # get speeds (mm/s and bodylength/s) for each frame ... from pathtracking sheet
     speed_mm_s, speed_bodylength_s = getFrameSpeeds(movie_file)
         
