@@ -858,12 +858,18 @@ def get_leg_list(num_legs, leg_order = 'default'):
     one_side = int(num_legs/2)
     leg_list = []
     
-    if leg_order == 'stepplot':
+    if leg_order == 'rightleft':
         # order is back to front left, then front to back right
         for i in np.arange(one_side, 0, -1):
             leg_list.append('R' + str(i))
         for i in np.arange(1,one_side+1):
             leg_list.append('L' + str(i))
+    elif leg_order == 'leftright':
+        # order is back to front right, then front to back left
+        for i in np.arange(one_side, 0, -1):
+            leg_list.append('L' + str(i))
+        for i in np.arange(1,one_side+1):
+            leg_list.append('R' + str(i))
     else:
         # order = left,right front to back
         for i in np.arange(1,one_side+1):
@@ -871,7 +877,44 @@ def get_leg_list(num_legs, leg_order = 'default'):
             leg_list.append('R' + str(i))
     
     return leg_list
-    
+
+def plotSimulatedSteps(ax, num_legs, num_cycles, duty_factor, anterior_offset, opposite_offset):
+    # start legs from rear left
+    legs = get_leg_list(num_legs, 'leftright')
+    half_legs = int(num_legs/2)
+
+    # get timing of stance starts
+    stance_start = {}
+    base_time = np.arange(-3,num_cycles,1)
+
+    for i in np.arange(0,half_legs):
+        leg_num = 'L' + str(half_legs-i)
+        stance_start[leg_num] = base_time + (i * anterior_offset)
+        rleg = leg_num.replace('L','R')
+        stance_start[rleg] = stance_start[leg_num] + opposite_offset
+
+    plot_legs = list(reversed(legs))
+    leg_y = dict(zip(plot_legs,np.arange(1,len(plot_legs) + 1)))
+
+    stance_color, swing_color = stanceSwingColors()
+
+    for leg in plot_legs:
+        for stance in stance_start[leg]:
+            lowerleft_y = leg_y[leg]
+            lowerleft_x = stance
+            stance_rect = patches.Rectangle((lowerleft_x,lowerleft_y),duty_factor,1,facecolor=stance_color)
+            ax.add_patch(stance_rect)
+
+            lowerleft_x += duty_factor
+            swing_rect = patches.Rectangle((lowerleft_x,lowerleft_y),1-duty_factor,1,facecolor=swing_color)
+            ax.add_patch(swing_rect)
+            
+    ax.set_xlabel('Gait Cycle')
+    ax.set_ylabel('Legs')
+    ax.set_yticks(np.arange(0,num_legs)+1.5, plot_legs)
+    ax.set_ylim([1,num_legs+1])
+
+    return ax, plot_legs, stance_start
 
 def get_leg_combos():
 

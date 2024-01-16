@@ -307,7 +307,7 @@ def cruisingProportionPlot(ax, tracked_df):
     non_cruising_proportion = np.count_nonzero(stops + turns) / len(stops)
     cruising_proportion = 1 - non_cruising_proportion
     
-    print('Percentage Cruising = ' + str(np.round(cruising_proportion,1)))
+    print('Percentage Cruising = ' + str(np.round(cruising_proportion*100,1)))
     
     cruising_color = 'lightcoral'
     
