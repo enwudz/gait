@@ -3112,6 +3112,39 @@ def formatBoxPlots(bp, boxColors=[], medianColors=[], flierColors=[]):
 
     return bp
 
+# single boxplot from a dataframe column
+def singleBoxplot(ax,df,col):
+    
+    # collect data
+    data_to_plot = df[col].values
+    
+    # make boxplot
+    bp = ax.boxplot(data_to_plot, patch_artist=True, showfliers=False)
+    
+    # change boxplot colors
+    # boxcolor, mediancolors, fliercolors
+    # bp = gaitFunctions.formatBoxPlots(bp, ['tab:blue'], ['white'], ['lightsteelblue']) 
+#     bp = gaitFunctions.formatBoxPlots(bp, [[0,0,0.384]] , ['lightgrey'],  ['lightsteelblue'])
+#     bp = gaitFunctions.formatBoxPlots(bp, ['forestgreen'], ['whitesmoke'], ['yellowgreen'])
+    bp = formatBoxPlots(bp, ['black'], ['whitesmoke'], ['dimgrey'])
+
+    # add scatter over the boxplot
+    a = 0.7 # alpha
+    sc = 'silver' # [ 0.76, 0.86, 0.85 ] # 'k' 'w' # marker color
+    sz = 30 # marker size
+    ji = 0.02 # jitter around midline
+    xScatter = np.random.normal(1, ji, size=len(data_to_plot))
+    ax.scatter(xScatter, data_to_plot, s=sz, facecolors=sc, edgecolors=None , alpha = a, zorder = 2)
+    
+    # add axes labels
+    ax.set_ylabel(col, fontsize=12)
+    ax.set_xticks([])
+    
+    ax.set_facecolor('w') # 'lightgray' or 'white'
+    ax.set_xlim([0.7,1.3])
+    
+    return ax
+
 # black and white boxplot
 def bw_boxplot(bp):
     for box in bp['boxes']:
