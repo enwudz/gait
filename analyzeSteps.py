@@ -33,7 +33,7 @@ def main(movie_file):
     else:
         print('\nAnalyzing step data for ' + movie_file)
 
-    add_swing = True # do we want to collect mid-swing times for all other legs for each step?
+    add_mid_swing = True # do we want to collect mid-swing times for all other legs for each step?
 
     # get legs
     num_feet = gaitFunctions.get_num_feet(movie_file)
@@ -65,7 +65,7 @@ def main(movie_file):
     data_for_steps = []
     header = 'legID,DownTime,UpTime,stance,swing,gait,duty,midSwingTime'
     
-    if add_swing is True: # if we are getting mid-swing data, we need more columns in header
+    if add_mid_swing is True: # if we are getting mid-swing data, we need more columns in header
         print('Saving mid-swing times to step_timing sheet ... ')
         # add appropriate info to header
         data_for_steps_with_swings = []
@@ -126,7 +126,7 @@ def main(movie_file):
                     data_for_steps.append(step_stats)
 
     ### FINISHED COLLECTING DATA FOR STEPS ... now, do we want to also collect mid-swing times?
-    if add_swing is True: # do we want the mid-swing information for all other legs?
+    if add_mid_swing is True: # do we want the mid-swing information for all other legs?
 
         # have output list (data_for_steps) from the code above
 
