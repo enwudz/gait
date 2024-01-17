@@ -381,7 +381,7 @@ def main(saveExcel=True):
                 clip_metachronal_lag_ratio[uniq_id] = metachronal_lag_ratio
             
             # get step timing OFFSETS
-            anterior_offsets, opposite_offsets_lateral, opposite_offsets_rear, mean_gait_cycle_lateral, mean_gait_cycle_rear = gaitFunctions.getSwingOffsets(sdf)
+            anterior_offsets, opposite_offsets_lateral, opposite_offsets_rear, n_anterior_offsets, n_opposite_offsets_lateral, n_opposite_offsets_rear = gaitFunctions.getSwingOffsets(sdf)
             # print(uniq_id, anterior_offsets) # just testing
             
             # get anterior swing offsets for lateral legs
@@ -392,9 +392,9 @@ def main(saveExcel=True):
                 
             # get anterior swing offsets normalized to gait cycle for lateral legs
             if uniq_id in clip_anterior_offset_normalized.keys():
-                clip_anterior_offset_normalized[uniq_id] = np.append(clip_anterior_offset_normalized[uniq_id], anterior_offsets / mean_gait_cycle_lateral)
+                clip_anterior_offset_normalized[uniq_id] = np.append(clip_anterior_offset_normalized[uniq_id], n_anterior_offsets)
             else:
-                clip_anterior_offset_normalized[uniq_id] = anterior_offsets / mean_gait_cycle_lateral
+                clip_anterior_offset_normalized[uniq_id] = n_anterior_offsets
             
             # get opposite swing offsets for lateral legs
             if uniq_id in clip_opposite_offset_lateral.keys():
@@ -404,9 +404,9 @@ def main(saveExcel=True):
             
             # get opposite swing offsets normalized to gait cycle for lateral legs
             if uniq_id in clip_opposite_offset_lateral_normalized.keys():
-                clip_opposite_offset_lateral_normalized[uniq_id] = np.append(clip_opposite_offset_lateral_normalized[uniq_id], opposite_offsets_lateral / mean_gait_cycle_lateral)
+                clip_opposite_offset_lateral_normalized[uniq_id] = np.append(clip_opposite_offset_lateral_normalized[uniq_id], n_opposite_offsets_lateral)
             else:
-                clip_opposite_offset_lateral_normalized[uniq_id] = opposite_offsets_lateral / mean_gait_cycle_lateral
+                clip_opposite_offset_lateral_normalized[uniq_id] = n_opposite_offsets_lateral 
             
             # get opposite swing offsets for rear legs
             if uniq_id in clip_opposite_offset_rear.keys():
@@ -414,11 +414,11 @@ def main(saveExcel=True):
             else:
                 clip_opposite_offset_rear[uniq_id] = opposite_offsets_rear
                 
-            # get opposite swing offsets for rear legs
+            # get opposite swing offsets for rear legs normalized to gait cycle for rear legs
             if uniq_id in clip_opposite_offset_rear_normalized.keys():
-                clip_opposite_offset_rear_normalized[uniq_id] = np.append(clip_opposite_offset_rear_normalized[uniq_id], opposite_offsets_rear / mean_gait_cycle_rear)
+                clip_opposite_offset_rear_normalized[uniq_id] = np.append(clip_opposite_offset_rear_normalized[uniq_id], n_opposite_offsets_rear)
             else:
-                clip_opposite_offset_rear_normalized[uniq_id] = opposite_offsets_rear / mean_gait_cycle_rear
+                clip_opposite_offset_rear_normalized[uniq_id] = n_opposite_offsets_rear
             
             # left/right balance??
         
