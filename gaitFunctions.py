@@ -3195,23 +3195,25 @@ def numberWithinRanges(num, rangestarts, rangeends):
     return False
 
 # stats from boxplot data
-def statsFromBoxData(boxData,statTest):
-	pvals = []
+def statsFromBoxData(boxData,statTest,printout=True):
+    pvals = []
 
-	for i in range(len(boxData)):
-		for j in range(i+1,len(boxData)):
-			if statTest in ['k','kruskal','kruskalwallis','kw']:
-				_,p = stats.kruskal(boxData[i],boxData[j])
-				print('%i vs. %i: %1.3f by Kruskal-Wallis' % (i+1,j+1,p))
-				pvals.append(p)
-			if statTest in ['t','tt','ttest']:
-				_,p = stats.ttest_ind(boxData[i],boxData[j])
-				print('%i vs. %i: %1.3f by ttest-ind' % (i+1,j+1,p))
-				pvals.append(p)
-			# MORE STAT TESTS?
-	print('')
+    for i in range(len(boxData)):
+        for j in range(i+1,len(boxData)):
+            if statTest in ['k','kruskal','kruskalwallis','kw']:
+                _,p = stats.kruskal(boxData[i],boxData[j])
+                test_type = 'Kruskal-Wallis'
+                pvals.append(p)
+            if statTest in ['t','tt','ttest']:
+                _,p = stats.ttest_ind(boxData[i],boxData[j])
+                test_type = 'ttest-ind'
+                pvals.append(p)
+            # MORE STAT TESTS?
+            if printout:
+                print('%i vs. %i: %1.3f ' % (i+1,j+1,p) + ' by ' + test_type)
+    print('')
 
-	return pvals
+    return pvals
     
 def fillLastBit(vec,startval,endval,numtofill):
     increment = (endval - startval) / numtofill
