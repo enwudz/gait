@@ -3117,6 +3117,7 @@ def singleBoxplot(ax,df,col):
     
     # collect data
     data_to_plot = df[col].values
+    data_to_plot = omitNan(data_to_plot)
     
     # make boxplot
     bp = ax.boxplot(data_to_plot, patch_artist=True, showfliers=False)
