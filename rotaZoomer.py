@@ -23,11 +23,11 @@ import glob
 import os
 # import scipy.signal
 
-def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', save_cropped_frames = False, starttimes = [], endtimes = []):
+def main(cropped_folder, movie_file, zoom_percent = 100, direction = 'up', save_cropped_frames = False, starttimes = [], endtimes = []):
     
     ''' ----> Adjust these paramaters for labels '''
     font = cv2.FONT_HERSHEY_DUPLEX # cv2.FONT_HERSHEY_SCRIPT_COMPLEX 
-    add_labels = True
+    add_labels = False
     text_size = 1
     turn_color = (155,155,0) # (155, 155, 0) # all zeros for nothing
     stop_color = (15,0,100) # (15, 0, 100) # all zeros for nothing
@@ -139,14 +139,24 @@ def main(cropped_folder, movie_file, zoom_percent = 300, direction = 'up', save_
         width_multiplier = 0.8
         height_multiplier = 0.6
     
-    # specify width and height of cropped video
+    # Set cropping size based on length of critter 
     crop_width_offset = int(critter_length * width_multiplier)  
     crop_height_offset = int(critter_length * height_multiplier) 
+    # print(crop_height_offset)
+    
+    ### OR MANUALLY set cropping size  . . . 
+    #crop_width_offset = 230
+    #crop_height_offset = 414
+    
+    print('Cropped width offset:  ', crop_width_offset, 'pixels')
+    print('Cropped height offset: ', crop_height_offset, 'pixels')
     
     # get dimensions of cropped video
     vid_width = 2 * crop_width_offset
     vid_height = 2 * crop_height_offset
     
+    print('Cropped Height x Width = ', vid_height, 'x', vid_width)
+
     ''' Get timing of turns and stops '''
     # these are arrays of frametimes when there are stops and turns
     stop_times = frametimes[np.where(stops==1)]

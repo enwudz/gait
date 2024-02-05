@@ -209,8 +209,8 @@ def findCritter(video_file, background, pixThreshold, showTracking):
                 break
 
         # ==> SAVE FRAME TO FILE
-        # fstem = video_file.split('.')[0]
-        # saveFrameToFile(fstem, frame_number, frame) # frame or binary_frame
+        fstem = video_file.split('.')[0]
+        saveFrameToFile(fstem, frame_number, frame) # frame or binary_frame
 
    
     # shut down the video capture object
