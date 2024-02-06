@@ -39,8 +39,8 @@ def main(movie_file, save_frames = False):
     turn_color = (155, 155, 0)
     stop_color = (15, 0, 100)
     time_x, time_y = [0.05, 0.1] # where should we put the time label?
-    turn_x, turn_y = [0.05, 0.95] # where should we put the turn label?
-    stop_x, stop_y = [0.05, 0.8] # where should we put the stop label?
+    turn_x, turn_y = [0.25, 0.2] # where should we put the turn label?
+    stop_x, stop_y = [0.05, 0.2] # where should we put the stop label?
     colormap = 'plasma' # plasma, cool, Wistia, autumn, rainbow, viridis
     
     # read in times and coordinates
@@ -128,7 +128,7 @@ def main(movie_file, save_frames = False):
         
         # save frame to file
         if save_frames == True:
-            saveFrameToFile(filestem, frame_number, frame) 
+            saveFrameToFile(filestem, frametime, frame)
         
         if cv2.waitKey(25) & 0xFF == ord('q'):
             break      
@@ -141,13 +141,14 @@ def main(movie_file, save_frames = False):
     
     return
 
-def saveFrameToFile(file_stem, frame_number, frame):
+def saveFrameToFile(file_stem, frameTime, frame):
     # to make a movie from frames
     # conda install ffmpeg
     # ffmpeg -f image2 -r 10 -s 1080x1920 -pattern_type glob -i '*.png' -vcodec mpeg4 movie.mp4
     # -r is framerate of movie
-    
-    file_name = file_stem + '_frames_' + str(frame_number).zfill(8) + '.png'
+    timestamp = str(int(frameTime*1000)).zfill(6)
+
+    file_name = file_stem + '_frames_' + timestamp + '.png'
     cv2.imwrite(file_name, frame, [cv2.IMWRITE_PNG_COMPRESSION, 0])
         
 
@@ -184,7 +185,7 @@ def makeColorList(cmap_name, N):
      
     # cmap = cm.get_cmap(cmap_name, N)
     cmap = mpl.colormaps.get_cmap(cmap_name)
-    cmap = cmap(np.arange(N))[:,0:3]
+    cmap = cmap(np.linspace(0,1,N))[:,0:3]
     cmap = np.fliplr(cmap)
      
      # format for cv2 = 255 is max pixel intensity, colors are BGR     

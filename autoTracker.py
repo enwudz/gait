@@ -210,7 +210,7 @@ def findCritter(video_file, background, pixThreshold, showTracking):
 
         # ==> SAVE FRAME TO FILE
         fstem = video_file.split('.')[0]
-        saveFrameToFile(fstem, frame_number, frame) # frame or binary_frame
+        saveFrameToFile(fstem, frameTime, frame) # frame or binary_frame
 
    
     # shut down the video capture object
@@ -339,13 +339,14 @@ def getBinaryFrame(frame, background, pixThreshold):
 
     return final_diff
 
-def saveFrameToFile(file_stem, frame_number, frame):
+def saveFrameToFile(file_stem, frameTime, frame):
     # to make a movie from frames
     # conda install ffmpeg
     # ffmpeg -f image2 -r 10 -s 1080x1920 -pattern_type glob -i '*.png' -vcodec mpeg4 movie.mp4
     # -r is framerate of movie
+    timestamp = str(int(frameTime*1000)).zfill(6)
 
-    file_name = file_stem + '_frames_' + str(frame_number).zfill(8) + '.png'
+    file_name = file_stem + '_frames_' + timestamp + '.png'
     cv2.imwrite(file_name, frame, [cv2.IMWRITE_PNG_COMPRESSION, 0])
 
 
