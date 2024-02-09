@@ -145,8 +145,8 @@ def main(cropped_folder, movie_file, zoom_percent = 100, direction = 'up', save_
     # print(crop_height_offset)
     
     ### OR MANUALLY set cropping size  . . . 
-    #crop_width_offset = 230
-    #crop_height_offset = 414
+    # crop_width_offset = 100
+    # crop_height_offset = 180
     
     print('Cropped width offset:  ', crop_width_offset, 'pixels')
     print('Cropped height offset: ', crop_height_offset, 'pixels')
