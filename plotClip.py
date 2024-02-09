@@ -332,6 +332,8 @@ def timeRibbonPlot(a4, tracked_df):
 
 def bearingChangePlot(a3, tracked_df, datatype = 'bearings'): # bearings or bearing_changes
 
+    bearingcolor = 'black'
+
     if datatype == 'bearings':
         bearing_changes = tracked_df.filtered_bearings.values # bearings or filtered_bearings
         ylab = 'Bearing (˚)'
@@ -340,9 +342,9 @@ def bearingChangePlot(a3, tracked_df, datatype = 'bearings'): # bearings or bear
         ylab = 'Change in\nbearing (˚)'
     
     times = tracked_df.times.values
-    a3.plot(times[1:-1],bearing_changes[1:-1],color='tab:green')
+    a3.plot(times[1:-1],bearing_changes[1:-1],color=bearingcolor)
     a3.set_xticks([])
-    a3.set_ylabel(ylab, color = 'tab:green')
+    a3.set_ylabel(ylab, color =bearingcolor)
     a3.spines['top'].set_visible(False)
     a3.spines['right'].set_visible(False)
     a3.spines['bottom'].set_visible(False)
@@ -359,26 +361,29 @@ def bearingChangePlot(a3, tracked_df, datatype = 'bearings'): # bearings or bear
             a3.add_patch(Rectangle( xy=(start_time,bearing_ylim[0]),
                          width = end_time - start_time,
                          height = bearing_ylim[1] - bearing_ylim[0],
-                         facecolor = 'lightgray', edgecolor=None))
+                         facecolor = 'forestgreen', alpha=0.5, edgecolor=None))
     return a3
 
 def speedDistancePlot(a1, tracked_df, scale, unit):
     
     if unit == 'inch':
         unit = 'in'
+        
+    speedcol = 'black'
+    distancecol = 'tab:purple'
     
     times = tracked_df.times.values
     speed = tracked_df.speed.values / scale
-    line1 = a1.plot(times[:-1],speed[:-1],color='tab:blue',label='speed')
+    line1 = a1.plot(times[:-1],speed[:-1],color=speedcol,label='speed')
     a1.set_xlabel('Time (s)')
-    a1.set_ylabel('Speed (' + unit + '/s)', color = 'tab:blue')
+    a1.set_ylabel('Speed (' + unit + '/s)', color = speedcol)
     a1.set_xlim([0, times[-1]])
     
     # plot time vs. cumulative distance (right y axis)
     a2 = a1.twinx()
     cumulative_distance = tracked_df.cumulative_distance.values / scale
-    line2 = a2.plot(times[:-1],cumulative_distance[:-1],color='tab:red',label='distance')
-    a2.set_ylabel('Cumulative distance (' + unit + ')', color = 'tab:red')
+    line2 = a2.plot(times[:-1],cumulative_distance[:-1],color=distancecol, label='distance', linewidth=3)
+    a2.set_ylabel('Cumulative distance (' + unit + ')', color=distancecol)
     
     # add legend
     lns = line1+line2
@@ -397,7 +402,7 @@ def speedDistancePlot(a1, tracked_df, scale, unit):
             a1.add_patch(Rectangle( xy=(start_time,speed_ylim[0]),
                          width = end_time - start_time,
                          height = speed_ylim[1] - speed_ylim[0],
-                         facecolor = 'lightgray', edgecolor=None))
+                         facecolor = 'firebrick', alpha=0.5, edgecolor=None))
     return a1, a2
     
 

@@ -1580,7 +1580,7 @@ def gaitStylePercentagesPlot(ax, excel_files, leg_set = 'lateral'):
 
     '''
 
-    barWidth = 0.5
+    barWidth = 0.4
     
     # get the gait vectors for the selected movie files
     gait_style_vectors = []
@@ -1611,10 +1611,10 @@ def gaitStylePercentagesPlot(ax, excel_files, leg_set = 'lateral'):
                 bottom = 0
             if i == 0: # first dataset ... plot everything at 0 value to make labels for legend
                 ax.bar(i, 0, bottom = bottom, color = combo_colors[combo],
-                       edgecolor='white', width=barWidth, label=combo.replace('_',' '))
+                       edgecolor='white', linewidth=0.4, width=barWidth, label=combo.replace('_',' '))
             if combo in gait_styles_vec:
                 ax.bar(i, combo_proportions[combo], bottom = bottom, color = combo_colors[combo],
-                    edgecolor='white', width=barWidth)
+                    edgecolor='white', linewidth=0.4, width=barWidth)
                 bottom += combo_proportions[combo]
     
     ax.set_xticks(np.arange(len(gait_style_vectors)))
@@ -3113,7 +3113,7 @@ def formatBoxPlots(bp, boxColors=[], medianColors=[], flierColors=[]):
     return bp
 
 # single boxplot from a dataframe column
-def singleBoxplot(ax,df,col):
+def singleBoxplot(ax,df,col,sz=30):
     
     # collect data
     data_to_plot = df[col].values
@@ -3132,7 +3132,6 @@ def singleBoxplot(ax,df,col):
     # add scatter over the boxplot
     a = 0.7 # alpha
     sc = 'silver' # [ 0.76, 0.86, 0.85 ] # 'k' 'w' # marker color
-    sz = 30 # marker size
     ji = 0.02 # jitter around midline
     xScatter = np.random.normal(1, ji, size=len(data_to_plot))
     ax.scatter(xScatter, data_to_plot, s=sz, facecolors=sc, edgecolors=None , alpha = a, zorder = 2)
