@@ -117,6 +117,68 @@ def offsetsForLegEvents(offsets, proportions, speeds, ref_leg_events, comp_leg_e
                 speeds.append(speed_during_step/length_during_step)
     return offsets, proportions, speeds
 
+
+def offsetGaitstyleLabels(ax, with_text = True, fontsize = 12):
+    
+    # add hexapod gait style labels on plot of contralateral vs. ipsilateral offsets
+    
+    combos, color_dict = get_gait_combo_colors('lateral')
+
+    star = mpath.Path.unit_regular_star(5)
+    
+    arrowup, arrowdown, cut_arrowup, cut_arrowdown = getArrowMarkers()
+    
+    # circle = mpath.Path.unit_circle()
+    # cut_star = mpath.Path(
+    #     vertices=np.concatenate([circle.vertices, star.vertices[::-1, ...]]),
+    #     codes=np.concatenate([circle.codes, star.codes]))
+
+    tet = color_dict['tetrapod_canonical']
+    tri = color_dict['tripod_canonical']
+    
+    ybuff = 0.01
+
+    # markers
+    ax.plot(1/3,1/3,marker=arrowup,markersize=15,color=tet)
+    ax.plot(1/3,2/3,marker=arrowdown,markersize=15,color=tet)
+    ax.plot(2/3,1/3,marker=arrowup,markersize=15,color=tet)
+    ax.plot(2/3,2/3,marker=arrowdown,markersize=15,color=tet)
+    ax.plot(1/2,1/3,marker=cut_arrowup,markersize=15,color=tet)
+    ax.plot(1/2,2/3,marker=cut_arrowdown,markersize=15,color=tet)
+    ax.plot(1/2,1/2,marker=star,markersize=15,color=tri)
+
+    if with_text:
+        # text for tetrapod
+        ax.text(0.1,1/3-ybuff,'Tetrapod',color=tet, fontsize=fontsize) # lower left tetrapod
+        ax.text(0.1,2/3-ybuff,'Tetrapod',color=tet, fontsize=fontsize) # upper left tetrapod
+
+        # text for synchronous
+        ax.text(0.08,0.85,'Synchronous',color=tet, fontsize=fontsize) # upper left synchronous
+        ax.text(0.08,0.12,'Synchronous',color=tet, fontsize=fontsize) # lower left synchronous
+        ax.text(0.70,0.85,'Synchronous',color=tet, fontsize=fontsize) # upper right synchronous
+        ax.text(0.70,0.12,'Synchronous',color=tet, fontsize=fontsize) # lower right synchronous
+        
+        # text for front-->rear and rear-->front
+        ax.text(0.72,1/3-ybuff,'Anterograde',color=tet, fontsize=fontsize) # lower right
+        ax.text(0.72,2/3-ybuff,'Retrograde',color=tet, fontsize=fontsize) # upper right
+        
+        # Text on colored background for asynchronous
+        t1 = ax.text(0.38,0.85,'Asynchronous',color='w', fontsize=fontsize) # upper tetrapod rectangle
+        t1.set_bbox(dict(facecolor=tet, linewidth=0))
+        t2 = ax.text(0.38,0.12,'Asynchronous',color='w', fontsize=fontsize) # lower tetrapod rectangle
+        t2.set_bbox(dict(facecolor=tet, linewidth=0))
+
+        # text for tripod
+        ax.text(0.32,1/2-ybuff,'Tripod',color=tri, fontsize=fontsize) # Tripod
+#         ax.text(0.38,0.55,'Synchronous',color=tri) # Synchronous tripod
+    
+    ax.set_xlim([0,1])
+    ax.set_ylim([0,1])
+    ax.set_xlabel('ϕc (Normalized Phase)')
+    ax.set_ylabel('ϕi (Normalized Phase)')
+    
+    return ax
+
 def swingTimingProportions(offsets, proportions, speeds, step_df, ref_leg, comp_leg, comp_type = 'swingswing'):
     '''
     offsets = list of (ref_leg -> comp_leg offset)
