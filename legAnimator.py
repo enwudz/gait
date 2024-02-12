@@ -28,13 +28,13 @@ def main():
     animation_fps = 30
     critter = 'tardigrade'
     make_excel = True # true or false
-    fname = 'short_df_6_i_5_c_5.mp4' # '' if do not want to save animation
+    fname = 'short_df_6_i_3_c_3.mp4' # '' if do not want to save animation
     
     ## ==> get SIMULATED data based on step parameters
     gait_cycle = 1 # in seconds
     duty_factor =     2/3 # in fraction of gait cycle
-    anterior_offset = 1/2 # in fraction of gait cycle
-    opposite_offset = 1/2 # in fraction of gait cycle
+    anterior_offset = 1/3 # in fraction of gait cycle
+    opposite_offset = 1/3 # in fraction of gait cycle
     
     num_legs = gaitFunctions.getFeetFromSpecies(critter)
     simulation = getSimulation(num_legs, gait_cycle, duty_factor, anterior_offset, opposite_offset)

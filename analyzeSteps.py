@@ -748,7 +748,7 @@ def calculateCoordination(gait_styles_df, gait_style, stances, swings):
                     if lowest_swing > vid_start and highest_stance < vid_end:
                         
                         # calculate coordination strength for this bout
-                        coordination_strength = (bout_end - bout_start) / (highest_stance-lowest_swing) 
+                        coordination_strength = (bout_end - bout_start) / (highest_stance-lowest_swing)
                         coord_strength_vec[i] = coordination_strength
                         
                         # calculate average speed (bodylength/sec) for this bout
