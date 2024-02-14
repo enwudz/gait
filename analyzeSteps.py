@@ -267,6 +267,11 @@ def main(movie_file):
         step_data_df['contralateral_offsets'] = contralateral_offsets
         step_data_df['metachronal_lag'] = metachronal_lag
         
+        # From step_data_df,
+        # METACHRONAL LAG RATIO for each L3-R3 pair
+        # and METACHRONAL BEARING CHANGE for each L3-R3 pair
+        step_data_df = metachronalRatioAndBearing(step_data_df, pathtracking_df)
+        
         ## Save the dataframe to the excel file, in the step_timing sheet
         with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
             step_data_df.to_excel(writer, index=False, sheet_name='step_timing')
@@ -293,6 +298,60 @@ def main(movie_file):
         
         # return step_data_df
 
+def metachronalRatioAndBearing(step_data_df, pathtracking_df):
+    # From step_data_df,
+    # METACHRONAL LAG RATIO for each L3-R3 pair
+    # and METACHRONAL BEARING CHANGE for each L3-R3 pair
+    
+    ## doing this a LOOPY way instead of a Pythonic vector way ... b/c I'm tired
+    # so, get vectors of the data I need to do this . . . 
+    legID = step_data_df.legID.values
+    DownTime = [float(x) for x in step_data_df.DownTime.values]
+    UpTime = [float(x) for x in step_data_df.UpTime.values]
+    mcl = [float(x) for x in step_data_df.metachronal_lag.values]
+    
+    frametimes = np.array([float(x) for x in pathtracking_df.times.values])
+    bearings = np.array([float(x) for x in pathtracking_df.filtered_bearings.values])
+    
+    ## make empty containers for the new data I will add
+    mcl_ratio = np.full(len(legID),np.nan) # nan array for metachronal lag ratio
+    mc_bearing = np.full(len(legID),np.nan) # nan array for metachronal bearing change
+    
+    L3_idx = np.where(legID == 'L3')[0]
+    R3_idx = np.where(legID == 'R3')[0]
+    
+    # ## get the data!
+    # # go through the L3 indices
+    for idx in L3_idx:
+        # does this L3 have a metachronal lag? 
+        nextR = 10000
+        nextR_idx = np.nan
+        if mcl[idx] > 0:
+            # if yes, get next DownTime for next R3 step!
+            for Ri in R3_idx:
+                if DownTime[Ri] > DownTime[idx] and DownTime[Ri] < nextR:
+                    nextR = DownTime[Ri]
+                    nextR_idx = Ri
+            # does this R3 have a metachronal lag?
+            if nextR_idx > 0 and mcl[nextR_idx] > 0:
+                # if yes, calculate ratio and bearing change from L3 DownTime to R3 UpTime
+                # print(mcl[idx],  mcl[nextR_idx], np.log2(mcl[idx] / mcl[nextR_idx]) ) # testing OK
+                mcl_ratio[idx] = np.log2(mcl[idx] / mcl[nextR_idx] )
+                
+                # get bearing at DownTime of L3 and at UpTime of R3
+                L3_DownTime = DownTime[idx]
+                R3_UpTime = UpTime[nextR_idx]
+                bearing_start = bearings[np.where(frametimes>=L3_DownTime)[0][0]]
+                bearing_end = bearings[np.where(frametimes>=R3_UpTime)[0][0]]
+                # print(L3_DownTime,R3_UpTime,bearing_start,bearing_end) # testing OK
+                bearing_change = gaitFunctions.change_in_bearing(bearing_start,bearing_end)
+                mc_bearing[idx] = bearing_change         
+    
+    ## add the new columns to the dataframe
+    step_data_df['mcl_LR_ratio'] = mcl_ratio
+    step_data_df['metachronal_bearing_change'] = mc_bearing    
+    
+    return step_data_df
 
 def badLeg(leg, pathstats_df):
     print('\n **** No data for ' + leg + ' ****')
@@ -444,10 +503,12 @@ def getOffsets(step_df, steptracking_bouts):
             second_leg = anterior_dict[leg]
             second_leg_swings = swing_starts[second_leg]
             next_second_leg_swing = get_next_event(swing_time, second_leg_swings)
+            # print(leg,swing_time,second_leg,next_second_leg_swing) # testing OK
             if next_second_leg_swing > 0 and next_second_leg_swing <= bout_end:
                 first_leg = anterior_dict[second_leg]
                 first_leg_swings = swing_starts[first_leg]
                 next_first_leg_swing = get_next_event(next_second_leg_swing, first_leg_swings)
+                # print(leg,swing_time,second_leg,next_second_leg_swing,first_leg,next_first_leg_swing) # testing OK
                 if next_first_leg_swing > 0 and next_first_leg_swing <= bout_end:
                     # print(leg, swing_time, next_second_leg_swing, next_first_leg_swing) # testing
                     lag = next_first_leg_swing - swing_time
