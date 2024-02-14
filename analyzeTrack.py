@@ -281,10 +281,22 @@ def getTurns(times, stops, bearings, increment, turn_threshold):
         num_frames_to_average = 30
         turn_buffer_frames = 10 
         if len(bearings) > num_frames_to_average:
-            first_bearings = bearings[:num_frames_to_average]
+            first_bearings = np.array(bearings[:num_frames_to_average])
+            # the first_bearings cross 0, then the average will be inflated
+            search_buffer = 45
+            if len(np.where(first_bearings>=360-search_buffer)[0] ) > 1: # close to NORTH on left
+                if len(np.where(first_bearings<=search_buffer)[0] ) > 1: # close to NORTH on right
+                    # add 360 to the ones close to NORTH on the right
+                    add_360 = np.zeros(len(first_bearings))
+                    add_360[np.where(first_bearings<=search_buffer)[0]] = 360
+                    first_bearings = first_bearings + add_360   
             first_avg_bearing = np.mean(first_bearings)
+            if first_avg_bearing > 360:
+                first_avg_bearing = first_avg_bearing - 360
             new_avg_bearings = np.array([first_avg_bearing] * len(first_bearings))
             after_bearing = bearings[num_frames_to_average]
+            bearing_change = gaitFunctions.change_in_bearing(first_avg_bearing, after_bearing)
+            after_bearing = first_avg_bearing + bearing_change
             new_avg_bearings = gaitFunctions.fillLastBit(new_avg_bearings, first_avg_bearing, after_bearing, turn_buffer_frames)
             filtered_bearings[:num_frames_to_average] = new_avg_bearings
     

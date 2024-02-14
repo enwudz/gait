@@ -308,6 +308,7 @@ def metachronalRatioAndBearing(step_data_df, pathtracking_df):
     legID = step_data_df.legID.values
     DownTime = [float(x) for x in step_data_df.DownTime.values]
     UpTime = [float(x) for x in step_data_df.UpTime.values]
+    gait = [float(x) for x in step_data_df.gait.values]
     mcl = [float(x) for x in step_data_df.metachronal_lag.values]
     
     frametimes = np.array([float(x) for x in pathtracking_df.times.values])
@@ -327,6 +328,7 @@ def metachronalRatioAndBearing(step_data_df, pathtracking_df):
         nextR = 10000
         nextR_idx = np.nan
         if mcl[idx] > 0:
+            # print(legID[idx],DownTime[idx]) # testing leg identity (L3) and stance onset timing - OK
             # if yes, get next DownTime for next R3 step!
             for Ri in R3_idx:
                 if DownTime[Ri] > DownTime[idx] and DownTime[Ri] < nextR:
@@ -338,18 +340,18 @@ def metachronalRatioAndBearing(step_data_df, pathtracking_df):
                 # print(mcl[idx],  mcl[nextR_idx], np.log2(mcl[idx] / mcl[nextR_idx]) ) # testing OK
                 mcl_ratio[idx] = np.log2(mcl[idx] / mcl[nextR_idx] )
                 
-                # get bearing at DownTime of L3 and at UpTime of R3
+                # get bearing at DownTime of L3 and at end of L3 gait cycle
                 L3_DownTime = DownTime[idx]
-                R3_UpTime = UpTime[nextR_idx]
+                end_L3_cycle = DownTime[idx] + gait[idx]
                 bearing_start = bearings[np.where(frametimes>=L3_DownTime)[0][0]]
-                bearing_end = bearings[np.where(frametimes>=R3_UpTime)[0][0]]
-                # print(L3_DownTime,R3_UpTime,bearing_start,bearing_end) # testing OK
+                bearing_end = bearings[np.where(frametimes>=end_L3_cycle)[0][0]]
+                # print(L3_DownTime,end_L3_cycle,bearing_start,bearing_end) # testing OK
                 bearing_change = gaitFunctions.change_in_bearing(bearing_start,bearing_end)
                 mc_bearing[idx] = bearing_change         
     
     ## add the new columns to the dataframe
     step_data_df['mcl_LR_ratio'] = mcl_ratio
-    step_data_df['metachronal_bearing_change'] = mc_bearing    
+    step_data_df['L3_bearing_change'] = mc_bearing    
     
     return step_data_df
 

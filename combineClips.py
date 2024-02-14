@@ -101,9 +101,12 @@ def main(saveExcel=True):
     clip_opposite_offset_lateral_normalized = {}
     clip_opposite_offset_rear_normalized = {}
     
-    clip_metachronal_lag = {}
-    clip_metachronal_lag_normalized = {}
-    clip_metachronal_lag_ratio = {} # abs(log2(left/right))
+    clip_metachronal_lag = {} # raw data in seconds
+    clip_metachronal_lag_normalized = {} # normalized to gait cycle of 3rd pair
+    clip_metachronal_lag_ratio = {} # abs(log2(L3/R3))
+    
+    clip_mclratio_steps = {} # Metachronal lag ratio (log2(L3/R3) for each L3 step
+    clip_l3_bearingchanges = {} # bearing change during each L3 cycle (if metachronal lag available for L3)
     
     ## for GAIT STYLE data
     # make empty dictionaries to collect gait style times, keyed by unique individual
@@ -369,7 +372,7 @@ def main(saveExcel=True):
             else:
                 clip_metachronal_lag_normalized[uniq_id] = normalized_metachronal_lag
             
-            # get ratio of left / right metachronal lag
+            # get abs (log2 (ratio of left / right metachronal lag))
             # print(uniq_id, left_metachronal_lag, right_metachronal_lag) # testing
             if len(left_metachronal_lag) > 0 and len(right_metachronal_lag) > 0:         
                 metachronal_lag_ratio = np.abs(np.log2(np.mean(left_metachronal_lag)/np.mean(right_metachronal_lag)))
@@ -379,6 +382,22 @@ def main(saveExcel=True):
                 clip_metachronal_lag_ratio[uniq_id] = np.append(clip_metachronal_lag_ratio[uniq_id], metachronal_lag_ratio)
             else:
                 clip_metachronal_lag_ratio[uniq_id] = metachronal_lag_ratio
+                
+            # metachronal lag ratio (log2(L3/R3)) for EACH L3 step
+            clip_mclratios = sdf['mcl_LR_ratio'].values
+            clip_mclratios = gaitFunctions.omitNan(clip_mclratios)   
+            if uniq_id in clip_mclratio_steps.keys():
+                clip_mclratio_steps[uniq_id] = np.append(clip_mclratio_steps[uniq_id], clip_mclratios)
+            else:
+                clip_mclratio_steps[uniq_id] = clip_mclratios
+            
+            # Bearing changes during each L3 step (positive = right turn, negative = left turn)
+            clip_L3bearings = sdf['L3_bearing_change'].values
+            clip_L3bearings = gaitFunctions.omitNan(clip_L3bearings)   
+            if uniq_id in clip_l3_bearingchanges.keys():
+                clip_l3_bearingchanges[uniq_id] = np.append(clip_l3_bearingchanges[uniq_id], clip_L3bearings)
+            else:
+                clip_l3_bearingchanges[uniq_id] = clip_L3bearings
             
             # get step timing OFFSETS
             anterior_offsets, opposite_offsets_lateral, opposite_offsets_rear, n_anterior_offsets, n_opposite_offsets_lateral, n_opposite_offsets_rear = gaitFunctions.getSwingOffsets(sdf)
@@ -660,6 +679,8 @@ def main(saveExcel=True):
     opposite_offsets_lateral_normalized = [np.mean(clip_opposite_offset_lateral_normalized[x]) for x in ids]
     metachronal_lag = [np.mean(clip_metachronal_lag[x]) for x in ids]     
     metachronal_lag_normalized = [np.mean(clip_metachronal_lag_normalized[x]) for x in ids]
+    metachronal_lag_ratio_per_L3_step = [np.mean(clip_mclratio_steps[x]) for x in ids]
+    bearing_change_per_L3_step =  [np.mean(clip_l3_bearingchanges[x]) for x in ids]
     # nanmean gives warnings if only nan in array
     with warnings.catch_warnings():
         warnings.filterwarnings(action='ignore', message='Mean of empty slice')
@@ -684,7 +705,9 @@ def main(saveExcel=True):
                            'bodylength per step (rear legs)':bodylength_per_step_rear,
                            'Metachronal lag (lateral legs)':metachronal_lag,
                            'Metachronal lag (normalized, lateral legs)':metachronal_lag_normalized,
-                           'Metachronal lag Left-Right Ratio':metachronal_lag_ratio,
+                           'Metachronal lag Abs (Left-Right Ratio)':metachronal_lag_ratio,
+                           'Metachronal lag ratios per L3 step':metachronal_lag_ratio_per_L3_step,
+                           'Bearing change per L3 step':bearing_change_per_L3_step,
                            'Anterior swing offsets (lateral legs)':anterior_offsets,
                            'Anterior swing offsets (normalized, lateral legs)':normalized_anterior_offsets,
                            'Opposite swing offsets (lateral legs)':opposite_offsets_lateral,
