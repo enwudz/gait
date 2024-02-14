@@ -306,16 +306,39 @@ def getTurns(times, stops, bearings, increment, turn_threshold):
     but also want to be pointing in the right direction after the stop
     '''
     
-    stop_ranges = gaitFunctions.one_runs(stops)  
     num_frames_to_average = 5 # when looking for bearing before and after a stop
     turn_buffer_frames = 10  # for gradually turning from old bearing (before stop) to new bearing (after stop)
+    
+    # if zero runs (i.e. GO's) in stop_ranges are less
+    # than a certain duration ... then do not call it a GO
+    minimum_go = 2 * num_frames_to_average
+    go_ranges = gaitFunctions.zero_runs(stops)
+    for go_range in go_ranges:
+        duration = go_range[1]-go_range[0]
+        if duration <= minimum_go:
+            stops[go_range[0]:go_range[1]] = 1
+    
+    stop_ranges = gaitFunctions.one_runs(stops)
+    search_buffer = 45 # degrees to see if we crossed the NORTH line
 
     for stop_range in stop_ranges:
         
         # get bearing at BEGINNING of this stop
-        # average of a few frames before the stop      
+        # average of a few frames before the stop
+
         if stop_range[0] > num_frames_to_average:
-            prior_bearing = np.mean(bearings[stop_range[0] - num_frames_to_average : stop_range[0] ])
+            bearings_before_stop = bearings[stop_range[0] - num_frames_to_average : stop_range[0] ]         
+            # if we crossed NORTH (e.g. from 350 to 10) we need to be careful about taking the average
+            # print(stop_range[0], bearings_before_stop) # testing OK
+            if len(np.where(bearings_before_stop>=360-search_buffer)[0] ) > 1: # close to NORTH on left
+                if len(np.where(bearings_before_stop<=search_buffer)[0] ) > 1: # close to NORTH on right
+                    # add 360 to the ones close to NORTH on the right
+                    # print('We Crossed NORTH!!!!!') # testing
+                    add_360 = np.zeros(len(bearings_before_stop))
+                    add_360[np.where(bearings_before_stop<=search_buffer)[0]] = 360
+                    bearings_before_stop = bearings_before_stop + add_360 
+              
+            prior_bearing = np.mean(bearings_before_stop)
         elif stop_range[0] > int(num_frames_to_average/2):
             num_frames_to_average = int(num_frames_to_average/2)
             prior_bearing = np.mean(bearings[stop_range[0] - num_frames_to_average : stop_range[0] ])
@@ -328,7 +351,19 @@ def getTurns(times, stops, bearings, increment, turn_threshold):
         # get bearing at END of this stop
         # average of a few frames after the stop
         if stop_range[1] + num_frames_to_average <= len(bearings):
-            after_bearing = np.mean(bearings[stop_range[1]:stop_range[1] + num_frames_to_average])
+            print('got to here', stop_range[0], stop_range[1])
+            bearings_after_stop = bearings[stop_range[1]:stop_range[1] + num_frames_to_average]
+            print(bearings_after_stop)
+            # if we crossed NORTH (e.g. from 350 to 10) we need to be careful about taking the average
+            if len(np.where(bearings_after_stop>=360-search_buffer)[0] ) > 1: # close to NORTH on left
+                if len(np.where(bearings_after_stop<=search_buffer)[0] ) > 1: # close to NORTH on right
+                    # add 360 to the ones close to NORTH on the right
+                    # print('We Crossed NORTH!!!!!') # testing
+                    add_360 = np.zeros(len(bearings_after_stop))
+                    add_360[np.where(bearings_after_stop<=search_buffer)[0]] = 360
+                    bearings_after_stop = bearings_after_stop + add_360 
+            after_bearing = np.mean(bearings_after_stop)
+
         elif stop_range[1] + int(num_frames_to_average/2) <= len(bearings): 
             num_frames_to_average = int(num_frames_to_average/2)
             after_bearing = np.mean(bearings[stop_range[1]:stop_range[1] + num_frames_to_average])
@@ -348,6 +383,10 @@ def getTurns(times, stops, bearings, increment, turn_threshold):
         # set bearing changes towards end of the stop to equal steps between before and after
         old_bearings = np.copy(filtered_bearings)[stop_range[1]-turn_buffer_frames:stop_range[1]]
         new_bearings = gaitFunctions.fillLastBit(old_bearings,prior_bearing,after_bearing,turn_buffer_frames)
+        
+        # some of these are negative ... that's not good!
+        new_bearings = [x +360 if x<0 else x for x in new_bearings]
+        new_bearings = [x -360 if x>360 else x for x in new_bearings]
         filtered_bearings[stop_range[1]-turn_buffer_frames:stop_range[1]] = new_bearings
         
     ''' 
