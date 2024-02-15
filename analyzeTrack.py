@@ -351,9 +351,9 @@ def getTurns(times, stops, bearings, increment, turn_threshold):
         # get bearing at END of this stop
         # average of a few frames after the stop
         if stop_range[1] + num_frames_to_average <= len(bearings):
-            print('got to here', stop_range[0], stop_range[1])
+            # print('got to here', stop_range[0], stop_range[1])
             bearings_after_stop = bearings[stop_range[1]:stop_range[1] + num_frames_to_average]
-            print(bearings_after_stop)
+            # print(bearings_after_stop)
             # if we crossed NORTH (e.g. from 350 to 10) we need to be careful about taking the average
             if len(np.where(bearings_after_stop>=360-search_buffer)[0] ) > 1: # close to NORTH on left
                 if len(np.where(bearings_after_stop<=search_buffer)[0] ) > 1: # close to NORTH on right
@@ -362,6 +362,8 @@ def getTurns(times, stops, bearings, increment, turn_threshold):
                     add_360 = np.zeros(len(bearings_after_stop))
                     add_360[np.where(bearings_after_stop<=search_buffer)[0]] = 360
                     bearings_after_stop = bearings_after_stop + add_360 
+            
+            # print(stop_range[1], bearings_after_stop)
             after_bearing = np.mean(bearings_after_stop)
 
         elif stop_range[1] + int(num_frames_to_average/2) <= len(bearings): 
@@ -380,9 +382,11 @@ def getTurns(times, stops, bearings, increment, turn_threshold):
             else:
                 after_bearing = after_bearing + 360
 
+        # print(stop_range[1], prior_bearing, after_bearing)
         # set bearing changes towards end of the stop to equal steps between before and after
         old_bearings = np.copy(filtered_bearings)[stop_range[1]-turn_buffer_frames:stop_range[1]]
         new_bearings = gaitFunctions.fillLastBit(old_bearings,prior_bearing,after_bearing,turn_buffer_frames)
+        # print(new_bearings)
         
         # some of these are negative ... that's not good!
         new_bearings = [x +360 if x<0 else x for x in new_bearings]
