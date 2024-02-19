@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import matplotlib.path as mpath
 import matplotlib.patches as patches
 import matplotlib as mpl
+import matplotlib.colors as mc
+import colorsys
 import pandas as pd
 import numpy as np
 import os
@@ -3228,6 +3230,64 @@ def bw_boxplot(bp):
         
     return bp
 
+def adjust_lightness(color, amount=0.5):
+    '''
+    INPUT PARAMETERS
+    color = color (hex or RGBA)
+    amount = how much to lighten (>1) or darken (<1) color
+    
+    RETURNS
+    a lighter or darker version of the input color
+    '''
+    
+    try:
+        c = mc.cnames[color]
+    except:
+        c = color
+    c = colorsys.rgb_to_hls(*mc.to_rgb(c))
+    return colorsys.hls_to_rgb(c[0], max(0, min(1, amount * c[1])), c[2])
+
+def colorBoxplot(ax,data_to_plot,plot_colors,sz=10,color_adjust=1.6):
+    
+    '''
+    INPUT PARAMETERS:
+    ax = matplotlib axis
+    data_to_plot = matrix, each column ==> a separate boxplot
+    plot_colors = list, each elemennt = color for boxplot
+    sz = size of scattered points over each boxplot
+    color_adjust = how much to lighten (>1) or darken (<1) plot color to plot scatter points
+    
+    RETURNS
+    ax, bp
+    '''
+
+    boxwidths = 0.7
+    ji = 0.1 * boxwidths
+
+    a = 0.7 # alpha for scatter
+    
+    bp = ax.boxplot(data_to_plot, patch_artist=True, showfliers=False, widths=0.7)
+    
+    for n, box in enumerate(bp['boxes']):
+        
+        box.set(color=plot_colors[n], linewidth=2, alpha=a)
+        lighter_color = adjust_lightness(plot_colors[n],color_adjust)
+
+        # add scatter over the boxplot
+        sc = lighter_color 
+        xScatter = np.random.normal(n+1, ji, size=len(data_to_plot[n]))
+        ax.scatter(xScatter, data_to_plot[n], s=sz, facecolors=sc, edgecolors=None , alpha = a, zorder = 2)
+        
+    for n,med in enumerate(bp['medians']):
+        med.set( color='white', linewidth=2)
+
+    ax.set_xticks([])
+    
+    ax.set_facecolor('w') # 'lightgray' or 'white'
+#     ax.set_xlim([0.85,1.15])
+    
+    return ax, bp
+
 # get plot colors
 def get_plot_colors(num_colors=9, palette = 'default'):
     # see https://matplotlib.org/stable/gallery/color/named_colors.html
@@ -3256,7 +3316,47 @@ def numberWithinRanges(num, rangestarts, rangeends):
     
     return False
 
-# stats from boxplot data
+def pairwiseStats(pair,testtype='pair'):
+    
+    if testtype == 'kw':
+        kruskal = stats.kruskal(pair[0],pair[1])
+        test='Kruskal-Wallis'
+        pval = kruskal.pvalue
+        return pval,test
+
+    # shapiro ... test for normal distribution!
+    # the shapiro statistic tends to be 'high' (close to 1) ... 
+    # when samples are drawn from a normal distribution 
+    normal_distribution = True
+    shapiro_threshold = 0.9
+    for d in pair:
+        shapiro = stats.shapiro(d)
+        if shapiro.statistic < shapiro_threshold:
+            normal_distribution = False
+            # print('Shapiro stat',np.round(shapiro.statistic,2),'p-val',np.round(shapiro.pvalue,2))
+
+    # levene ... test for equal variance!
+    # The value of the statistic tends to be high when there is a large difference in variances.
+    # if p value is 'small' the variances of the groups may not be equal
+    equal_variance = True
+    levene = stats.levene(pair[0],pair[1])
+    # print('Levene stat',np.round(levene.statistic,2),'p-val',np.round(levene.pvalue,2))
+    levene_threshold = 0.1
+    if levene.pvalue < levene_threshold:
+        equal_variance = False
+        
+    if normal_distribution and equal_variance: # run a t-test
+        test = 'T-test'
+        ttest = stats.ttest_ind(pair[0],pair[1])
+        pval = ttest.pvalue
+    else:
+        test = 'Mann-Whitney U'
+        mwu = stats.mannwhitneyu(pair[0],pair[1])
+        pval = mwu.pvalue
+    
+    return pval, test
+
+# stats from boxplot data ... older, see above
 def statsFromBoxData(boxData,statTest,printout=True):
     pvals = []
 

@@ -798,6 +798,13 @@ def main(saveExcel=True):
     
     # convert gait_summaries_dict into a dataframe
     gait_summaries_df = pd.DataFrame(gait_summaries_dict)
+    
+    # calculate abs(mcl ratio) from per-step MCL ratios in step_timing_combined_df
+    # and add to step_summaries_df
+    step_summaries_df = getAbsPerStepMCL(step_timing_combined_df, step_summaries_df)
+    
+    # convert gait style percentages into CLR and add to gait_summaries_df
+    gait_summaries_df = getCLR(gait_summaries_df)
 
     if saveExcel:
         # save all dataframes to different sheets in the combined output file
@@ -815,6 +822,72 @@ def main(saveExcel=True):
                 gait_styles_speeds_df.to_excel(writer, index=False, sheet_name='gait_speeds')
             
     return (path_summaries_df, step_timing_combined_df, step_summaries_df, gait_summaries_df, gait_styles_speeds_df)
+
+def getCLR(gait_summaries_df):
+    '''
+    calculate center log ratio (CLR) transformation 
+    for latearl and rear gait style percentages    
+    '''
+    import composition_stats as cs
+    
+    lateraldata = np.hstack([
+        gait_summaries_df['% stand (lateral legs)'].values,
+        gait_summaries_df['% pentapod (lateral legs)'].values,
+        gait_summaries_df['% tetrapod canonical (lateral legs)'].values,
+        gait_summaries_df['% tetrapod gallop (lateral legs)'].values,
+        gait_summaries_df['% tetrapod other (lateral legs)'].values,
+        gait_summaries_df['% tripod canonical (lateral legs)'].values,
+        gait_summaries_df['% tripod other (lateral legs)'].values,
+        gait_summaries_df['% other (lateral legs)'].values
+        ])
+    
+    lateraldata_nozeros = cs.multiplicative_replacement(lateraldata)
+    lateraldata_clr = cs.clr(lateraldata_nozeros)
+    
+    gait_summaries_df['CLR stand (lateral legs)'] = lateraldata_clr[0]
+    gait_summaries_df['CLR pentapod (lateral legs)'] = lateraldata_clr[1]
+    gait_summaries_df['CLR tetrapod canonical (lateral legs)'] = lateraldata_clr[2]
+    gait_summaries_df['CLR tetrapod gallop (lateral legs)'] = lateraldata_clr[3]
+    gait_summaries_df['CLR tetrapod other (lateral legs)'] = lateraldata_clr[4]
+    gait_summaries_df['CLR tripod canonical (lateral legs)'] = lateraldata_clr[5]
+    gait_summaries_df['CLR tripod other (lateral legs)'] = lateraldata_clr[6]
+    gait_summaries_df['CLR other (lateral legs)'] = lateraldata_clr[7]
+    
+    
+    reardata = np.hstack([gait_summaries_df['% stand (rear legs)'].values,
+                          gait_summaries_df['% step (rear legs)'].values,
+                          gait_summaries_df['% hop (rear legs)'].values
+                           ])
+    
+    reardata_nozeros = cs.multiplicative_replacement(reardata)
+    reardata_clr = cs.clr(reardata_nozeros)
+    
+    gait_summaries_df['CLR stand (rear legs)'] = reardata_clr[0]
+    gait_summaries_df['CLR step (rear legs)'] = reardata_clr[1]
+    gait_summaries_df['CLR hop (rear legs)'] = reardata_clr[2]
+
+    return gait_summaries_df
+
+def getAbsPerStepMCL(step_timing_combined_df, step_summaries_df):
+    '''
+    calculate abs(mcl ratio) from per-step MCL ratios in step_timing_combined_df
+    and add to step_summaries_df
+    '''
+    
+    individuals = step_summaries_df.Identifier.values
+    abs_mcl_ratios = np.full(len(individuals), np.nan)
+    
+    for i, individual in enumerate(individuals):
+        ind_data = step_timing_combined_df[step_timing_combined_df['uniq_id']==individual]
+        mcl_ratios = gaitFunctions.omitNan(ind_data['mcl_LR_ratio'].values)
+        print(mcl_ratios)
+        if len(mcl_ratios) > 0:
+            abs_mcl_ratios[i] = np.mean(np.abs(mcl_ratios))
+        
+    step_summaries_df['Abs MCL Ratio per L3'] = abs_mcl_ratios
+            
+    return step_summaries_df
+    
 
 def addColtoDF(df, colname, st):
     st_stem = st.split('.')[0]
