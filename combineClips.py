@@ -830,7 +830,7 @@ def getCLR(gait_summaries_df):
     '''
     import composition_stats as cs
     
-    lateraldata = np.hstack([
+    lateraldata = np.hstack([[
         gait_summaries_df['% stand (lateral legs)'].values,
         gait_summaries_df['% pentapod (lateral legs)'].values,
         gait_summaries_df['% tetrapod canonical (lateral legs)'].values,
@@ -839,7 +839,9 @@ def getCLR(gait_summaries_df):
         gait_summaries_df['% tripod canonical (lateral legs)'].values,
         gait_summaries_df['% tripod other (lateral legs)'].values,
         gait_summaries_df['% other (lateral legs)'].values
-        ])
+        ]])
+    
+    # print(np.shape(lateraldata))
     
     lateraldata_nozeros = cs.multiplicative_replacement(lateraldata)
     lateraldata_clr = cs.clr(lateraldata_nozeros)
@@ -853,11 +855,10 @@ def getCLR(gait_summaries_df):
     gait_summaries_df['CLR tripod other (lateral legs)'] = lateraldata_clr[6]
     gait_summaries_df['CLR other (lateral legs)'] = lateraldata_clr[7]
     
-    
-    reardata = np.hstack([gait_summaries_df['% stand (rear legs)'].values,
+    reardata = np.hstack([[gait_summaries_df['% stand (rear legs)'].values,
                           gait_summaries_df['% step (rear legs)'].values,
                           gait_summaries_df['% hop (rear legs)'].values
-                           ])
+                           ]])
     
     reardata_nozeros = cs.multiplicative_replacement(reardata)
     reardata_clr = cs.clr(reardata_nozeros)
@@ -880,7 +881,7 @@ def getAbsPerStepMCL(step_timing_combined_df, step_summaries_df):
     for i, individual in enumerate(individuals):
         ind_data = step_timing_combined_df[step_timing_combined_df['uniq_id']==individual]
         mcl_ratios = gaitFunctions.omitNan(ind_data['mcl_LR_ratio'].values)
-        print(mcl_ratios)
+        # print(mcl_ratios)
         if len(mcl_ratios) > 0:
             abs_mcl_ratios[i] = np.mean(np.abs(mcl_ratios))
         
