@@ -30,13 +30,16 @@ def main(movie_file):
     # get or make excel file for this clip
     excel_file_exists, excel_filename = gaitFunctions.check_for_excel(movie_file)
     if excel_file_exists == False:
-        initializeClip.main(movie_file)    
-
+        info = initializeClip.main(movie_file)
+    else:
+        info = gaitFunctions.loadIdentityInfo(movie_file)
+     
     # get number of frames in movie from the excel file for this clip
-    frameTimes = gaitFunctions.getFrameTimes(movie_file)
+    num_frames = info['#frames']
     
     # ask how many frames to track (suggest every 5th frame, plus first and last)
-    suggested_frame_number = int(len(frameTimes)/5) + 2
+    print('There are ' + str(num_frames) + ' frames in this movie . . . ')
+    suggested_frame_number = int(num_frames/5) + 2
     selection = input('\nEnter number of frames to track:  (d) = ' + str(suggested_frame_number) + '  : ')
     if selection == 'd': 
         num_frames_to_track = suggested_frame_number
@@ -48,9 +51,9 @@ def main(movie_file):
     print('\nWe will track ' + str(num_frames_to_track) + ' frames ...')
         
     # make list of frames to track
-    frame_indices = np.linspace(5, len(frameTimes)-5, num_frames_to_track-2)
+    frame_indices = np.linspace(5, num_frames-5, num_frames_to_track-2)
     frame_indices = np.insert(frame_indices, 0, 0)
-    frame_indices = np.append(frame_indices, len(frameTimes)-1)
+    frame_indices = np.append(frame_indices, num_frames-1)
     frame_indices = [int(x) for x in frame_indices]
     # tracked_frames = [frameTimes[i] for i in frame_indices]
     
@@ -61,8 +64,8 @@ def main(movie_file):
     print('Video is at ' + str(round(fps)) + ' frames per second')
     frame_number = 0
     
-    xcoords = np.zeros(len(frameTimes))
-    ycoords = np.zeros(len(frameTimes))
+    xcoords = np.zeros(num_frames)
+    ycoords = np.zeros(num_frames)
     
     while vid.isOpened():
         
@@ -111,6 +114,7 @@ def main(movie_file):
     widths = [width] * len(xcoords)
     areas = [area] * len(xcoords)
     
+    frameTimes = gaitFunctions.getFrameTimes(movie_file)
     d = {'times':frameTimes, 'xcoords':xcoords, 'ycoords':ycoords, 
          'areas':areas, 'lengths':lengths, 'widths':widths}
     

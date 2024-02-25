@@ -369,6 +369,8 @@ def getTurns(times, stops, bearings, increment, turn_threshold):
         elif stop_range[1] + int(num_frames_to_average/2) <= len(bearings): 
             num_frames_to_average = int(num_frames_to_average/2)
             after_bearing = np.mean(bearings[stop_range[1]:stop_range[1] + num_frames_to_average])
+        elif stop_range[1] == len(bearings):
+            after_bearing = bearings[-1]
         else:
             after_bearing = bearings[stop_range[1]]
         

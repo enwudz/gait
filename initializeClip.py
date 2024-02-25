@@ -105,7 +105,7 @@ def guessTreatment(s):
     s = s.lower()
     
     drugs = ['control', 'caffeine', 'alcohol', 'nicotine', 'disulfiram', 'lead', 'simvastatin']
-    conditions = ['control', 'wildtype', 'embryo']
+    conditions = ['control', 'wildtype', 'embryo', 'juvenile']
     species = ['exemplaris', 'ramazzottius']
     
     treatment = 'unknown'

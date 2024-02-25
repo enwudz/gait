@@ -23,22 +23,22 @@ def main(movie_file):
     # <=== put a # before a line to comment it off
     
     ## make an excel file for a clip
-    #initializeClip.main(movie_file)
+    # initializeClip.main(movie_file)
     # 
     ## automated path tracking, including speed, turns, stops
     # if tracking wonky at 12, try 25 or 40 or ...  eg: (movie_file, 25, True) 
-    #autoTracker.main(movie_file, 25, True) # True is show tracking
-    #analyzeTrack.main(movie_file) # when finished with autoTracker
+    # autoTracker.main(movie_file, 15, True) # True is show tracking
+    analyzeTrack.main(movie_file) # when finished with autoTracker
 
     # show demo track
     #demoTracking.main(movie_file, False)
 
     ## show plots
-    #plotClip.main(movie_file, 'track')
+    plotClip.main(movie_file, 'track')
 
     ## step-by-step timing
     # frameStepper.main(movie_file, 100)
-    analyzeSteps.main(movie_file) # when finished with frameStepper
+    #analyzeSteps.main(movie_file) # when finished with frameStepper
     # plotClip.main(movie_file)
 
 
