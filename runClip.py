@@ -27,7 +27,7 @@ def main(movie_file):
     # 
     ## automated path tracking, including speed, turns, stops
     # if tracking wonky at 12, try 25 or 40 or ...  eg: (movie_file, 25, True) 
-    # autoTracker.main(movie_file, 15, True) # True is show tracking
+    #autoTracker.main(movie_file, 15, True) # True is show tracking
     analyzeTrack.main(movie_file) # when finished with autoTracker
 
     # show demo track
