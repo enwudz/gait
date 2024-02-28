@@ -719,7 +719,7 @@ def one_runs(a):
     absdiff = np.abs(np.diff(isone))
     # Runs start and end where absdiff is 1.
     ranges = np.where(absdiff == 1)[0].reshape(-1, 2)
-    if ranges[-1][1] == len(a):
+    if len(ranges) > 0 and ranges[-1][1] == len(a):
         ranges[-1][1] = len(a)-1
     return ranges
 
