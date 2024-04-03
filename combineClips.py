@@ -177,6 +177,8 @@ def main(saveExcel=True):
         
         # collect body LENGTHS in pixels for this individual in this clip
         if uniq_id in clip_body_lengths_pixels.keys():
+            if float(path_stats_dict['body length (pixels)']) == 0:
+                print('**** NO LENGTH FOR ' + clip)
             clip_body_lengths_pixels[uniq_id] = np.append(clip_body_lengths_pixels[uniq_id], float(path_stats_dict['body length (pixels)']))
         else:
             clip_body_lengths_pixels[uniq_id] = float(path_stats_dict['body length (pixels)'])
