@@ -16,6 +16,8 @@ from scipy.stats import sem
 from scipy import stats
 import re
 import scipy.signal
+import seaborn as sns
+from matplotlib.collections import PathCollection
 
 def makeMovieFromImages(searchterm, fps, outfile):
     # needs ffmpeg installed
@@ -201,7 +203,7 @@ def swingTimingProportions(offsets, proportions, speeds, step_df, ref_leg, comp_
     comp_type can be swingswing or swingstance or stancestance
     
     returns:
-    
+    offsets (updated with data for ref_leg)
     proportions (updated with data for ref_leg)
     speeds (updated with data for ref_leg)
     
@@ -3178,6 +3180,79 @@ def formatBoxPlots(bp, boxColors=[], medianColors=[], flierColors=[]):
 
     return bp
 
+# single violin plot (by seaborn) with POINTS from dataframe column
+def singleViolinPoints(ax,df,col,vcolor='tab:blue',vwidth=0.8,
+                       pointcolor='lightsteelblue',pointsize=3,pointjitter=0.05,box=False):
+    
+    if box == True:
+        vinner = 'box'
+    else:
+        vinner = None # or 'box'
+    
+    d = df[col].values
+    ax = sns.violinplot(d,ax=ax,inner=vinner,width=vwidth,color=vcolor) 
+    
+    if box == True: # rearrange so box on top
+        for artist in ax.lines:
+            artist.set_zorder(10)
+        for artist in ax.findobj(PathCollection):
+            artist.set_zorder(11)
+    
+    ax = sns.stripplot(d,ax=ax,jitter=pointjitter,
+                       color=pointcolor,size=pointsize)
+    ax.set_ylabel(col)
+    ax.set_xticks([])
+    
+    return ax 
+
+# single violin plot (with inner boxplot) from dataframe column
+def singleViolinBox(ax,df,col,scatter=False):
+    
+    # collect data
+    data_to_plot = df[col].values
+    data_to_plot = omitNan(data_to_plot)
+    
+    violin = ax.violinplot(data_to_plot, widths=0.3,
+                         showmeans=False, showextrema=False)
+      
+    for pc in violin['bodies']:
+        pc.set_facecolor('lightsteelblue')
+        pc.set_edgecolor('black')
+        pc.set_alpha(1)
+    
+    # add scatter over the violin
+    if scatter:
+        a = 0.7 # alpha
+        sz = 4 # size
+        sc = 'w' # [ 0.76, 0.86, 0.85 ] # 'k' 'w' # marker color
+        ji = 0.02 # jitter around midline
+        xScatter = np.random.normal(1, ji, size=len(data_to_plot))
+        ax.scatter(xScatter, data_to_plot, s=sz, facecolors=sc, edgecolors=None , alpha = a, zorder = 2)
+    
+    # homemade box plot
+    q1, median, q3 = np.percentile(data_to_plot, [25, 50, 75])
+    vals = np.sort(data_to_plot)
+    
+    upper_adjacent_value = q3 + (q3 - q1) * 1.5
+    upper_adjacent_value = np.clip(upper_adjacent_value, q3, vals[-1])
+
+    lower_adjacent_value = q1 - (q3 - q1) * 1.5
+    lower_adjacent_value = np.clip(lower_adjacent_value, vals[0], q1)
+    
+    whisk_min, whisk_max = lower_adjacent_value, upper_adjacent_value
+    ax.vlines(1, whisk_min, whisk_max, color='k', linestyle='-', lw=1)
+    ax.vlines(1, q1, q3, color='k', linestyle='-', lw=8)
+    ax.plot(1,median,'sw',markersize=5)
+    
+    # add axes labels
+    ax.set_ylabel(col, fontsize=12)
+    ax.set_xticks([])
+    
+    ax.set_facecolor('w') # 'lightgray' or 'white'
+    ax.set_xlim([0.7,1.3])
+    
+    return ax
+
 # single boxplot from a dataframe column
 def singleBoxplot(ax,df,col,sz=30):
     
@@ -3249,7 +3324,7 @@ def adjust_lightness(color, amount=0.5):
     c = colorsys.rgb_to_hls(*mc.to_rgb(c))
     return colorsys.hls_to_rgb(c[0], max(0, min(1, amount * c[1])), c[2])
 
-def colorBoxplot(ax,data_to_plot,plot_colors,sz=10,color_adjust=1.6):
+def colorBoxplot(ax,data_to_plot,plot_colors,labels,sz=10,color_adjust=1.6):
     
     '''
     INPUT PARAMETERS:
@@ -3283,7 +3358,7 @@ def colorBoxplot(ax,data_to_plot,plot_colors,sz=10,color_adjust=1.6):
     for n,med in enumerate(bp['medians']):
         med.set( color='white', linewidth=2)
 
-    ax.set_xticks([])
+    ax.set_xticks(np.arange(len(labels))+1, labels)
     
     ax.set_facecolor('w') # 'lightgray' or 'white'
 #     ax.set_xlim([0.85,1.15])
