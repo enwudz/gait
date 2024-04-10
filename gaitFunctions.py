@@ -3324,6 +3324,47 @@ def adjust_lightness(color, amount=0.5):
     c = colorsys.rgb_to_hls(*mc.to_rgb(c))
     return colorsys.hls_to_rgb(c[0], max(0, min(1, amount * c[1])), c[2])
 
+def colorViolinPlot(ax,data,colors,labels,inner='box',vwidth=0.8,pointcolor=None,
+                    pointsize=3,pointjitter=0.03):
+    
+    violins = ax.violinplot(data, widths=vwidth, showmeans=False, showextrema=False)
+    
+    # update colors of violins
+    for i,pc in enumerate(violins['bodies']):
+        pc.set_facecolor(colors[i])
+        pc.set_edgecolor('black')
+        pc.set_alpha(1)
+        
+    # add scatter
+    if pointcolor is not None:
+        for i, d in enumerate(data):
+            xScatter = np.random.normal(i+1, pointjitter, size=len(d))
+            ax.scatter(xScatter, d, s=pointsize, facecolors=pointcolor, edgecolors=None, zorder = 2)
+    
+    # homemade box plot
+    if inner == 'box':
+        boxcol = 'black'
+        medcol = 'white'
+        for i, d in enumerate(data):
+            q1, median, q3 = np.percentile(d, [25, 50, 75])
+            vals = np.sort(d)
+
+            upper_adjacent_value = q3 + (q3 - q1) * 1.5
+            upper_adjacent_value = np.clip(upper_adjacent_value, q3, vals[-1])
+
+            lower_adjacent_value = q1 - (q3 - q1) * 1.5
+            lower_adjacent_value = np.clip(lower_adjacent_value, vals[0], q1)
+
+            whisk_min, whisk_max = lower_adjacent_value, upper_adjacent_value
+            ax.vlines(i+1, whisk_min, whisk_max, color=boxcol, linestyle='-', lw=1)
+            ax.vlines(i+1, q1, q3, color=boxcol, linestyle='-', lw=8)
+            ax.plot(i+1,median,marker='s',color=medcol,markersize=5)
+    
+    # x axis label
+    ax.set_xticks(np.arange(len(data)) + 1, labels)
+    
+    return ax
+
 def colorBoxplot(ax,data_to_plot,plot_colors,labels,sz=10,color_adjust=1.6):
     
     '''
