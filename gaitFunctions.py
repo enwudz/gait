@@ -3324,7 +3324,7 @@ def adjust_lightness(color, amount=0.5):
     c = colorsys.rgb_to_hls(*mc.to_rgb(c))
     return colorsys.hls_to_rgb(c[0], max(0, min(1, amount * c[1])), c[2])
 
-def colorViolinPlot(ax,data,colors,labels,inner='box',vwidth=0.8,pointcolor=None,
+def colorViolinPlot(ax,data,colors,labels,inner='box',medsize=5,vwidth=0.8,pointcolor=None,
                     pointsize=3,pointjitter=0.03):
     
     violins = ax.violinplot(data, widths=vwidth, showmeans=False, showextrema=False)
@@ -3358,7 +3358,7 @@ def colorViolinPlot(ax,data,colors,labels,inner='box',vwidth=0.8,pointcolor=None
             whisk_min, whisk_max = lower_adjacent_value, upper_adjacent_value
             ax.vlines(i+1, whisk_min, whisk_max, color=boxcol, linestyle='-', lw=1)
             ax.vlines(i+1, q1, q3, color=boxcol, linestyle='-', lw=8)
-            ax.plot(i+1,median,marker='s',color=medcol,markersize=5)
+            ax.plot(i+1,median,marker='s',color=medcol,markersize=medsize)
     
     # x axis label
     ax.set_xticks(np.arange(len(data)) + 1, labels)
