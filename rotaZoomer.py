@@ -27,7 +27,7 @@ def main(cropped_folder, movie_file, zoom_percent = 100, direction = 'up', save_
     
     ''' ----> Adjust these paramaters for labels '''
     font = cv2.FONT_HERSHEY_DUPLEX # cv2.FONT_HERSHEY_SCRIPT_COMPLEX 
-    add_labels = True # True to add time stamp and turn / stop labels
+    add_labels = False # True to add time stamp and turn / stop labels
     text_size = 1
     turn_color = (155,155,0) # (155, 155, 0) # all zeros for nothing
     stop_color = (15,0,100) # (15, 0, 100) # all zeros for nothing
@@ -145,8 +145,8 @@ def main(cropped_folder, movie_file, zoom_percent = 100, direction = 'up', save_
     # print(crop_height_offset)
     
     ### OR MANUALLY set cropping size  . . . 
-    # crop_width_offset = 171 # set to half of desired width
-    # crop_height_offset = 308 # set to half of desired height
+    crop_width_offset = 100 # set to half of desired width
+    crop_height_offset = 180 # set to half of desired height
     
     print('Cropped width offset:  ', crop_width_offset, 'pixels')
     print('Cropped height offset: ', crop_height_offset, 'pixels')
