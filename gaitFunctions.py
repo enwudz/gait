@@ -140,7 +140,7 @@ def offsetGaitstyleLabels(ax, with_text = True, fontsize = 12):
     tet = color_dict['tetrapod_canonical']
     tri = color_dict['tripod_canonical']
     
-    ybuff = 0.01
+    ybuff = -0.035
 
     # markers
     ax.plot(1/3,1/3,marker=arrowup,markersize=15,color=tet)
@@ -153,27 +153,27 @@ def offsetGaitstyleLabels(ax, with_text = True, fontsize = 12):
 
     if with_text:
         # text for tetrapod
-        ax.text(0.1,1/3-ybuff,'Tetrapod',color=tet, fontsize=fontsize) # lower left tetrapod
-        ax.text(0.1,2/3-ybuff,'Tetrapod',color=tet, fontsize=fontsize) # upper left tetrapod
+        ax.text(0.03,1/3+ybuff,'Tetrapod\nAnterograde',color=tet, fontsize=fontsize) # lower left tetrapod
+        ax.text(0.03,2/3+ybuff,'Tetrapod\nRetrograde',color=tet, fontsize=fontsize) # upper left tetrapod
 
         # text for synchronous
-        ax.text(0.08,0.85,'Synchronous',color=tet, fontsize=fontsize) # upper left synchronous
-        ax.text(0.08,0.12,'Synchronous',color=tet, fontsize=fontsize) # lower left synchronous
-        ax.text(0.70,0.85,'Synchronous',color=tet, fontsize=fontsize) # upper right synchronous
-        ax.text(0.70,0.12,'Synchronous',color=tet, fontsize=fontsize) # lower right synchronous
+        ax.text(0.03,0.85,'Synchronous',color=tet, fontsize=fontsize) # upper left synchronous
+        ax.text(0.03,0.12,'Synchronous',color=tet, fontsize=fontsize) # lower left synchronous
+        ax.text(0.71,0.85,'Synchronous',color=tet, fontsize=fontsize) # upper right synchronous
+        ax.text(0.71,0.12,'Synchronous',color=tet, fontsize=fontsize) # lower right synchronous
         
         # text for front-->rear and rear-->front
-        ax.text(0.72,1/3-ybuff,'Anterograde',color=tet, fontsize=fontsize) # lower right
-        ax.text(0.72,2/3-ybuff,'Retrograde',color=tet, fontsize=fontsize) # upper right
+        ax.text(0.72,1/3+ybuff,'Tetrapod\nAnterograde',color=tet, fontsize=fontsize) # lower right
+        ax.text(0.72,2/3+ybuff,'Tetrapod\nRetrograde',color=tet, fontsize=fontsize) # upper right
         
         # Text on colored background for asynchronous
-        t1 = ax.text(0.38,0.85,'Asynchronous',color='w', fontsize=fontsize) # upper tetrapod rectangle
+        t1 = ax.text(0.36,0.85,'Asynchronous',color='w', fontsize=fontsize) # upper tetrapod rectangle
         t1.set_bbox(dict(facecolor=tet, linewidth=0))
-        t2 = ax.text(0.38,0.12,'Asynchronous',color='w', fontsize=fontsize) # lower tetrapod rectangle
+        t2 = ax.text(0.36,0.12,'Asynchronous',color='w', fontsize=fontsize) # lower tetrapod rectangle
         t2.set_bbox(dict(facecolor=tet, linewidth=0))
 
         # text for tripod
-        ax.text(0.32,1/2-ybuff,'Tripod',color=tri, fontsize=fontsize) # Tripod
+        ax.text(0.32,1/2-0.01,'Tripod',color=tri, fontsize=fontsize) # Tripod
 #         ax.text(0.38,0.55,'Synchronous',color=tri) # Synchronous tripod
     
     ax.set_xlim([0,1])
@@ -3181,7 +3181,7 @@ def formatBoxPlots(bp, boxColors=[], medianColors=[], flierColors=[]):
     return bp
 
 # single violin plot (by seaborn) with POINTS from dataframe column
-def singleViolinPoints(ax,df,col,vcolor='tab:blue',vwidth=0.8,
+def singleViolinPoints(ax,df,col,vcolor='tab:blue',vwidth=0.8,medsize=0,
                        pointcolor='lightsteelblue',pointsize=3,pointjitter=0.05,box=False):
     
     if box == True:
@@ -3197,6 +3197,10 @@ def singleViolinPoints(ax,df,col,vcolor='tab:blue',vwidth=0.8,
             artist.set_zorder(10)
         for artist in ax.findobj(PathCollection):
             artist.set_zorder(11)
+    
+    if medsize > 0: # plot a larger median point
+        median_d = np.median(d)
+        plt.plot(0,median_d,marker='o',markersize=medsize,color='white',zorder=12)
     
     ax = sns.stripplot(d,ax=ax,jitter=pointjitter,
                        color=pointcolor,size=pointsize)
