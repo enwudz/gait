@@ -178,8 +178,8 @@ def offsetGaitstyleLabels(ax, with_text = True, fontsize = 12):
     
     ax.set_xlim([0,1])
     ax.set_ylim([0,1])
-    ax.set_xlabel('ϕc (Normalized Phase)')
-    ax.set_ylabel('ϕi (Normalized Phase)')
+    ax.set_xlabel('$ϕ_C$ (Normalized Phase)')
+    ax.set_ylabel('$ϕ_I$ (Normalized Phase)')
     
     return ax
 
