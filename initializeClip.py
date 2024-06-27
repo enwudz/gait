@@ -107,6 +107,8 @@ def guessTreatment(s):
     drugs = ['control', 'caffeine', 'alcohol', 'nicotine', 'disulfiram', 'lead', 'simvastatin']
     conditions = ['control', 'wildtype', 'embryo', 'juvenile', ' adult']
     species = ['exemplaris', 'ramazzottius']
+    styles = ['slowwalking','mediumwalking','fastwalking',
+              'slowrunning','mediumrunning','fastrunning']
     
     treatment = 'unknown'
     
@@ -121,6 +123,11 @@ def guessTreatment(s):
     for sp in species:
         if sp in s:
             treatment = sp
+            
+    if 'walking' in s or 'running' in s:
+        for style in styles:
+            if style in s:
+                treatment = style
             
     if 'day' in s:
         daypos = s.find('day')

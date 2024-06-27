@@ -66,14 +66,19 @@ def main(movie_file):
         areas = tracked_data.areas.values 
         lengths = tracked_data.lengths.values
         widths = tracked_data.widths.values
-        uncertainties = tracked_data[uncertainty_col].values
         
     except:
         areas = np.zeros(len(frametimes))
         lengths = np.zeros(len(frametimes))
         widths = np.zeros(len(frametimes))
+               
+    try:
+        uncertainties = tracked_data[uncertainty_col].values
+    except:
         uncertainties = np.zeros(len(frametimes))
         uncertainty_col = 'uncertainty'
+        pixel_threshold = 0
+        
     
     # get coordinates of centroids at every frame    
     xcoords = tracked_data.xcoords.values

@@ -150,14 +150,15 @@ def clickDrag(event, x, y, flats, param):
 
 
 def promptForMeasurement():
+    print('Length = body dimension along direction of travel; Width = perpendicular to Length')
     selection = input('\nMeasure (w)idth or (l)ength or (q)uit?: ' ).rstrip()
     # print('you pressed ' + selection) # testing
     if selection == 'w':
         what_to_measure = 'width'
-        print('  You selected width - measure across body between leg pairs 2 and 3')
+        print('  You selected width - measure body perpendicular to direction of travel')
     elif selection == 'l':
         what_to_measure = 'length'
-        print('  You selected length - measure from nose to space between 4th leg pair')
+        print('  You selected length - measure body along direction of travel')
     else:
         what_to_measure = 'q'
         print('All done measuring!')

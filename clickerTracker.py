@@ -4,7 +4,9 @@
 Track things that are not working with autoTracker
 load video
 report # frames
-ask how many frames to track (suggest default = every 5th frame)
+ask how many frames to track 
+    (suggest default = every 5th frame)
+    (or a max number of frames)
     be sure to include first and last frame
 open each frame
 record points
@@ -23,6 +25,8 @@ import sys
 import cv2
 
 def main(movie_file):
+    
+    max_frames = 40
 
     # grab references to the global variables
     global image, refPt, drawing, nameText    
@@ -39,7 +43,11 @@ def main(movie_file):
     
     # ask how many frames to track (suggest every 5th frame, plus first and last)
     print('There are ' + str(num_frames) + ' frames in this movie . . . ')
-    suggested_frame_number = int(num_frames/5) + 2
+    if num_frames > max_frames:
+        suggested_frame_number = max_frames
+    else:
+        suggested_frame_number = int(num_frames/5) + 2
+    
     selection = input('\nEnter number of frames to track:  (d) = ' + str(suggested_frame_number) + '  : ')
     if selection == 'd': 
         num_frames_to_track = suggested_frame_number
@@ -105,10 +113,15 @@ def main(movie_file):
     ycoords = fillGaps(ycoords)
     
     # measure the length and width of the critter
+    # length is defined as the body dimension along direction of travel
+    # width is defined as the body dimension perpendicular to direction of travel
     length, width = manualCritterMeasurement.main(movie_file)
     
+    print('Length (body dimension along direction of travel)            = ' + str(np.round(length,2)))
+    print('Width  (body dimension perpendicular to direction of travel) = ' + str(np.round(width,2)))
+    
     # calculate the area ... assume the critter is elliptical ...
-    area = math.pi * 2 * length * 2 * width
+    area = math.pi * 0.5 * length * 0.5 * width
     
     lengths = [length] * len(xcoords)
     widths = [width] * len(xcoords)

@@ -23,11 +23,11 @@ import glob
 import os
 # import scipy.signal
 
-def main(cropped_folder, movie_file, zoom_percent = 100, direction = 'up', save_cropped_frames = False, starttimes = [], endtimes = []):
+def main(cropped_folder, movie_file, zoom_percent = 100, save_cropped_frames = False, starttimes = [], endtimes = []):
     
-    ''' ----> Adjust these paramaters for labels '''
+    ''' ----> Adjust these parameters for labels '''
     font = cv2.FONT_HERSHEY_DUPLEX # cv2.FONT_HERSHEY_SCRIPT_COMPLEX 
-    add_labels = False # True to add time stamp and turn / stop labels
+    add_labels = True # True to add time stamp and turn / stop labels
     text_size = 1
     turn_color = (155,155,0) # (155, 155, 0) # all zeros for nothing
     stop_color = (15,0,100) # (15, 0, 100) # all zeros for nothing
@@ -86,17 +86,33 @@ def main(cropped_folder, movie_file, zoom_percent = 100, direction = 'up', save_
             species = 'tardigrade'
         
         # if not a tardigrade, it might be going fast in a particular direction
-        if species != 'tardigrade':
-            wiggle_room = 30
+        if species == 'tardigrade':
+            direction = 'up'
+            live_rotate = True
+        else:
+            wiggle_room = 10
             mean_bearings = np.mean(bearings)
             if 270-wiggle_room < mean_bearings < 270+wiggle_room:
                 direction = 'left'
+                live_rotate = False
             elif 90-wiggle_room < mean_bearings < 90+wiggle_room:
                 direction = 'right'
+                live_rotate = False
+            elif 180-wiggle_room < mean_bearings < 180+wiggle_room:
+                direction = 'down'
+                live_rotate = False
+            elif 0-wiggle_room < mean_bearings < 0+wiggle_room:
+                direction = 'up'
+                live_rotate = False
             else:
                 direction = 'up'
+                live_rotate = True
                 
-    print('Direction of travel is ' + direction)
+    print('\nWill show direction of traval as ' + direction)
+    if live_rotate:
+        print('... direction of travel varies; will rotate every frame')
+    else:
+        print('... direction of travel is constant; will not rotate frames')
     
     ## smooth out the bearings or bearing changes, not so much movement
     # pole = 10 # integer; lower = more smooth ... but 'freq' has more effect?
@@ -112,41 +128,40 @@ def main(cropped_folder, movie_file, zoom_percent = 100, direction = 'up', save_
     # plt.show()
     # exit()
     
-    ''' Crop video window according to critter size ... so we need LENGTH of critter '''
-    ## Get XY coordinates and tardigrade size
+    ''' Crop video window according to critter size ... '''
+    ## Get XY coordinates and critter size
+    ## note that length is the body dimension in the direction of travel  
     smoothed_x = tracked_df.smoothed_x.values
     smoothed_y = tracked_df.smoothed_y.values
     mean_length = np.mean(tracked_df.lengths.values)
+    mean_width = np.mean(tracked_df.widths.values)
     if mean_length == 0:
-        print('Need to measure critter length!')
-        print(' ... getting image to measure ...')
-        import measureImage 
-        firstframe = gaitFunctions.getFirstFrame(movie_file)
-        imfile = movie_file.split('.')[0] + '_first.png'
-        cv2.imwrite(imfile, firstframe, [cv2.IMWRITE_PNG_COMPRESSION, 0])
-        critter_length = measureImage.main(imfile, False)
-        os.remove(imfile)
+        print('Need to measure critter dimensions!')
+        import manualCritterMeasurement
+        critter_length, critter_width = manualCritterMeasurement.main(movie_file)
     else:
-        critter_length = mean_length
+        critter_length, critter_width = mean_length, mean_width
     
-    print('Cropping frames based on length of ' + str(np.round(critter_length,1)) + ' pixels')
+    ### set size of crop window based on size of critter (or set manually below)
+    print('Cropping frames based on length of ' + str(np.round(critter_length,1)) + ' pixels in direction of travel')
+    length_multiplier = 2.5
+    width_multiplier = 0.8
     
-    ## set size of crop window
     if direction in ['up','down']:
-        width_multiplier = 0.5 # 0.4 or 0.5 for tardigrades
-        height_multiplier = 0.8 # 0.8 for tardigrades
+        # image height scaled to body LENGTH
+        # image width scaled to body WIDTH
+        crop_height_offset = int(critter_length * length_multiplier)
+        crop_width_offset = int(critter_width * width_multiplier) 
+        
     else:
-        width_multiplier = 0.8
-        height_multiplier = 0.6
-    
-    # Set cropping size based on length of critter 
-    crop_width_offset = int(critter_length * width_multiplier)  
-    crop_height_offset = int(critter_length * height_multiplier) 
-    # print(crop_height_offset)
+        # image height scaled to body WIDTH
+        # image width scaled to body LENGTH
+        crop_height_offset = int(critter_width * width_multiplier)
+        crop_width_offset = int(critter_length * length_multiplier) 
     
     ### OR MANUALLY set cropping size  . . . 
-    crop_width_offset = 100 # set to half of desired width # 100 for representative movies
-    crop_height_offset = 180 # set to half of desired height # 180 for representative movies
+    # crop_width_offset = 100 # set to half of desired width # 100 for representative movies
+    # crop_height_offset = 180 # set to half of desired height # 180 for representative movies
     
     print('Cropped width offset:  ', crop_width_offset, 'pixels')
     print('Cropped height offset: ', crop_height_offset, 'pixels')
@@ -188,7 +203,7 @@ def main(cropped_folder, movie_file, zoom_percent = 100, direction = 'up', save_
     if direction == 'down':
         initial_direction = 180
     elif direction == 'left':
-        initial_direction = -90
+        initial_direction = -90 
         flipToRight = True
         print('We will flip this to the right!')
     elif direction == 'right':
@@ -236,9 +251,12 @@ def main(cropped_folder, movie_file, zoom_percent = 100, direction = 'up', save_
             new_y = int(padded_cY + y_centroid_offset)
             # cv2.circle(padded, (new_x, new_y), 10, (0,0,0), -1)
             
-            # rotate padded image around centroid    
-            M = cv2.getRotationMatrix2D((new_x, new_y), rotate_angle, 1.0)
-            rotated = cv2.warpAffine(padded, M, (padded_w, padded_h))
+            # rotate padded image around centroid
+            if live_rotate: # variable direction, need to rotate every frame
+                M = cv2.getRotationMatrix2D((new_x, new_y), rotate_angle, 1.0)
+                rotated = cv2.warpAffine(padded, M, (padded_w, padded_h))
+            else: # constant direction
+                rotated = padded
             # gaitFunctions.displayFrame(rotated)    
             
             # crop around centroid
@@ -264,7 +282,7 @@ def main(cropped_folder, movie_file, zoom_percent = 100, direction = 'up', save_
                 frame = cv2.putText(frame, str(frametimes[i]),
                                     time_stamp_position,
                                     font, text_size,
-                                    (55, 55, 55),
+                                    (255, 255, 255), # (55, 55, 55)
                                     4, cv2.LINE_8)
                 
                 # add text for turns (fade in before and out after by text alpha)
@@ -390,7 +408,6 @@ def getCroppedFolder(movie_file):
 if __name__== "__main__":
     
     zoom_percent = 100
-    direction = 'up'
     
     if len(sys.argv) == 1:
         movie_file = gaitFunctions.selectFile(['mp4','mov'])     
@@ -398,11 +415,9 @@ if __name__== "__main__":
         movie_file = sys.argv[1]
     if len(sys.argv) > 2:
         zoom_percent = int(sys.argv[2])
-    if len(sys.argv) > 3:
-        direction = sys.argv[3]
 
     cropped_folder = getCroppedFolder(movie_file)
-    main(cropped_folder, movie_file, zoom_percent, direction)
+    main(cropped_folder, movie_file, zoom_percent)
     
     
     
