@@ -144,7 +144,7 @@ def main(cropped_folder, movie_file, zoom_percent = 100, save_cropped_frames = F
     
     ### set size of crop window based on size of critter (or set manually below)
     print('Cropping frames based on length of ' + str(np.round(critter_length,1)) + ' pixels in direction of travel')
-    length_multiplier = 2.5
+    length_multiplier = 0.8
     width_multiplier = 0.8
     
     if direction in ['up','down']:
