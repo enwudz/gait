@@ -283,10 +283,10 @@ def main(movie_file):
         gait_df = gaitFunctions.getGaitDataframe(movie_file)
         
         # here is where we can get coordination strength
-        stances, swings = combineSteptracking(excel_filename)
+        # stances, swings = combineSteptracking(excel_filename)
         
         for gait_style in ['tetrapod','tripod']:
-            gait_df = calculateCoordination(gait_df, gait_style, stances, swings)
+            gait_df = getCssAndSpeeds(gait_df, gait_style)
         
         print('Saving gaits to gait_styles sheet ... ')
         with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
@@ -722,7 +722,210 @@ def truncToThree(flt):
     '''
     return int(flt*1000)/1000
 
-def calculateCoordination(gait_styles_df, gait_style, stances, swings):
+
+def legsInCombo(legs, combo):
+    '''
+    Function to see if any leg in a list of legs is in a particular combo
+        inputs = 
+            legs = a list of legs (e.g. ['L1','R3'])
+            combo = a string (e.g. 'L1_R2')
+    '''
+    
+    try: 
+        np.isnan(combo)
+        return False
+    
+    except:
+        for leg in legs:
+            if leg in combo:
+                return True
+        return False
+
+def css(combo_vec, start_bout, end_bout):
+    
+    '''
+    Function to calculate coordination score based on boundaries
+        input = boundaries and vector of leg combos for each frame
+        Get earliest start for combo at beginning
+        Get latest end for combo at end
+        Calculate coordination strength
+    '''
+    
+    # move back from start_bout to get earliest swing of legs in swinging combo
+    back_counter = 0
+    
+    legs_at_start = combo_vec[start_bout].split('_')
+    found_start = False
+    
+    while found_start is False:
+        
+        idx = start_bout - back_counter - 1
+        if idx >= 0:
+            
+            combo = combo_vec[idx]
+            if legsInCombo(legs_at_start, combo):
+                back_counter += 1
+            else:
+                found_start = True
+                
+        else:
+            found_start = True
+    
+    # move forward from end_bout to get latest swing of legs in swinging combo
+    forward_counter = 0
+    
+    legs_at_end = combo_vec[end_bout].split('_')
+    found_end = False
+    
+    while found_end is False:
+        
+        idx = end_bout + forward_counter + 1
+        if idx < len(combo_vec):
+            
+            combo = combo_vec[idx]
+            if legsInCombo(legs_at_end, combo):
+                forward_counter += 1
+            else:
+                found_end = True
+            
+        else:
+            found_end = True
+            
+    bout_duration = end_bout + 1 - start_bout
+    tot_duration = bout_duration + back_counter + forward_counter
+    
+    coordination_strength = bout_duration / tot_duration
+    
+    return coordination_strength, bout_duration
+
+
+def speedInBout(speed_vec, start_bout, end_bout):
+    '''
+    Function to calculate speed based on boundaries
+        input = boundaries and vector of speeds for each frame
+    '''
+    return np.mean(speed_vec[start_bout:end_bout+1])
+
+
+def common_member(a, b):
+    '''
+    Function to see if there is any intersection between two lists
+    '''
+    a_set = set(a)
+    b_set = set(b)
+    if len(a_set.intersection(b_set)) > 0:
+        return(True) 
+    return(False) 
+
+def getCssAndSpeeds(gait_styles_df, gait_style): # NEW VERSION JULY 2024
+
+    '''
+    New version July 2024: 
+        CSS is now robust to changes in identities of swinging legs
+        For example: 
+        L1R2 ==> L3R2 seamlessly is now considered same bout of tetrapod instead of two bouts
+
+    
+    Calculate 'coordination strength' for a specified gait_style ('tetrapod' or 'tripod')
+    This only considers bouts of 'canonical' gait
+    
+    See Wosnitza et al. 2013: https://doi.org/10.1242/jeb.078139
+    
+    Inputs:
+    gait_styles_df: DataFrame - loaded from gait_styles sheet
+    gait_style: String - 'tetrapod' or 'tripod'
+    
+    Returns:
+    a copy of gait_styles_df with two new columns:
+        Coordination strength for each bout of the specified gait_style
+        Average speed (in bodylengths / sec) for each bout of the specified gait_style
+    '''
+    
+    new_df = gait_styles_df.copy()
+    
+    # define searchterm
+    searchterm = gait_style + '_canonical'
+    
+    # get vectors we need
+    speed_vec = gait_styles_df['speed (bodylength/s)'].values
+    gaits_vec = gait_styles_df['gaits_lateral'].values
+    combo_vec = gait_styles_df['swinging_lateral'].values
+    
+    # set up vectors for return
+    coord_strength_vec = np.empty(len(gaits_vec))
+    coord_strength_vec[:] = np.nan
+    coord_speed_vec = np.empty(len(gaits_vec))
+    coord_speed_vec[:] = np.nan
+    
+    # set up column names for updated vector
+    coord_col_name = gait_style + '_coordination'
+    speed_col_name = gait_style + '_speed'
+
+    current_combo = ''
+    begin_bout = 0
+    
+    for i, frame in enumerate(gaits_vec):
+        if frame == searchterm: # if X_canonical
+
+            if len(current_combo) > 0: # if have a current combo
+
+                if frame == current_combo: # this is the same combo
+                    end_bout = i # update end to this frame
+
+                else: # this is a different combo
+                    currentcombo_list = current_combo.split('_')
+                    newcombo_list = combo_vec[i].split('_')
+
+                    if common_member(currentcombo_list, newcombo_list): # If overlap with current combo
+                        current_combo = combo_vec[i] # Update current combo
+                        end_bout = i # update end to this frame
+
+                    else: # No overlap with current combo, all done with old one
+
+                        # Calculate things based on beginning and end
+                        coordination_strength, bout_duration = css(combo_vec, begin_bout, end_bout)
+                        avg_bout_speed = speedInBout(speed_vec, begin_bout, end_bout)
+
+                        # Insert into CSS and Boutspeed vectors at beginning index
+                        coord_strength_vec[begin_bout] = coordination_strength
+                        coord_speed_vec[begin_bout] = avg_bout_speed
+
+                        # testing
+                        # print(begin_bout, end_bout, coordination_strength, avg_bout_speed)
+
+                        # done ... set current combo to this new one
+                        current_combo = frame
+
+            else: # do not have a current combo, start one here
+                current_combo = combo_vec[i] # Update current combo
+                begin_bout = i # update beginning to this frame
+                end_bout = i # update end to this frame
+
+        else: # not X_canonical
+
+            if len(current_combo) > 0: # if have a current combo, all done with it
+
+                # Calculate things based on beginning and end
+                coordination_strength, bout_duration = css(combo_vec, begin_bout, end_bout)
+                avg_bout_speed = speedInBout(speed_vec, begin_bout, end_bout)
+
+                # Insert into CSS and Boutspeed vectors at beginning index
+                coord_strength_vec[begin_bout] = coordination_strength
+                coord_speed_vec[begin_bout] = avg_bout_speed
+
+                # testing
+                # print(begin_bout, end_bout, coordination_strength, avg_bout_speed)
+
+                # done ... empty out current combo
+                current_combo = ''
+    
+    # finished going through frames, add columns of new data to dataframe
+    new_df[coord_col_name] = coord_strength_vec
+    new_df[speed_col_name] = coord_speed_vec
+    
+    return new_df
+
+def calculateCoordination(gait_styles_df, gait_style, stances, swings): # OLD VERSION! PRE July 2024
     
     '''
     Calculate 'coordination strength' for a specified gait_style ('tetrapod' or 'tripod')
