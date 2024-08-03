@@ -3570,8 +3570,8 @@ def coordinationComboConsistency(gait_speeds_df, gait_summaries_df, icp):  # 'te
     (summed across all legs)
     
     inputs = 
-        gait_speeds_df (from combineClips.py or an individual clip)
-        gait_summaries_df (from combineClips.py or an individual clip)
+        gait_speeds_df (from combineClips.py)
+        gait_summaries_df (from combineClips.py)
         icp = 'tetrapod or 'tripod'
         
     returns = 
