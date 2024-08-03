@@ -3525,3 +3525,152 @@ def whichExcelHaveSteps():
                     flist.append(x)
 
     return sorted(flist)
+
+def canonicalComboList(icp):
+    if icp == 'tripod':
+        return ['L1_L3_R2','L2_R1_R3']
+    else:
+        return ['L1_R2','L1_R3','L2_R1','L2_R3','L3_R1','L3_R2']
+
+def combosWithLeg(leg, icp):
+    '''
+    make dictionary of tetrapod and tripod tripod combos
+    key = leg; value = combo for that leg
+    '''
+    # could code these but too lazy
+    tetrapod = {}
+    tetrapod['L1'] = ['L1_R2','L1_R3']
+    tetrapod['L2'] = ['L2_R1','L2_R3']
+    tetrapod['L3'] = ['L3_R1','L3_R2']
+    tetrapod['R1'] = ['L2_R1','L3_R1']
+    tetrapod['R2'] = ['L1_R2','L3_R2']
+    tetrapod['R3'] = ['L1_R3','L2_R3']
+    
+    tripod = {}
+    tripod['L1'] = ['L1_L3_R2']
+    tripod['L2'] = ['L2_R1_R3']
+    tripod['L3'] = ['L1_L3_R2']
+    tripod['R1'] = ['L2_R1_R3']
+    tripod['R2'] = ['L1_L3_R2']
+    tripod['R3'] = ['L2_R1_R3']
+    
+    if icp == 'tripod':
+        return tripod[leg]
+    else:
+        return tetrapod[leg]
+    
+def coordinationComboConsistency(gait_speeds_df, gait_summaries_df, icp):  # 'tetrapod' or 'tripod'
+    
+    '''
+    calculates coordination consistency score (CCS) for each tardigrade
+    
+    for each leg, finds the most common tetrapod or tripod ICP for that leg within a clip
+    then calculates proportion of all strides of that leg that contain that particular ICP
+    assigns a score to each tardigrade by calculating # strides with ICP / total strides
+    (summed across all legs)
+    
+    inputs = 
+        gait_speeds_df (from combineClips.py or an individual clip)
+        gait_summaries_df (from combineClips.py or an individual clip)
+        icp = 'tetrapod or 'tripod'
+        
+    returns = 
+        a copy of gait_summaries_df, with a new column for coordination consistency score (CCS)
+    '''
+    
+    coord_consistency_dict = {}
+    legs = ['L3','L2','L1','R3','R2','R1']
+    individuals = np.unique(gait_speeds_df['uniq_id'].values)
+    # print(len(individuals)) # testing OK
+    
+    icp_combos = canonicalComboList(icp)
+    # print(icp_combos) # testing OK
+
+    # For each individual
+    for individual in individuals:
+
+        # reset counts
+        total_swings = 0
+        swings_with_icp = 0
+        
+        # make df for this individual from gait_speeds_df
+        ind_df = gait_speeds_df[gait_speeds_df['uniq_id']==individual]
+        # print(len(ind_df)) # testing OK
+
+        # get clips for this individual
+        clips = np.unique(ind_df['clip'].values)
+        # print(clips) # testing OK
+        
+        # for each clip
+        for clip in clips:
+            
+            clip_df = ind_df[ind_df['clip']==clip]
+            # print(len(clip_df)) # testing OK
+        
+            # find counts for canonical leg combos in this clip
+            swinging_legs = clip_df['swinging_lateral'].values
+            # print(swinging_legs) # testing OK
+            combo_counts = {}            
+            for combo in icp_combos:
+                combo_counts[combo] = len(np.where(swinging_legs == combo)[0])
+            # print(clip, combo_counts) # testing OK
+
+            # for each leg, get # of swings
+            
+            # figure out how many steps for this leg have the most prevalent combo
+            for leg in legs:
+
+                # get the icp combos for this leg
+                leg_combos = combosWithLeg(leg, icp)
+                
+                # figure out which combo is most prevalent for this leg
+                counter = 0
+                for leg_combo in leg_combos:
+                    if combo_counts[leg_combo] > counter:
+                        common_icp = leg_combo
+                        counter = combo_counts[leg_combo]
+                # print(leg, common_icp) # testing OK
+
+                # make vector of 1's (swings for this leg) and 0's from swinging_lateral column
+                swings_for_this_leg = np.zeros(len(swinging_legs))
+                for i, swing in enumerate(swinging_legs):
+                    try:
+                        if leg in swing:
+                            swings_for_this_leg[i] = 1
+                    except:
+                        swings_for_this_leg[i] = 0
+                # print(leg, swings_for_this_leg) # testing OK
+
+                # From this vector, get num_swings (aka number of 1 runs)
+                swings = one_runs(swings_for_this_leg)
+                #print(leg, len(swings), swings) # testing OK
+                total_swings += len(swings)
+
+                # For each swing
+                for swing in swings:
+                    # get each swing start through swing end
+                    swing_start = swing[0]
+                    swing_end = swing[1]
+
+                    # Check vector of swinging_legs within this interval ... is common_icp in there?
+                    if common_icp in swinging_legs[swing_start:swing_end]:
+                        # print(leg,'yes',common_icp, swinging_legs[swing_start:swing_end]) # testing OK
+                        # if yes, add 1 to swings_with_icp
+                        swings_with_icp += 1
+                    # else:
+                        # print(leg,'no',common_icp, swinging_legs[swing_start:swing_end]) # testing OK
+
+        # Finished collecting legs for this individual
+        # Calculate coord_consistency (swings_with_icp / total_swings)
+        coord_consistency = swings_with_icp / total_swings
+        # print(individual, coord_consistency) # testing OK
+        coord_consistency_dict[individual] = coord_consistency
+    
+    # add this dictionary as a column to gait_summaries df
+    new_df = gait_summaries_df.copy()
+    new_individuals = new_df.Identifier.values
+    cc = [coord_consistency_dict[i] for i in new_individuals]
+    # print(cc) # testing OK
+    new_df[icp + '_coordination_consistency'] = cc
+    
+    return new_df

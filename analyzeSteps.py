@@ -286,7 +286,11 @@ def main(movie_file):
         # stances, swings = combineSteptracking(excel_filename)
         
         for gait_style in ['tetrapod','tripod']:
-            gait_df = getCssAndSpeeds(gait_df, gait_style)
+            coord_strength_vec, coord_speed_vec = getCssAndSpeeds(gait_df, gait_style)
+            coord_col = gait_style + '_coordination'
+            speed_col = gait_style + '_speed'
+            gait_df[coord_col] = coord_strength_vec
+            gait_df[speed_col] = coord_speed_vec
         
         print('Saving gaits to gait_styles sheet ... ')
         with pd.ExcelWriter(excel_filename, engine='openpyxl', if_sheet_exists='replace', mode='a') as writer: 
@@ -796,7 +800,11 @@ def css(combo_vec, start_bout, end_bout):
     
     coordination_strength = bout_duration / tot_duration
     
-    return coordination_strength, bout_duration
+    # omit data that overlap with beginning or ending of clip
+    if start_bout - back_counter > 0 and end_bout + forward_counter < len(combo_vec) - 1:
+        return coordination_strength, bout_duration
+    else:
+        return np.nan, 0
 
 
 def speedInBout(speed_vec, start_bout, end_bout):
@@ -841,8 +849,6 @@ def getCssAndSpeeds(gait_styles_df, gait_style): # NEW VERSION JULY 2024
         Average speed (in bodylengths / sec) for each bout of the specified gait_style
     '''
     
-    new_df = gait_styles_df.copy()
-    
     # define searchterm
     searchterm = gait_style + '_canonical'
     
@@ -856,10 +862,6 @@ def getCssAndSpeeds(gait_styles_df, gait_style): # NEW VERSION JULY 2024
     coord_strength_vec[:] = np.nan
     coord_speed_vec = np.empty(len(gaits_vec))
     coord_speed_vec[:] = np.nan
-    
-    # set up column names for updated vector
-    coord_col_name = gait_style + '_coordination'
-    speed_col_name = gait_style + '_speed'
 
     current_combo = ''
     begin_bout = 0
@@ -884,7 +886,10 @@ def getCssAndSpeeds(gait_styles_df, gait_style): # NEW VERSION JULY 2024
 
                         # Calculate things based on beginning and end
                         coordination_strength, bout_duration = css(combo_vec, begin_bout, end_bout)
-                        avg_bout_speed = speedInBout(speed_vec, begin_bout, end_bout)
+                        if bout_duration > 0:
+                            avg_bout_speed = speedInBout(speed_vec, begin_bout, end_bout)
+                        else:
+                            avg_bout_speed = np.nan
 
                         # Insert into CSS and Boutspeed vectors at beginning index
                         coord_strength_vec[begin_bout] = coordination_strength
@@ -907,7 +912,10 @@ def getCssAndSpeeds(gait_styles_df, gait_style): # NEW VERSION JULY 2024
 
                 # Calculate things based on beginning and end
                 coordination_strength, bout_duration = css(combo_vec, begin_bout, end_bout)
-                avg_bout_speed = speedInBout(speed_vec, begin_bout, end_bout)
+                if bout_duration > 0:
+                    avg_bout_speed = speedInBout(speed_vec, begin_bout, end_bout)
+                else:
+                    avg_bout_speed = np.nan
 
                 # Insert into CSS and Boutspeed vectors at beginning index
                 coord_strength_vec[begin_bout] = coordination_strength
@@ -919,11 +927,9 @@ def getCssAndSpeeds(gait_styles_df, gait_style): # NEW VERSION JULY 2024
                 # done ... empty out current combo
                 current_combo = ''
     
-    # finished going through frames, add columns of new data to dataframe
-    new_df[coord_col_name] = coord_strength_vec
-    new_df[speed_col_name] = coord_speed_vec
+    # finished going through frames, return vectors
     
-    return new_df
+    return coord_strength_vec, coord_speed_vec
 
 def calculateCoordination(gait_styles_df, gait_style, stances, swings): # OLD VERSION! PRE July 2024
     
