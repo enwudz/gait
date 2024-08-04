@@ -3671,6 +3671,7 @@ def coordinationComboConsistency(gait_speeds_df, gait_summaries_df, icp):  # 'te
     new_individuals = new_df.Identifier.values
     cc = [coord_consistency_dict[i] for i in new_individuals]
     # print(cc) # testing OK
-    new_df[icp + '_coordination_consistency'] = cc
+    icp_lab = icp[0].upper() + icp[1:]
+    new_df[icp_lab + ' Coordination Consistency'] = cc
     
     return new_df
