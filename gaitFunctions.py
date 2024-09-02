@@ -122,7 +122,7 @@ def offsetsForLegEvents(offsets, proportions, speeds, ref_leg_events, comp_leg_e
     return offsets, proportions, speeds
 
 
-def offsetGaitstyleLabels(ax, with_text = True, fontsize = 12):
+def offsetGaitstyleLabels(ax, with_text = True, fontsize = 12, markersize=15):
     
     # add hexapod gait style labels on plot of contralateral vs. ipsilateral offsets
     
@@ -143,13 +143,13 @@ def offsetGaitstyleLabels(ax, with_text = True, fontsize = 12):
     ybuff = -0.035
 
     # markers
-    ax.plot(1/3,1/3,marker=arrowup,markersize=15,color=tet)
-    ax.plot(1/3,2/3,marker=arrowdown,markersize=15,color=tet)
-    ax.plot(2/3,1/3,marker=arrowup,markersize=15,color=tet)
-    ax.plot(2/3,2/3,marker=arrowdown,markersize=15,color=tet)
-    ax.plot(1/2,1/3,marker=cut_arrowup,markersize=15,color=tet)
-    ax.plot(1/2,2/3,marker=cut_arrowdown,markersize=15,color=tet)
-    ax.plot(1/2,1/2,marker=star,markersize=15,color=tri)
+    ax.plot(1/3,1/3,marker=arrowup,markersize=markersize,color=tet)
+    ax.plot(1/3,2/3,marker=arrowdown,markersize=markersize,color=tet)
+    ax.plot(2/3,1/3,marker=arrowup,markersize=markersize,color=tet)
+    ax.plot(2/3,2/3,marker=arrowdown,markersize=markersize,color=tet)
+    ax.plot(1/2,1/3,marker=cut_arrowup,markersize=markersize,color=tet)
+    ax.plot(1/2,2/3,marker=cut_arrowdown,markersize=markersize,color=tet)
+    ax.plot(1/2,1/2,marker=star,markersize=markersize,color=tri)
 
     if with_text:
         # text for tetrapod
