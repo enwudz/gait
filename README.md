@@ -4,5 +4,5 @@ Comparative analysis of tardigrade locomotion across life stage, species, and ph
 ... and submitted to PLOS One
 
 Detailed protocols for data collection and script use can be found at protocols.io:
-DOI: dx.doi.org/10.17504/protocols.io.kxygxy8nwl8j/v1
+https://dx.doi.org/10.17504/protocols.io.kxygxy8nwl8j/v1
 
